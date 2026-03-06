@@ -1,0 +1,70 @@
+import Foundation
+import AuthenticationServices
+
+@Observable
+final class AuthService {
+    static let shared = AuthService()
+
+    var currentUser: User?
+    var isAuthenticated: Bool { TokenManager.shared.isAuthenticated }
+    var hasCompletedOnboarding: Bool { currentUser?.onboardingCompleted ?? false }
+
+    func register(email: String, password: String, fullName: String?) async throws {
+        let request = RegisterRequest(email: email, password: password, fullName: fullName)
+        let response: AuthResponse = try await APIClient.shared.request(
+            APIEndpoints.Auth.register, method: "POST", body: request, authenticated: false
+        )
+        TokenManager.shared.saveTokens(access: response.accessToken, refresh: response.refreshToken)
+        currentUser = response.user
+    }
+
+    func login(email: String, password: String) async throws {
+        let request = LoginRequest(email: email, password: password)
+        let response: AuthResponse = try await APIClient.shared.request(
+            APIEndpoints.Auth.login, method: "POST", body: request, authenticated: false
+        )
+        TokenManager.shared.saveTokens(access: response.accessToken, refresh: response.refreshToken)
+        currentUser = response.user
+    }
+
+    func signInWithApple(identityToken: String, fullName: PersonNameComponents?) async throws {
+        let name = fullName.map {
+            AppleSignInRequest.FullName(givenName: $0.givenName, familyName: $0.familyName)
+        }
+        let request = AppleSignInRequest(identityToken: identityToken, fullName: name)
+        let response: AuthResponse = try await APIClient.shared.request(
+            APIEndpoints.Auth.apple, method: "POST", body: request, authenticated: false
+        )
+        TokenManager.shared.saveTokens(access: response.accessToken, refresh: response.refreshToken)
+        currentUser = response.user
+    }
+
+    func signInWithGoogle(idToken: String) async throws {
+        let request = GoogleSignInRequest(idToken: idToken)
+        let response: AuthResponse = try await APIClient.shared.request(
+            APIEndpoints.Auth.google, method: "POST", body: request, authenticated: false
+        )
+        TokenManager.shared.saveTokens(access: response.accessToken, refresh: response.refreshToken)
+        currentUser = response.user
+    }
+
+    func completeOnboarding(sport: String, mantra: String?, notificationFrequency: Int) async throws {
+        let request = OnboardingRequest(sport: sport, mantra: mantra, notificationFrequency: notificationFrequency)
+        let user: User = try await APIClient.shared.request(
+            APIEndpoints.Auth.onboarding, method: "PUT", body: request
+        )
+        currentUser = user
+    }
+
+    func loadProfile() async throws {
+        let user: User = try await APIClient.shared.request(APIEndpoints.Auth.profile)
+        currentUser = user
+    }
+
+    func signOut() {
+        TokenManager.shared.clearTokens()
+        currentUser = nil
+    }
+
+    private init() {}
+}

@@ -1,24 +1,35 @@
-//
-//  ContentView.swift
-//  I Can
-//
-//  Created by Hakan Alsancak on 06/03/2026.
-//
-
 import SwiftUI
 
 struct ContentView: View {
-    var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
-        }
-        .padding()
-    }
-}
+    @State private var authService = AuthService.shared
+    @State private var showOnboarding = false
+    @State private var isLoading = true
 
-#Preview {
-    ContentView()
+    var body: some View {
+        Group {
+            if isLoading {
+                LoadingView(message: "")
+            } else if !authService.isAuthenticated {
+                OnboardingView()
+            } else if !authService.hasCompletedOnboarding {
+                OnboardingView(startAtStep: .sportSelection)
+            } else {
+                MainTabView()
+            }
+        }
+        .task {
+            await loadInitialState()
+        }
+    }
+
+    private func loadInitialState() async {
+        if authService.isAuthenticated {
+            do {
+                try await authService.loadProfile()
+            } catch {
+                authService.signOut()
+            }
+        }
+        isLoading = false
+    }
 }
