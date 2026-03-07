@@ -73,30 +73,21 @@ struct OnboardingView: View {
         VStack(spacing: 0) {
             Spacer()
 
-            VStack(spacing: 24) {
-                ZStack {
-                    Circle()
-                        .fill(ColorTheme.accent.opacity(0.1))
-                        .frame(width: 140, height: 140)
-                    Circle()
-                        .fill(ColorTheme.accent.opacity(0.15))
-                        .frame(width: 100, height: 100)
-                    Image(systemName: "flame.fill")
-                        .font(.system(size: 48, weight: .medium).width(.condensed))
-                        .foregroundStyle(ColorTheme.accentGradient)
-                }
+            VStack(spacing: 10) {
+                Image("AppLogo")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 220, height: 220)
 
-                VStack(spacing: 10) {
-                    Text("I Can")
-                        .font(.system(size: 44, weight: .heavy).width(.condensed))
-                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+                Text("I Can")
+                    .font(.system(size: 44, weight: .heavy).width(.condensed))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
 
-                    Text("Track Your Performance.\nImprove Mentally & Physically.")
-                        .font(Typography.body)
-                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                        .multilineTextAlignment(.center)
-                        .lineSpacing(4)
-                }
+                Text("Track Your Performance.\nImprove Mentally & Physically.")
+                    .font(Typography.body)
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(4)
             }
 
             Spacer()

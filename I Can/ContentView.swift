@@ -2,23 +2,52 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var authService = AuthService.shared
-    @State private var showOnboarding = false
     @State private var isLoading = true
+    @State private var logoScale: CGFloat = 0.8
+    @State private var logoOpacity: Double = 0
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        Group {
+        ZStack {
+            Group {
+                if !authService.isAuthenticated {
+                    OnboardingView()
+                } else if !authService.hasCompletedOnboarding {
+                    OnboardingView(startAtStep: .sportSelection)
+                } else {
+                    MainTabView()
+                }
+            }
+            .opacity(isLoading ? 0 : 1)
+
             if isLoading {
-                LoadingView(message: "")
-            } else if !authService.isAuthenticated {
-                OnboardingView()
-            } else if !authService.hasCompletedOnboarding {
-                OnboardingView(startAtStep: .sportSelection)
-            } else {
-                MainTabView()
+                splashScreen
+                    .transition(.opacity)
             }
         }
+        .animation(.easeInOut(duration: 0.4), value: isLoading)
         .task {
             await loadInitialState()
+        }
+    }
+
+    private var splashScreen: some View {
+        ZStack {
+            ColorTheme.background(colorScheme)
+                .ignoresSafeArea()
+
+            Image("AppLogo")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 120, height: 120)
+                .scaleEffect(logoScale)
+                .opacity(logoOpacity)
+                .onAppear {
+                    withAnimation(.easeOut(duration: 0.5)) {
+                        logoScale = 1.0
+                        logoOpacity = 1.0
+                    }
+                }
         }
     }
 
@@ -30,6 +59,9 @@ struct ContentView: View {
                 authService.signOut()
             }
         }
+
+        try? await Task.sleep(nanoseconds: 300_000_000)
+
         isLoading = false
     }
 }

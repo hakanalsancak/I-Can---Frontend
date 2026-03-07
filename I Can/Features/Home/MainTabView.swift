@@ -48,6 +48,9 @@ struct MainTabView: View {
             appearance.configureWithDefaultBackground()
             UITabBar.appearance().scrollEdgeAppearance = appearance
         }
+        .onReceive(NotificationCenter.default.publisher(for: .switchToAICoachTab)) { _ in
+            withAnimation { selectedTab = 2 }
+        }
     }
 
     private func requestNotificationPermission() {

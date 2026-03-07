@@ -42,11 +42,31 @@ final class DailyEntryViewModel {
         rotatingQuestions[rotatingQuestionId - 1]
     }
 
-    init() {
+    init(existingEntry: DailyEntry? = nil) {
         let dayIndex = (Date().dayOfYear % 10)
         let qId = dayIndex == 0 ? 10 : dayIndex
         self.rotatingQuestionId = qId
         self.isSliderQuestion = qId != 8
+
+        if let entry = existingEntry {
+            self.activityType = entry.activityType
+            self.focusRating = Double(entry.focusRating)
+            self.effortRating = Double(entry.effortRating)
+            self.confidenceRating = Double(entry.confidenceRating)
+            self.didWell = entry.didWell ?? ""
+            self.improveNext = entry.improveNext ?? ""
+            if let rqId = entry.rotatingQuestionId {
+                self.rotatingQuestionId = rqId
+                self.isSliderQuestion = rqId != 8
+            }
+            if let answer = entry.rotatingAnswer {
+                if self.isSliderQuestion, let val = Double(answer) {
+                    self.rotatingSliderValue = val
+                } else {
+                    self.rotatingAnswer = answer
+                }
+            }
+        }
     }
 
     func nextStep() {
@@ -90,10 +110,15 @@ final class DailyEntryViewModel {
 }
 
 struct DailyEntryFlowView: View {
-    @State private var viewModel = DailyEntryViewModel()
+    @State private var viewModel: DailyEntryViewModel
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     let onComplete: (EntrySubmitResponse) -> Void
+
+    init(existingEntry: DailyEntry? = nil, onComplete: @escaping (EntrySubmitResponse) -> Void) {
+        self._viewModel = State(initialValue: DailyEntryViewModel(existingEntry: existingEntry))
+        self.onComplete = onComplete
+    }
 
     var body: some View {
         NavigationStack {

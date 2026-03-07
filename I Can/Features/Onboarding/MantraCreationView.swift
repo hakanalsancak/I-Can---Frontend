@@ -2,7 +2,7 @@ import SwiftUI
 
 struct MantraCreationView: View {
     @Binding var mantra: String
-    let examples: [String]
+    let examples: [(quote: String, athlete: String)]
     let onNext: () -> Void
     let onBack: () -> Void
     @Environment(\.colorScheme) private var colorScheme
@@ -35,27 +35,53 @@ struct MantraCreationView: View {
                         .padding(.horizontal, 24)
 
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("SUGGESTIONS")
+                        Text("INSPIRED BY THE GREATS")
                             .sectionHeader(colorScheme)
                             .padding(.horizontal, 24)
 
-                        ForEach(examples, id: \.self) { example in
+                        ForEach(examples, id: \.quote) { example in
                             Button {
-                                mantra = example
+                                mantra = example.quote
                                 HapticManager.impact(.light)
                             } label: {
-                                HStack(spacing: 12) {
+                                HStack(spacing: 14) {
                                     Image(systemName: "quote.opening")
-                                        .font(.caption)
+                                        .font(.system(size: 11, weight: .bold))
                                         .foregroundColor(ColorTheme.accent)
-                                    Text(example)
-                                        .font(Typography.callout)
-                                        .foregroundColor(ColorTheme.primaryText(colorScheme))
-                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .frame(width: 20)
+
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text("\"\(example.quote)\"")
+                                            .font(.system(size: 15, weight: .semibold).width(.condensed))
+                                            .foregroundColor(ColorTheme.primaryText(colorScheme))
+
+                                        Text("— \(example.athlete)")
+                                            .font(.system(size: 12, weight: .medium).width(.condensed))
+                                            .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                                    }
+
+                                    Spacer()
+
+                                    if mantra == example.quote {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .font(.system(size: 16, weight: .bold))
+                                            .foregroundColor(ColorTheme.accent)
+                                    }
                                 }
                                 .padding(14)
-                                .background(ColorTheme.cardBackground(colorScheme))
+                                .background(
+                                    mantra == example.quote
+                                    ? ColorTheme.subtleAccent(colorScheme)
+                                    : ColorTheme.cardBackground(colorScheme)
+                                )
                                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .strokeBorder(
+                                            mantra == example.quote ? ColorTheme.accent.opacity(0.3) : ColorTheme.separator(colorScheme),
+                                            lineWidth: 1
+                                        )
+                                )
                                 .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 4, x: 0, y: 1)
                             }
                             .buttonStyle(.plain)

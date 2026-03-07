@@ -27,6 +27,7 @@ struct SportSelectionView: View {
                     SportCard(
                         name: sport.name,
                         icon: sport.icon,
+                        sportId: sport.id,
                         isSelected: selectedSport == sport.id,
                         colorScheme: colorScheme
                     ) {
@@ -56,37 +57,50 @@ struct SportSelectionView: View {
 private struct SportCard: View {
     let name: String
     let icon: String
+    let sportId: String
     let isSelected: Bool
     let colorScheme: ColorScheme
     let action: () -> Void
+
+    private var sportColor: Color {
+        switch sportId {
+        case "soccer": return Color(hex: "22C55E")
+        case "basketball": return Color(hex: "F97316")
+        case "tennis": return Color(hex: "EAB308")
+        case "football": return Color(hex: "8B4513")
+        case "boxing": return Color(hex: "EF4444")
+        case "cricket": return Color(hex: "3B82F6")
+        default: return ColorTheme.accent
+        }
+    }
 
     var body: some View {
         Button(action: action) {
             VStack(spacing: 10) {
                 Image(systemName: icon)
-                    .font(.system(size: 28, weight: .medium).width(.condensed))
-                    .foregroundColor(isSelected ? ColorTheme.accent : ColorTheme.secondaryText(colorScheme))
+                    .font(.system(size: 28, weight: .medium))
+                    .foregroundColor(isSelected ? sportColor : ColorTheme.secondaryText(colorScheme))
 
                 Text(name)
                     .font(Typography.subheadline)
-                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    .foregroundColor(isSelected ? sportColor : ColorTheme.primaryText(colorScheme))
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 22)
             .background(
                 isSelected
-                ? ColorTheme.subtleAccent(colorScheme)
+                ? sportColor.opacity(colorScheme == .dark ? 0.15 : 0.08)
                 : ColorTheme.cardBackground(colorScheme)
             )
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .strokeBorder(
-                        isSelected ? ColorTheme.accent : ColorTheme.separator(colorScheme),
-                        lineWidth: isSelected ? 1.5 : 1
+                        isSelected ? sportColor : ColorTheme.separator(colorScheme),
+                        lineWidth: isSelected ? 2 : 1
                     )
             )
-            .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 4, x: 0, y: 1)
+            .shadow(color: isSelected ? sportColor.opacity(0.2) : ColorTheme.cardShadow(colorScheme), radius: isSelected ? 8 : 4, x: 0, y: isSelected ? 3 : 1)
         }
         .buttonStyle(.plain)
     }

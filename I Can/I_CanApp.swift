@@ -6,10 +6,12 @@ struct I_CanApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     #endif
 
+    @State private var appearanceManager = AppearanceManager.shared
+
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .preferredColorScheme(.dark)
+                .preferredColorScheme(appearanceManager.current.colorScheme)
                 .task {
                     await SubscriptionService.shared.checkLocalEntitlement()
                     await SubscriptionService.shared.listenForTransactions()

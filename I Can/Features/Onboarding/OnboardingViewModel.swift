@@ -1,5 +1,8 @@
 import Foundation
 import AuthenticationServices
+#if canImport(GoogleSignIn)
+import GoogleSignIn
+#endif
 
 enum OnboardingStep: Int, CaseIterable {
     case welcome
@@ -30,12 +33,13 @@ final class OnboardingViewModel {
         ("cricket", "Cricket", "cricket.ball"),
     ]
 
-    let mantraExamples = [
-        "I stay calm under pressure.",
-        "I give 100% every day.",
-        "I trust my preparation.",
-        "I thrive in big moments.",
-        "I learn from every challenge.",
+    let mantraExamples: [(quote: String, athlete: String)] = [
+        ("Limits are an illusion.", "Michael Jordan"),
+        ("Impossible is nothing.", "Muhammad Ali"),
+        ("Stay focused.", "Usain Bolt"),
+        ("Rise to the challenge.", "Kobe Bryant"),
+        ("Stick to it.", "Serena Williams"),
+        ("Dream bigger.", "Michael Phelps"),
     ]
 
     func nextStep() {
@@ -86,6 +90,41 @@ final class OnboardingViewModel {
             errorMessage = error.localizedDescription
         }
         isLoading = false
+    }
+
+    @MainActor
+    func signInWithGoogle() async {
+        #if canImport(GoogleSignIn) && canImport(UIKit)
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let rootVC = windowScene.windows.first?.rootViewController else {
+            errorMessage = "Could not find root view controller"
+            return
+        }
+
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootVC)
+            guard let idToken = result.user.idToken?.tokenString else {
+                errorMessage = "Failed to get Google ID token"
+                isLoading = false
+                return
+            }
+
+            try await AuthService.shared.signInWithGoogle(idToken: idToken)
+            try await completeOnboarding()
+        } catch {
+            if (error as NSError).code == GIDSignInError.canceled.rawValue {
+                errorMessage = nil
+            } else {
+                errorMessage = error.localizedDescription
+            }
+        }
+        isLoading = false
+        #else
+        errorMessage = "Google Sign-In is not available"
+        #endif
     }
 
     func skipAccountCreation() async {

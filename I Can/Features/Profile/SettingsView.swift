@@ -6,6 +6,7 @@ struct SettingsView: View {
     @State private var notificationFrequency: Double
     @State private var mantra: String
     @State private var isSaving = false
+    @State private var appearanceManager = AppearanceManager.shared
 
     init() {
         let user = AuthService.shared.currentUser
@@ -17,6 +18,8 @@ struct SettingsView: View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 24) {
+                    appearanceSection
+
                     VStack(alignment: .leading, spacing: 10) {
                         Text("YOUR MANTRA")
                             .sectionHeader(colorScheme)
@@ -79,7 +82,8 @@ struct SettingsView: View {
                 .padding(.top, 8)
                 .padding(.bottom, 24)
             }
-            .background(ColorTheme.background(colorScheme).ignoresSafeArea())
+            .background(ColorTheme.background(appearanceManager.current.resolvedColorScheme).ignoresSafeArea())
+            .preferredColorScheme(appearanceManager.current.resolvedColorScheme)
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -96,6 +100,51 @@ struct SettingsView: View {
                     .disabled(isSaving)
                 }
             }
+        }
+    }
+
+    // MARK: - Appearance Section
+
+    private var appearanceSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("APPEARANCE")
+                .sectionHeader(colorScheme)
+
+            HStack(spacing: 8) {
+                ForEach(AppAppearance.allCases, id: \.rawValue) { option in
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            appearanceManager.current = option
+                        }
+                        HapticManager.selection()
+                    } label: {
+                        let isSelected = appearanceManager.current == option
+                        VStack(spacing: 8) {
+                            Image(systemName: option.icon)
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(isSelected ? .white : ColorTheme.secondaryText(colorScheme))
+
+                            Text(option.rawValue)
+                                .font(.system(size: 12, weight: .bold).width(.condensed))
+                                .foregroundColor(isSelected ? .white : ColorTheme.secondaryText(colorScheme))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(
+                            isSelected
+                            ? AnyShapeStyle(ColorTheme.accentGradient)
+                            : AnyShapeStyle(ColorTheme.cardBackground(colorScheme))
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .shadow(color: isSelected ? ColorTheme.accent.opacity(0.3) : .clear, radius: 6, x: 0, y: 3)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(6)
+            .background(ColorTheme.cardBackground(colorScheme))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
         }
     }
 

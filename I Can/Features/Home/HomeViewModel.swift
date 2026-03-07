@@ -15,6 +15,12 @@ final class HomeViewModel {
         async let entryTask: () = loadTodayEntry()
         _ = await (streakTask, entryTask)
         isLoading = false
+
+        if hasLoggedToday {
+            NotificationService.shared.cancelStreakReminder()
+        } else {
+            NotificationService.shared.scheduleStreakReminder()
+        }
     }
 
     private func loadStreak() async {
@@ -38,5 +44,6 @@ final class HomeViewModel {
         todayEntry = response.entry
         streak = response.streak
         showDailyEntry = false
+        NotificationService.shared.cancelStreakReminder()
     }
 }

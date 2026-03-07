@@ -35,11 +35,13 @@ struct AccountCreationView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
                     Button {
-                        // Google Sign-In requires GoogleSignIn SDK
+                        Task { await viewModel.signInWithGoogle() }
                     } label: {
                         HStack(spacing: 8) {
-                            Image(systemName: "g.circle.fill")
-                                .font(.title3)
+                            Image("GoogleLogo")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 20, height: 20)
                             Text("Continue with Google")
                                 .font(Typography.headline)
                         }

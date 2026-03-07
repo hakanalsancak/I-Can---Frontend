@@ -110,6 +110,9 @@ struct HomeView: View {
     @State private var quoteOpacity: Double = 1
     @State private var showSubscription = false
     @State private var showBreathing = false
+    @State private var showEntryDetail = false
+    @State private var editingEntry = false
+    @State private var heroAppeared = false
     @Environment(\.colorScheme) private var colorScheme
 
     private let quoteTimer = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
@@ -117,24 +120,25 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                PageHeader("Home")
+                homeHeader
 
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 16) {
-                        quoteSection
+                    VStack(spacing: 20) {
+                        mantraCard
+                            .padding(.top, 16)
+
+                        heroEntryCard
+
+                        streakSection
 
                         if !SubscriptionService.shared.isPremium {
-                            AIReportPromoCard(style: .home) {
-                                showSubscription = true
-                            }
+                            aiCoachPromo
                         }
 
-                        dailyEntryCard
-                        streakSection
-                        mentalToolsSection
+                        quickActions
                     }
                     .padding(.horizontal, 20)
-                    .padding(.bottom, 24)
+                    .padding(.bottom, 32)
                 }
             }
             .background(ColorTheme.background(colorScheme).ignoresSafeArea())
@@ -142,8 +146,11 @@ struct HomeView: View {
             .refreshable { await viewModel.loadData() }
             .task { await viewModel.loadData() }
             .fullScreenCover(isPresented: $viewModel.showDailyEntry) {
-                DailyEntryFlowView { response in
+                DailyEntryFlowView(
+                    existingEntry: editingEntry ? viewModel.todayEntry : nil
+                ) { response in
                     viewModel.onEntrySubmitted(response: response)
+                    editingEntry = false
                 }
             }
             .sheet(isPresented: $showSubscription) {
@@ -152,29 +159,150 @@ struct HomeView: View {
             .fullScreenCover(isPresented: $showBreathing) {
                 BreathingExerciseView()
             }
+            .sheet(isPresented: $showEntryDetail) {
+                if let entry = viewModel.todayEntry {
+                    TodayEntryDetailSheet(entry: entry) {
+                        editingEntry = true
+                        viewModel.showDailyEntry = true
+                    }
+                }
+            }
             .onReceive(quoteTimer) { _ in
                 rotateQuote()
+            }
+            .onAppear {
+                withAnimation(.easeOut(duration: 0.6).delay(0.1)) {
+                    heroAppeared = true
+                }
             }
         }
     }
 
-    // MARK: - Motivational Quote
+    // MARK: - Header
 
-    private var quoteSection: some View {
-        VStack {
-            Spacer()
+    private var homeHeader: some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(greetingText)
+                        .font(.system(size: 14, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+
+                    Text(firstName)
+                        .font(.system(size: 26, weight: .heavy).width(.condensed))
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+                }
+
+                Spacer()
+
+                HStack(spacing: 12) {
+                    streakBadge
+
+                    todayDot
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 10)
+            .padding(.bottom, 14)
+
+            Rectangle()
+                .fill(ColorTheme.separator(colorScheme))
+                .frame(height: 1)
+        }
+        .background(ColorTheme.background(colorScheme))
+    }
+
+    private var firstName: String {
+        guard let full = AuthService.shared.currentUser?.fullName,
+              !full.isEmpty else { return "Athlete" }
+        return full.components(separatedBy: " ").first ?? full
+    }
+
+    private var greetingText: String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        switch hour {
+        case 5..<12: return "Good Morning"
+        case 12..<17: return "Good Afternoon"
+        case 17..<21: return "Good Evening"
+        default: return "Good Night"
+        }
+    }
+
+    private var streakBadge: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "flame.fill")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(Color(hex: "F97316"))
+            Text("\(viewModel.streak?.currentStreak ?? 0)")
+                .font(.system(size: 14, weight: .heavy, design: .rounded))
+                .foregroundColor(ColorTheme.primaryText(colorScheme))
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(Color(hex: "F97316").opacity(0.1))
+        .clipShape(Capsule())
+    }
+
+    private var todayDot: some View {
+        ZStack {
+            Circle()
+                .fill(viewModel.hasLoggedToday ? Color(hex: "22C55E") : ColorTheme.tertiaryText(colorScheme).opacity(0.3))
+                .frame(width: 10, height: 10)
+            if viewModel.hasLoggedToday {
+                Circle()
+                    .fill(Color(hex: "22C55E").opacity(0.3))
+                    .frame(width: 18, height: 18)
+            }
+        }
+    }
+
+    // MARK: - Mantra Card
+
+    private var mantraCard: some View {
+        VStack(spacing: 0) {
             Text(iCanQuotes[currentQuoteIndex])
-                .font(.system(size: 28, weight: .heavy).width(.condensed))
+                .font(.system(size: 20, weight: .bold).width(.condensed))
                 .foregroundColor(ColorTheme.primaryText(colorScheme))
                 .multilineTextAlignment(.center)
-                .lineSpacing(6)
+                .lineSpacing(4)
                 .opacity(quoteOpacity)
                 .id(currentQuoteIndex)
-                .padding(.horizontal, 28)
-            Spacer()
+                .frame(minHeight: 52)
+
+            if let mantra = AuthService.shared.currentUser?.mantra, !mantra.isEmpty {
+                HStack(spacing: 6) {
+                    Rectangle()
+                        .fill(ColorTheme.accent)
+                        .frame(width: 12, height: 2)
+                    Text("Your mantra: \(mantra)")
+                        .font(.system(size: 12, weight: .semibold).width(.condensed))
+                        .foregroundColor(ColorTheme.accent)
+                    Rectangle()
+                        .fill(ColorTheme.accent)
+                        .frame(width: 12, height: 2)
+                }
+                .padding(.top, 14)
+            }
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 220)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 22)
+        .background(
+            ZStack {
+                ColorTheme.cardBackground(colorScheme)
+                LinearGradient(
+                    colors: [ColorTheme.accent.opacity(0.04), .clear],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(ColorTheme.accent.opacity(0.12), lineWidth: 1)
+        )
+        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
     }
 
     private func rotateQuote() {
@@ -193,124 +321,148 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - Daily Entry
+    // MARK: - Hero Entry Card
 
-    private var dailyEntryCard: some View {
+    private var heroEntryCard: some View {
         Button {
-            viewModel.showDailyEntry = true
             HapticManager.impact(.medium)
+            if viewModel.hasLoggedToday {
+                showEntryDetail = true
+            } else {
+                viewModel.showDailyEntry = true
+            }
         } label: {
             if viewModel.hasLoggedToday {
-                loggedCard
+                loggedHero
             } else {
-                notLoggedCard
+                notLoggedHero
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(HeroButtonStyle())
+        .scaleEffect(heroAppeared ? 1 : 0.96)
+        .opacity(heroAppeared ? 1 : 0)
     }
 
-    private var notLoggedCard: some View {
-        VStack(spacing: 18) {
+    private var notLoggedHero: some View {
+        VStack(spacing: 0) {
             HStack(spacing: 0) {
-                Spacer()
-                VStack(spacing: 12) {
-                    ZStack {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
                         Circle()
-                            .fill(ColorTheme.accentGradient)
-                            .frame(width: 56, height: 56)
-                            .shadow(color: ColorTheme.accent.opacity(0.4), radius: 10, x: 0, y: 4)
-                        Image(systemName: "plus")
-                            .font(.system(size: 24, weight: .bold))
-                            .foregroundColor(.white)
+                            .fill(Color(hex: "F97316"))
+                            .frame(width: 8, height: 8)
+                        Text("NOT LOGGED")
+                            .font(.system(size: 11, weight: .heavy).width(.condensed))
+                            .foregroundColor(Color(hex: "F97316"))
                     }
 
-                    Text("Log Today's Performance")
-                        .font(Typography.title3)
+                    Text("Today's\nPerformance")
+                        .font(.system(size: 24, weight: .heavy).width(.condensed))
                         .foregroundColor(ColorTheme.primaryText(colorScheme))
+                        .lineSpacing(2)
 
-                    Text("Track your focus, effort & confidence")
-                        .font(Typography.footnote)
+                    Text("Track focus, effort & confidence")
+                        .font(.system(size: 13, weight: .medium).width(.condensed))
                         .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                        .padding(.top, 2)
                 }
+
                 Spacer()
-            }
 
-            HStack(spacing: 20) {
-                miniMetric(icon: "scope", label: "Focus")
-                miniDivider
-                miniMetric(icon: "bolt.fill", label: "Effort")
-                miniDivider
-                miniMetric(icon: "shield.fill", label: "Confidence")
-            }
-            .padding(.vertical, 10)
-            .padding(.horizontal, 16)
-            .background(ColorTheme.elevatedBackground(colorScheme))
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                ZStack {
+                    Circle()
+                        .fill(ColorTheme.accentGradient)
+                        .frame(width: 64, height: 64)
+                        .shadow(color: ColorTheme.accent.opacity(0.4), radius: 12, x: 0, y: 6)
 
-            HStack(spacing: 6) {
-                Image(systemName: "clock")
-                    .font(.system(size: 11, weight: .medium))
-                Text("Takes less than 2 minutes")
-                    .font(Typography.caption)
+                    Image(systemName: "plus")
+                        .font(.system(size: 26, weight: .bold))
+                        .foregroundColor(.white)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 18)
+
+            Rectangle()
+                .fill(ColorTheme.separator(colorScheme))
+                .frame(height: 1)
+                .padding(.horizontal, 16)
+
+            HStack(spacing: 0) {
+                metricPreview(icon: "scope", label: "Focus", color: Color(hex: "3B82F6"))
+                metricDivider
+                metricPreview(icon: "bolt.fill", label: "Effort", color: Color(hex: "F97316"))
+                metricDivider
+                metricPreview(icon: "shield.fill", label: "Confidence", color: Color(hex: "8B5CF6"))
+            }
+            .padding(.vertical, 14)
+            .padding(.horizontal, 12)
+
+            HStack(spacing: 5) {
+                Image(systemName: "clock.fill")
+                    .font(.system(size: 10, weight: .semibold))
+                Text("Under 2 minutes")
+                    .font(.system(size: 11, weight: .semibold).width(.condensed))
             }
             .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+            .padding(.bottom, 14)
         }
-        .padding(20)
         .background(ColorTheme.cardBackground(colorScheme))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(ColorTheme.accent.opacity(0.2), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(ColorTheme.accent.opacity(0.15), lineWidth: 1)
         )
-        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 10, x: 0, y: 3)
+        .shadow(color: ColorTheme.accent.opacity(colorScheme == .dark ? 0.08 : 0.12), radius: 16, x: 0, y: 6)
     }
 
-    private var miniDivider: some View {
+    private var metricDivider: some View {
         Rectangle()
             .fill(ColorTheme.separator(colorScheme))
-            .frame(width: 1, height: 24)
+            .frame(width: 1, height: 28)
     }
 
-    private func miniMetric(icon: String, label: String) -> some View {
-        VStack(spacing: 4) {
+    private func metricPreview(icon: String, label: String, color: Color) -> some View {
+        HStack(spacing: 6) {
             Image(systemName: icon)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(ColorTheme.accent)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(color)
             Text(label)
-                .font(.system(size: 11, weight: .medium).width(.condensed))
+                .font(.system(size: 13, weight: .semibold).width(.condensed))
                 .foregroundColor(ColorTheme.secondaryText(colorScheme))
         }
         .frame(maxWidth: .infinity)
     }
 
-    private var loggedCard: some View {
+    private var loggedHero: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 14) {
-                ZStack {
-                    Circle()
-                        .fill(Color(hex: "22C55E"))
-                        .frame(width: 40, height: 40)
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.white)
-                }
+            HStack(spacing: 0) {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(Color(hex: "22C55E"))
+                        Text("LOGGED TODAY")
+                            .font(.system(size: 11, weight: .heavy).width(.condensed))
+                            .foregroundColor(Color(hex: "22C55E"))
+                    }
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Performance Logged")
-                        .font(Typography.headline)
+                    Text("Performance\nSummary")
+                        .font(.system(size: 24, weight: .heavy).width(.condensed))
                         .foregroundColor(ColorTheme.primaryText(colorScheme))
-                    Text("Tap to view or update your entry")
-                        .font(Typography.footnote)
-                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                        .lineSpacing(2)
                 }
 
                 Spacer()
 
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold).width(.condensed))
-                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                if let entry = viewModel.todayEntry {
+                    scoreRing(value: entry.performanceScore)
+                }
             }
-            .padding(16)
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 18)
 
             if let entry = viewModel.todayEntry {
                 Rectangle()
@@ -319,44 +471,83 @@ struct HomeView: View {
                     .padding(.horizontal, 16)
 
                 HStack(spacing: 0) {
-                    inlineRating(label: "Focus", value: entry.focusRating)
-                    inlineRating(label: "Effort", value: entry.effortRating)
-                    inlineRating(label: "Confidence", value: entry.confidenceRating)
-                    inlineScore(value: entry.performanceScore)
+                    ratingColumn(label: "Focus", value: entry.focusRating, color: Color(hex: "3B82F6"))
+                    ratingColumn(label: "Effort", value: entry.effortRating, color: Color(hex: "F97316"))
+                    ratingColumn(label: "Confidence", value: entry.confidenceRating, color: Color(hex: "8B5CF6"))
                 }
-                .padding(.vertical, 14)
-                .padding(.horizontal, 8)
+                .padding(.vertical, 16)
+                .padding(.horizontal, 12)
             }
+
+            HStack(spacing: 5) {
+                Image(systemName: "pencil")
+                    .font(.system(size: 10, weight: .semibold))
+                Text("Tap to view or update")
+                    .font(.system(size: 11, weight: .semibold).width(.condensed))
+            }
+            .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+            .padding(.bottom, 14)
         }
         .background(ColorTheme.cardBackground(colorScheme))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(Color(hex: "22C55E").opacity(0.2), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(Color(hex: "22C55E").opacity(0.15), lineWidth: 1)
         )
-        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
+        .shadow(color: Color(hex: "22C55E").opacity(colorScheme == .dark ? 0.06 : 0.1), radius: 16, x: 0, y: 6)
     }
 
-    private func inlineRating(label: String, value: Int) -> some View {
-        VStack(spacing: 4) {
-            Text("\(value)")
-                .font(Typography.number(20))
-                .foregroundColor(ratingColor(value))
-            Text(label)
-                .font(.system(size: 10, weight: .medium).width(.condensed))
-                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+    private func scoreRing(value: Int) -> some View {
+        ZStack {
+            Circle()
+                .stroke(ColorTheme.accent.opacity(0.12), lineWidth: 5)
+                .frame(width: 64, height: 64)
+
+            Circle()
+                .trim(from: 0, to: CGFloat(value) / 10.0)
+                .stroke(
+                    LinearGradient(
+                        colors: [ColorTheme.accent, Color(hex: "22C55E")],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    style: StrokeStyle(lineWidth: 5, lineCap: .round)
+                )
+                .frame(width: 64, height: 64)
+                .rotationEffect(.degrees(-90))
+
+            VStack(spacing: 0) {
+                Text("\(value)")
+                    .font(.system(size: 22, weight: .heavy, design: .rounded))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+                Text("score")
+                    .font(.system(size: 9, weight: .bold).width(.condensed))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                    .textCase(.uppercase)
+            }
         }
-        .frame(maxWidth: .infinity)
     }
 
-    private func inlineScore(value: Int) -> some View {
-        VStack(spacing: 4) {
+    private func ratingColumn(label: String, value: Int, color: Color) -> some View {
+        VStack(spacing: 6) {
             Text("\(value)")
-                .font(Typography.number(20))
-                .foregroundStyle(ColorTheme.accentGradient)
-            Text("Score")
-                .font(.system(size: 10, weight: .medium).width(.condensed))
-                .foregroundColor(ColorTheme.accent)
+                .font(.system(size: 26, weight: .heavy, design: .rounded))
+                .foregroundColor(ratingColor(value))
+
+            HStack(spacing: 0) {
+                ForEach(0..<10, id: \.self) { i in
+                    RoundedRectangle(cornerRadius: 1)
+                        .fill(i < value ? color : color.opacity(0.12))
+                        .frame(height: 3)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 8)
+
+            Text(label)
+                .font(.system(size: 11, weight: .bold).width(.condensed))
+                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                .textCase(.uppercase)
         }
         .frame(maxWidth: .infinity)
     }
@@ -369,86 +560,140 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - Streaks
+    // MARK: - Streak Section
 
     private var streakSection: some View {
         HStack(spacing: 12) {
             streakCard(
-                title: "Current Streak",
                 value: viewModel.streak?.currentStreak ?? 0,
+                label: "Current",
                 icon: "flame.fill",
-                iconColor: Color(hex: "F97316")
+                gradient: [Color(hex: "F97316"), Color(hex: "EF4444")]
             )
             streakCard(
-                title: "Best Streak",
                 value: viewModel.streak?.longestStreak ?? 0,
+                label: "Best",
                 icon: "trophy.fill",
-                iconColor: Color(hex: "EAB308")
+                gradient: [Color(hex: "EAB308"), Color(hex: "F59E0B")]
             )
         }
     }
 
-    private func streakCard(title: String, value: Int, icon: String, iconColor: Color) -> some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 6) {
+    private func streakCard(value: Int, label: String, icon: String, gradient: [Color]) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(LinearGradient(colors: gradient, startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .frame(width: 40, height: 40)
                 Image(systemName: icon)
-                    .font(.system(size: 14))
-                    .foregroundColor(iconColor)
-                Text(title)
-                    .font(.system(size: 11, weight: .semibold).width(.condensed))
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(.white)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(value)")
+                    .font(.system(size: 24, weight: .heavy, design: .rounded))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+
+                Text("\(label) streak")
+                    .font(.system(size: 11, weight: .bold).width(.condensed))
                     .foregroundColor(ColorTheme.secondaryText(colorScheme))
                     .textCase(.uppercase)
             }
-            Text("\(value)")
-                .font(Typography.number(32))
-                .foregroundColor(ColorTheme.primaryText(colorScheme))
-            Text(value == 1 ? "day" : "days")
-                .font(Typography.caption)
-                .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+
+            Spacer()
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 18)
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(ColorTheme.cardBackground(colorScheme))
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
+        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
     }
 
-    // MARK: - Mental Tools
+    // MARK: - AI Coach Promo
 
-    private var mentalToolsSection: some View {
+    private var aiCoachPromo: some View {
+        AIReportPromoCard(style: .home) {
+            showSubscription = true
+        }
+    }
+
+    // MARK: - Quick Actions
+
+    private var quickActions: some View {
         VStack(spacing: 12) {
-            Text("MENTAL TOOLS")
+            Text("QUICK ACTIONS")
                 .sectionHeader(colorScheme)
 
-            Button { showBreathing = true } label: {
-                mentalToolTile(
+            HStack(spacing: 12) {
+                actionCard(
                     icon: "wind",
-                    title: "Breathing Exercise",
-                    color: Color(hex: "3B82F6")
-                )
+                    title: "Breathe",
+                    subtitle: "2-min reset",
+                    gradient: [Color(hex: "3B82F6"), Color(hex: "2563EB")]
+                ) {
+                    HapticManager.impact(.medium)
+                    showBreathing = true
+                }
+
+                actionCard(
+                    icon: "brain.head.profile",
+                    title: "AI Coach",
+                    subtitle: "View insights",
+                    gradient: [Color(hex: "7C3AED"), Color(hex: "4F46E5")]
+                ) {
+                    HapticManager.selection()
+                    NotificationCenter.default.post(name: .switchToAICoachTab, object: nil)
+                }
             }
-            .buttonStyle(.plain)
         }
     }
 
-    private func mentalToolTile(icon: String, title: String, color: Color) -> some View {
-        VStack(spacing: 10) {
-            Image(systemName: icon)
-                .font(.system(size: 22, weight: .medium))
-                .foregroundColor(.white)
-                .frame(width: 46, height: 46)
-                .background(color.gradient)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .shadow(color: color.opacity(0.3), radius: 6, x: 0, y: 3)
+    private func actionCard(icon: String, title: String, subtitle: String, gradient: [Color], action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 10) {
+                Image(systemName: icon)
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(width: 48, height: 48)
+                    .background(
+                        LinearGradient(colors: gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .shadow(color: gradient[0].opacity(0.3), radius: 8, x: 0, y: 4)
 
-            Text(title)
-                .font(.system(size: 12, weight: .semibold).width(.condensed))
-                .foregroundColor(ColorTheme.primaryText(colorScheme))
+                VStack(spacing: 2) {
+                    Text(title)
+                        .font(.system(size: 14, weight: .bold).width(.condensed))
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+
+                    Text(subtitle)
+                        .font(.system(size: 11, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 18)
+            .background(ColorTheme.cardBackground(colorScheme))
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
-        .background(ColorTheme.cardBackground(colorScheme))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
+        .buttonStyle(.plain)
     }
+}
+
+// MARK: - Hero Button Style
+
+struct HeroButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+// MARK: - Notification Name
+
+extension Notification.Name {
+    static let switchToAICoachTab = Notification.Name("switchToAICoachTab")
 }

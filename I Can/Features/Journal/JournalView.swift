@@ -3,6 +3,8 @@ import SwiftUI
 struct JournalView: View {
     @State private var viewModel = JournalViewModel()
     @State private var showSubscription = false
+    @State private var showEntryDetail = false
+    @State private var showEditEntry = false
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -20,7 +22,13 @@ struct JournalView: View {
 
                         calendarSection
                         if let entry = viewModel.selectedEntry {
-                            EntryDetailView(entry: entry)
+                            Button {
+                                showEntryDetail = true
+                                HapticManager.impact(.light)
+                            } label: {
+                                EntryDetailView(entry: entry)
+                            }
+                            .buttonStyle(.plain)
                         } else {
                             noEntryCard
                         }
@@ -38,6 +46,20 @@ struct JournalView: View {
             }
             .sheet(isPresented: $showSubscription) {
                 SubscriptionView()
+            }
+            .sheet(isPresented: $showEntryDetail) {
+                if let entry = viewModel.selectedEntry {
+                    TodayEntryDetailSheet(entry: entry) {
+                        showEditEntry = true
+                    }
+                }
+            }
+            .fullScreenCover(isPresented: $showEditEntry) {
+                if let entry = viewModel.selectedEntry {
+                    DailyEntryFlowView(existingEntry: entry) { _ in
+                        Task { await viewModel.loadEntries() }
+                    }
+                }
             }
         }
     }
