@@ -8,63 +8,76 @@ struct ActivityTypeView: View {
     private let types = [
         ("training", "Training", "figure.run", "Practice, drills, conditioning"),
         ("game", "Game", "trophy", "Match, competition, scrimmage"),
-        ("rest_day", "Rest Day", "bed.double", "Recovery, stretching, off day"),
+        ("rest_day", "Rest Day", "moon.stars", "Recovery, stretching, off day"),
     ]
 
     var body: some View {
-        VStack(spacing: 24) {
-            VStack(spacing: 8) {
+        VStack(spacing: 0) {
+            VStack(spacing: 6) {
                 Text("What happened today?")
                     .font(Typography.title)
                     .foregroundColor(ColorTheme.primaryText(colorScheme))
                 Text("Select your activity type")
-                    .font(Typography.body)
+                    .font(Typography.subheadline)
                     .foregroundColor(ColorTheme.secondaryText(colorScheme))
             }
-            .padding(.top, 32)
+            .padding(.top, 40)
+            .padding(.bottom, 32)
 
-            VStack(spacing: 12) {
+            VStack(spacing: 10) {
                 ForEach(types, id: \.0) { type in
                     Button {
-                        HapticManager.selection()
-                        selectedType = type.0
+                        HapticManager.impact(.light)
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            selectedType = type.0
+                        }
                     } label: {
-                        HStack(spacing: 16) {
+                        HStack(spacing: 14) {
                             Image(systemName: type.2)
-                                .font(.title2)
-                                .foregroundColor(selectedType == type.0 ? .white : ColorTheme.accent)
+                                .font(.system(size: 20, weight: .medium).width(.condensed))
+                                .foregroundColor(selectedType == type.0 ? ColorTheme.accent : ColorTheme.secondaryText(colorScheme))
                                 .frame(width: 44, height: 44)
                                 .background(
                                     selectedType == type.0
-                                    ? ColorTheme.accent
-                                    : ColorTheme.accent.opacity(0.1)
+                                    ? ColorTheme.subtleAccent(colorScheme)
+                                    : ColorTheme.elevatedBackground(colorScheme)
                                 )
-                                .clipShape(Circle())
+                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(type.1)
                                     .font(Typography.headline)
                                     .foregroundColor(ColorTheme.primaryText(colorScheme))
                                 Text(type.3)
-                                    .font(Typography.caption)
+                                    .font(Typography.footnote)
                                     .foregroundColor(ColorTheme.secondaryText(colorScheme))
                             }
 
                             Spacer()
 
                             if selectedType == type.0 {
-                                Image(systemName: "checkmark.circle.fill")
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 14, weight: .bold).width(.condensed))
                                     .foregroundColor(ColorTheme.accent)
                             }
                         }
-                        .padding(16)
-                        .background(ColorTheme.cardBackground(colorScheme))
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(selectedType == type.0 ? ColorTheme.accent : .clear, lineWidth: 2)
+                        .padding(14)
+                        .background(
+                            selectedType == type.0
+                            ? ColorTheme.subtleAccent(colorScheme)
+                            : ColorTheme.cardBackground(colorScheme)
                         )
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .strokeBorder(
+                                    selectedType == type.0 ? ColorTheme.accent.opacity(0.4) : ColorTheme.separator(colorScheme),
+                                    lineWidth: 1
+                                )
+                        )
+                        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 4, x: 0, y: 1)
                     }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 24)
@@ -78,7 +91,7 @@ struct ActivityTypeView: View {
                 withAnimation { onNext() }
             }
             .padding(.horizontal, 24)
-            .padding(.bottom, 40)
+            .padding(.bottom, 48)
         }
     }
 }

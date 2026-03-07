@@ -16,54 +16,73 @@ struct GoalFormView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Goal Type")
-                            .font(Typography.headline)
-                            .foregroundColor(ColorTheme.primaryText(colorScheme))
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 24) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("GOAL TYPE")
+                            .sectionHeader(colorScheme)
 
                         HStack(spacing: 8) {
                             ForEach(types, id: \.0) { type in
                                 Button {
                                     HapticManager.selection()
-                                    goalType = type.0
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        goalType = type.0
+                                    }
                                 } label: {
                                     Text(type.1)
                                         .font(Typography.subheadline)
                                         .foregroundColor(goalType == type.0 ? .white : ColorTheme.primaryText(colorScheme))
                                         .frame(maxWidth: .infinity)
                                         .padding(.vertical, 12)
-                                        .background(goalType == type.0 ? ColorTheme.accent : ColorTheme.cardBackground(colorScheme))
-                                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                                        .background(
+                                            goalType == type.0
+                                            ? AnyShapeStyle(ColorTheme.accentGradient)
+                                            : AnyShapeStyle(ColorTheme.cardBackground(colorScheme))
+                                        )
+                                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                        .overlay(
+                                            goalType != type.0
+                                            ? RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                                .strokeBorder(ColorTheme.separator(colorScheme), lineWidth: 1)
+                                            : nil
+                                        )
                                 }
                             }
                         }
                     }
 
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Goal")
-                            .font(Typography.headline)
-                            .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("GOAL")
+                            .sectionHeader(colorScheme)
 
                         TextField("e.g. Train 5 times", text: $title)
                             .font(Typography.body)
-                            .padding(16)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 14)
                             .background(ColorTheme.cardBackground(colorScheme))
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .strokeBorder(ColorTheme.separator(colorScheme), lineWidth: 1)
+                            )
                     }
 
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Description (optional)")
-                            .font(Typography.headline)
-                            .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("DESCRIPTION (OPTIONAL)")
+                            .sectionHeader(colorScheme)
 
                         TextField("Add details...", text: $description, axis: .vertical)
                             .font(Typography.body)
                             .lineLimit(3...5)
-                            .padding(16)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 14)
                             .background(ColorTheme.cardBackground(colorScheme))
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .strokeBorder(ColorTheme.separator(colorScheme), lineWidth: 1)
+                            )
                     }
 
                     PrimaryButton(
@@ -82,7 +101,7 @@ struct GoalFormView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Cancel") { dismiss() }
-                        .foregroundColor(ColorTheme.accent)
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
                 }
             }
         }

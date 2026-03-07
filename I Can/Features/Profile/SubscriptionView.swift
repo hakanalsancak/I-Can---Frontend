@@ -11,47 +11,26 @@ struct SubscriptionView: View {
 
     private let features = [
         ("chart.bar.fill", "Weekly AI Reports", "Get coaching insights every week"),
-        ("chart.line.uptrend.xyaxis", "Monthly Analysis", "Deep-dive into your monthly progress"),
-        ("star.fill", "Yearly Review", "Comprehensive annual performance review"),
-        ("target", "Goal Coaching", "AI feedback tied to your personal goals"),
-        ("lightbulb.fill", "Advanced Insights", "Mental patterns & performance trends"),
+        ("chart.line.uptrend.xyaxis", "Monthly Analysis", "Deep-dive into monthly progress"),
+        ("star.fill", "Yearly Review", "Comprehensive annual review"),
+        ("target", "Goal Coaching", "AI feedback tied to your goals"),
+        ("lightbulb.fill", "Advanced Insights", "Mental patterns & trends"),
     ]
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 24) {
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 28) {
                     headerSection
 
-                    VStack(spacing: 12) {
+                    VStack(spacing: 8) {
                         ForEach(features, id: \.0) { feature in
                             featureRow(icon: feature.0, title: feature.1, subtitle: feature.2)
                         }
                     }
                     .padding(.horizontal, 20)
 
-                    if let product = products.first {
-                        VStack(spacing: 8) {
-                            Text("1 Month Free Trial")
-                                .font(Typography.headline)
-                                .foregroundColor(ColorTheme.primaryText(colorScheme))
-
-                            Text("Then \(product.displayPrice)/month")
-                                .font(Typography.subheadline)
-                                .foregroundColor(ColorTheme.secondaryText(colorScheme))
-
-                            PrimaryButton(
-                                title: "Start Free Trial",
-                                isLoading: isPurchasing
-                            ) {
-                                Task { await purchase(product) }
-                            }
-                            .padding(.horizontal, 20)
-                        }
-                    } else if isLoading {
-                        ProgressView()
-                            .padding()
-                    }
+                    trialSection
 
                     if let error = errorMessage {
                         Text(error)
@@ -59,16 +38,18 @@ struct SubscriptionView: View {
                             .foregroundColor(.red)
                     }
 
-                    Button("Restore Purchases") {
-                        Task { await restorePurchases() }
-                    }
-                    .font(Typography.footnote)
-                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
-
-                    Text("Cancel anytime. No commitment.")
-                        .font(Typography.caption)
+                    VStack(spacing: 12) {
+                        Button("Restore Purchases") {
+                            Task { await restorePurchases() }
+                        }
+                        .font(Typography.subheadline)
                         .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                        .padding(.bottom, 40)
+
+                        Text("Cancel anytime. No commitment.")
+                            .font(Typography.footnote)
+                            .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                    }
+                    .padding(.bottom, 40)
                 }
             }
             .background(ColorTheme.background(colorScheme).ignoresSafeArea())
@@ -76,56 +57,124 @@ struct SubscriptionView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Close") { dismiss() }
-                        .foregroundColor(ColorTheme.accent)
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .semibold).width(.condensed))
+                            .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                            .frame(width: 30, height: 30)
+                            .background(ColorTheme.elevatedBackground(colorScheme))
+                            .clipShape(Circle())
+                    }
                 }
             }
             .task { await loadProducts() }
         }
     }
 
+    private var trialSection: some View {
+        VStack(spacing: 14) {
+            HStack(spacing: 6) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(Color(hex: "EAB308"))
+                Text("1 MONTH FREE TRIAL")
+                    .font(.system(size: 14, weight: .heavy).width(.condensed))
+                    .foregroundColor(Color(hex: "EAB308"))
+            }
+
+            if let product = products.first {
+                Text("Then \(product.displayPrice)/month")
+                    .font(Typography.subheadline)
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+            } else if !isLoading {
+                Text("$9.99/month after trial")
+                    .font(Typography.subheadline)
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+            }
+
+            if isLoading {
+                PrimaryButton(title: "Loading...", isLoading: true) {}
+                    .padding(.horizontal, 20)
+            } else if let product = products.first {
+                PrimaryButton(
+                    title: "Start Free Trial",
+                    isLoading: isPurchasing
+                ) {
+                    Task { await purchase(product) }
+                }
+                .padding(.horizontal, 20)
+            } else {
+                PrimaryButton(title: "Start Free Trial") {
+                    Task { await retryLoadAndPurchase() }
+                }
+                .padding(.horizontal, 20)
+            }
+        }
+        .padding(.vertical, 20)
+        .padding(.horizontal, 20)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(ColorTheme.cardBackground(colorScheme))
+                .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(Color(hex: "EAB308").opacity(0.25), lineWidth: 1)
+        )
+        .padding(.horizontal, 20)
+    }
+
     private var headerSection: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "crown.fill")
-                .font(.system(size: 48))
-                .foregroundColor(.yellow)
-                .padding(.top, 24)
+        VStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(Color(hex: "EAB308").opacity(0.1))
+                    .frame(width: 80, height: 80)
+                Image(systemName: "crown.fill")
+                    .font(.system(size: 32).width(.condensed))
+                    .foregroundColor(Color(hex: "EAB308"))
+            }
+            .padding(.top, 24)
 
             Text("Unlock AI Coaching")
                 .font(Typography.title)
                 .foregroundColor(ColorTheme.primaryText(colorScheme))
 
             Text("Get personalized performance insights\npowered by AI")
-                .font(Typography.body)
+                .font(Typography.subheadline)
                 .foregroundColor(ColorTheme.secondaryText(colorScheme))
                 .multilineTextAlignment(.center)
         }
     }
 
     private func featureRow(icon: String, title: String, subtitle: String) -> some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 14) {
             Image(systemName: icon)
-                .font(.title2)
+                .font(.system(size: 16).width(.condensed))
                 .foregroundColor(ColorTheme.accent)
-                .frame(width: 40)
+                .frame(width: 36, height: 36)
+                .background(ColorTheme.subtleAccent(colorScheme))
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 1) {
                 Text(title)
                     .font(Typography.headline)
                     .foregroundColor(ColorTheme.primaryText(colorScheme))
                 Text(subtitle)
-                    .font(Typography.caption)
+                    .font(Typography.footnote)
                     .foregroundColor(ColorTheme.secondaryText(colorScheme))
             }
 
             Spacer()
 
             Image(systemName: "checkmark")
-                .foregroundColor(.green)
+                .font(.system(size: 13, weight: .semibold).width(.condensed))
+                .foregroundColor(Color(hex: "22C55E"))
         }
-        .padding(16)
+        .padding(14)
         .background(ColorTheme.cardBackground(colorScheme))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
     }
 
     private func loadProducts() async {
@@ -142,6 +191,22 @@ struct SubscriptionView: View {
         do {
             let success = try await SubscriptionService.shared.purchase(product)
             if success { dismiss() }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isPurchasing = false
+    }
+
+    private func retryLoadAndPurchase() async {
+        isPurchasing = true
+        do {
+            products = try await SubscriptionService.shared.loadProducts()
+            if let product = products.first {
+                let success = try await SubscriptionService.shared.purchase(product)
+                if success { dismiss() }
+            } else {
+                errorMessage = "Subscription not available. Please try again later."
+            }
         } catch {
             errorMessage = error.localizedDescription
         }

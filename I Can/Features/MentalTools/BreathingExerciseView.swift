@@ -21,42 +21,46 @@ struct BreathingExerciseView: View {
         ZStack {
             ColorTheme.background(colorScheme).ignoresSafeArea()
 
-            VStack(spacing: 32) {
+            VStack(spacing: 0) {
                 HStack {
                     Spacer()
                     Button { dismiss() } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title)
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .semibold).width(.condensed))
                             .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                            .frame(width: 32, height: 32)
+                            .background(ColorTheme.elevatedBackground(colorScheme))
+                            .clipShape(Circle())
                     }
                 }
                 .padding(.horizontal, 24)
+                .padding(.top, 16)
 
                 Spacer()
 
                 ZStack {
                     Circle()
-                        .fill(ColorTheme.accent.opacity(0.1))
-                        .frame(width: 280, height: 280)
+                        .fill(ColorTheme.accent.opacity(0.06))
+                        .frame(width: 260, height: 260)
 
                     Circle()
-                        .fill(ColorTheme.accent.opacity(0.3))
-                        .frame(width: 280 * circleScale, height: 280 * circleScale)
+                        .fill(ColorTheme.accent.opacity(0.12))
+                        .frame(width: 260 * circleScale, height: 260 * circleScale)
 
                     Circle()
-                        .fill(ColorTheme.accent.opacity(0.6))
-                        .frame(width: 200 * circleScale, height: 200 * circleScale)
+                        .fill(ColorTheme.accent.opacity(0.25))
+                        .frame(width: 180 * circleScale, height: 180 * circleScale)
 
                     VStack(spacing: 8) {
                         Text(phase.rawValue)
                             .font(Typography.title2)
-                            .foregroundColor(.white)
+                            .foregroundColor(ColorTheme.primaryText(colorScheme))
 
                         if let mantra = AuthService.shared.currentUser?.mantra,
                            !mantra.isEmpty, isActive {
                             Text(mantra)
-                                .font(Typography.caption)
-                                .foregroundColor(.white.opacity(0.8))
+                                .font(Typography.footnote)
+                                .foregroundColor(ColorTheme.secondaryText(colorScheme))
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, 20)
                         }
@@ -66,16 +70,23 @@ struct BreathingExerciseView: View {
                     if !isActive { startBreathing() }
                 }
 
+                Spacer()
+
                 if isActive {
-                    Text("Cycle \(cycleCount)/\(totalCycles)")
+                    Text("Cycle \(cycleCount) of \(totalCycles)")
                         .font(Typography.subheadline)
                         .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                        .padding(.bottom, 40)
                 } else if phase == .complete {
                     PrimaryButton(title: "Done") { dismiss() }
-                        .padding(.horizontal, 40)
+                        .padding(.horizontal, 24)
+                        .padding(.bottom, 48)
+                } else {
+                    Text("Tap the circle to start")
+                        .font(Typography.footnote)
+                        .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                        .padding(.bottom, 40)
                 }
-
-                Spacer()
             }
         }
     }

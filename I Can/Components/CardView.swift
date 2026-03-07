@@ -12,6 +12,7 @@ struct CardView<Content: View>: View {
         content()
             .padding(16)
             .background(ColorTheme.cardBackground(colorScheme))
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
     }
 }

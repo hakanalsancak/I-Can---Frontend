@@ -44,60 +44,76 @@ struct VisualizationView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 24) {
-                    Image(systemName: currentPrompt.icon)
-                        .font(.system(size: 60))
-                        .foregroundColor(ColorTheme.accent)
-                        .padding(.top, 32)
-
-                    Text(currentPrompt.title)
-                        .font(Typography.title)
-                        .foregroundColor(ColorTheme.primaryText(colorScheme))
-
-                    Text(currentPrompt.instruction)
-                        .font(Typography.body)
-                        .foregroundColor(ColorTheme.primaryText(colorScheme))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 24)
-
-                    HStack(spacing: 4) {
-                        Image(systemName: "clock")
-                        Text(currentPrompt.duration)
-                    }
-                    .font(Typography.caption)
-                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
-
-                    Spacer(minLength: 40)
-
-                    HStack(spacing: 16) {
-                        Button {
-                            withAnimation {
-                                currentPromptIndex = (currentPromptIndex - 1 + prompts.count) % prompts.count
-                            }
-                        } label: {
-                            Image(systemName: "chevron.left.circle.fill")
-                                .font(.title)
-                                .foregroundColor(ColorTheme.accent)
+            VStack(spacing: 0) {
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 24) {
+                        ZStack {
+                            Circle()
+                                .fill(ColorTheme.subtleAccent(colorScheme))
+                                .frame(width: 96, height: 96)
+                            Image(systemName: currentPrompt.icon)
+                                .font(.system(size: 36, weight: .medium).width(.condensed))
+                                .foregroundStyle(ColorTheme.accentGradient)
                         }
+                        .padding(.top, 40)
 
-                        Text("\(currentPromptIndex + 1) / \(prompts.count)")
-                            .font(Typography.subheadline)
+                        Text(currentPrompt.title)
+                            .font(Typography.title)
+                            .foregroundColor(ColorTheme.primaryText(colorScheme))
+
+                        Text(currentPrompt.instruction)
+                            .font(Typography.body)
                             .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                            .frame(width: 60)
+                            .multilineTextAlignment(.center)
+                            .lineSpacing(4)
+                            .padding(.horizontal, 24)
 
-                        Button {
-                            withAnimation {
-                                currentPromptIndex = (currentPromptIndex + 1) % prompts.count
-                            }
-                        } label: {
-                            Image(systemName: "chevron.right.circle.fill")
-                                .font(.title)
-                                .foregroundColor(ColorTheme.accent)
+                        HStack(spacing: 6) {
+                            Image(systemName: "clock")
+                                .font(.system(size: 12).width(.condensed))
+                            Text(currentPrompt.duration)
+                        }
+                        .font(Typography.caption)
+                        .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                    }
+                }
+
+                HStack(spacing: 20) {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            currentPromptIndex = (currentPromptIndex - 1 + prompts.count) % prompts.count
+                        }
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 14, weight: .semibold).width(.condensed))
+                            .foregroundColor(ColorTheme.accent)
+                            .frame(width: 40, height: 40)
+                            .background(ColorTheme.subtleAccent(colorScheme))
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
+
+                    HStack(spacing: 6) {
+                        ForEach(0..<prompts.count, id: \.self) { idx in
+                            Circle()
+                                .fill(idx == currentPromptIndex ? ColorTheme.accent : ColorTheme.separator(colorScheme))
+                                .frame(width: 6, height: 6)
                         }
                     }
-                    .padding(.bottom, 40)
+
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            currentPromptIndex = (currentPromptIndex + 1) % prompts.count
+                        }
+                    } label: {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 14, weight: .semibold).width(.condensed))
+                            .foregroundColor(ColorTheme.accent)
+                            .frame(width: 40, height: 40)
+                            .background(ColorTheme.subtleAccent(colorScheme))
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
                 }
+                .padding(.bottom, 40)
             }
             .background(ColorTheme.background(colorScheme).ignoresSafeArea())
             .navigationTitle("Visualization")
@@ -105,6 +121,7 @@ struct VisualizationView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }
+                        .font(Typography.headline)
                         .foregroundColor(ColorTheme.accent)
                 }
             }

@@ -18,17 +18,20 @@ struct EntryDetailView: View {
     ]
 
     var body: some View {
-        VStack(spacing: 16) {
-            HStack {
+        VStack(spacing: 12) {
+            HStack(spacing: 14) {
                 Label(entry.activityTypeDisplay, systemImage: entry.activityIcon)
-                    .font(Typography.headline)
-                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    .font(Typography.subheadline)
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
                 Spacer()
                 PerformanceScoreCard(score: entry.performanceScore)
             }
-            .cardStyle(colorScheme)
+            .padding(16)
+            .background(ColorTheme.cardBackground(colorScheme))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
 
-            HStack(spacing: 16) {
+            HStack(spacing: 10) {
                 ratingCard(label: "Focus", value: entry.focusRating)
                 ratingCard(label: "Effort", value: entry.effortRating)
                 ratingCard(label: "Confidence", value: entry.confidenceRating)
@@ -39,50 +42,64 @@ struct EntryDetailView: View {
             }
 
             if let improve = entry.improveNext, !improve.isEmpty {
-                reflectionCard(title: "Improve Next", icon: "arrow.up.circle", text: improve)
+                reflectionCard(title: "Improve Next", icon: "arrow.up.right", text: improve)
             }
 
             if let qId = entry.rotatingQuestionId, let answer = entry.rotatingAnswer {
-                CardView {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(rotatingQuestions[qId] ?? "Daily Question")
-                            .font(Typography.footnote)
-                            .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                        Text(answer)
-                            .font(Typography.body)
-                            .foregroundColor(ColorTheme.primaryText(colorScheme))
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(rotatingQuestions[qId] ?? "Daily Question")
+                        .font(Typography.caption)
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                    Text(answer)
+                        .font(Typography.body)
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(16)
+                .background(ColorTheme.cardBackground(colorScheme))
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
             }
         }
     }
 
     private func ratingCard(label: String, value: Int) -> some View {
-        CardView {
-            VStack(spacing: 4) {
-                Text("\(value)")
-                    .font(Typography.title2)
-                    .foregroundColor(ColorTheme.accent)
-                Text(label)
-                    .font(Typography.caption)
-                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
-            }
-            .frame(maxWidth: .infinity)
+        VStack(spacing: 6) {
+            Text("\(value)")
+                .font(Typography.number(22))
+                .foregroundColor(ratingColor(value))
+            Text(label)
+                .font(Typography.caption)
+                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
+        .background(ColorTheme.cardBackground(colorScheme))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
+    }
+
+    private func ratingColor(_ value: Int) -> Color {
+        switch value {
+        case 8...10: return Color(hex: "22C55E")
+        case 5...7: return ColorTheme.accent
+        default: return Color(hex: "F97316")
         }
     }
 
     private func reflectionCard(title: String, icon: String, text: String) -> some View {
-        CardView {
-            VStack(alignment: .leading, spacing: 8) {
-                Label(title, systemImage: icon)
-                    .font(Typography.footnote)
-                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                Text(text)
-                    .font(Typography.body)
-                    .foregroundColor(ColorTheme.primaryText(colorScheme))
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+        VStack(alignment: .leading, spacing: 8) {
+            Label(title, systemImage: icon)
+                .font(Typography.caption)
+                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+            Text(text)
+                .font(Typography.body)
+                .foregroundColor(ColorTheme.primaryText(colorScheme))
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(ColorTheme.cardBackground(colorScheme))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
     }
 }

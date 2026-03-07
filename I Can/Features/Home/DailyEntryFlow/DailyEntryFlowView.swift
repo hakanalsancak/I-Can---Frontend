@@ -100,8 +100,9 @@ struct DailyEntryFlowView: View {
             ZStack {
                 ColorTheme.background(colorScheme).ignoresSafeArea()
 
-                VStack {
+                VStack(spacing: 0) {
                     progressBar
+                        .padding(.top, 8)
 
                     Group {
                         switch viewModel.currentStep {
@@ -133,7 +134,8 @@ struct DailyEntryFlowView: View {
                                 isSlider: viewModel.isSliderQuestion,
                                 onSubmit: { submitEntry() },
                                 onBack: { viewModel.previousStep() },
-                                isSubmitting: viewModel.isSubmitting
+                                isSubmitting: viewModel.isSubmitting,
+                                errorMessage: viewModel.errorMessage
                             )
                         case .submitting:
                             if let response = viewModel.submittedResponse {
@@ -160,7 +162,11 @@ struct DailyEntryFlowView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button { dismiss() } label: {
                         Image(systemName: "xmark")
-                            .foregroundColor(ColorTheme.primaryText(colorScheme))
+                            .font(.system(size: 15, weight: .semibold).width(.condensed))
+                            .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                            .frame(width: 32, height: 32)
+                            .background(ColorTheme.elevatedBackground(colorScheme))
+                            .clipShape(Circle())
                     }
                 }
             }
@@ -168,17 +174,17 @@ struct DailyEntryFlowView: View {
     }
 
     private var progressBar: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 6) {
             ForEach(EntryStep.allCases, id: \.rawValue) { step in
                 RoundedRectangle(cornerRadius: 2)
                     .fill(step.rawValue <= viewModel.currentStep.rawValue
                           ? ColorTheme.accent
-                          : ColorTheme.cardBackground(colorScheme))
-                    .frame(height: 4)
+                          : ColorTheme.separator(colorScheme))
+                    .frame(height: 3)
+                    .animation(.easeInOut(duration: 0.3), value: viewModel.currentStep)
             }
         }
         .padding(.horizontal, 24)
-        .padding(.top, 8)
     }
 
     private func submitEntry() {

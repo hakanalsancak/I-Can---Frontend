@@ -8,6 +8,7 @@ final class ProfileViewModel {
     var isLoading = false
     var showSubscription = false
     var showSettings = false
+    var showMentalTools = false
 
     var isPremium: Bool { SubscriptionService.shared.isPremium }
 

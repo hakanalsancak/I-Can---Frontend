@@ -6,7 +6,7 @@ final class AuthService {
     static let shared = AuthService()
 
     var currentUser: User?
-    var isAuthenticated: Bool { TokenManager.shared.isAuthenticated }
+    private(set) var isAuthenticated = TokenManager.shared.isAuthenticated
     var hasCompletedOnboarding: Bool { currentUser?.onboardingCompleted ?? false }
 
     func register(email: String, password: String, fullName: String?) async throws {
@@ -16,6 +16,7 @@ final class AuthService {
         )
         TokenManager.shared.saveTokens(access: response.accessToken, refresh: response.refreshToken)
         currentUser = response.user
+        isAuthenticated = true
     }
 
     func login(email: String, password: String) async throws {
@@ -25,6 +26,7 @@ final class AuthService {
         )
         TokenManager.shared.saveTokens(access: response.accessToken, refresh: response.refreshToken)
         currentUser = response.user
+        isAuthenticated = true
     }
 
     func signInWithApple(identityToken: String, fullName: PersonNameComponents?) async throws {
@@ -37,6 +39,7 @@ final class AuthService {
         )
         TokenManager.shared.saveTokens(access: response.accessToken, refresh: response.refreshToken)
         currentUser = response.user
+        isAuthenticated = true
     }
 
     func signInWithGoogle(idToken: String) async throws {
@@ -46,6 +49,7 @@ final class AuthService {
         )
         TokenManager.shared.saveTokens(access: response.accessToken, refresh: response.refreshToken)
         currentUser = response.user
+        isAuthenticated = true
     }
 
     func completeOnboarding(sport: String, mantra: String?, notificationFrequency: Int) async throws {
@@ -64,6 +68,7 @@ final class AuthService {
     func signOut() {
         TokenManager.shared.clearTokens()
         currentUser = nil
+        isAuthenticated = false
     }
 
     private init() {}

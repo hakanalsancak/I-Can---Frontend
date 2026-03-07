@@ -7,11 +7,13 @@ struct LoadingView: View {
     var body: some View {
         VStack(spacing: 16) {
             ProgressView()
-                .scaleEffect(1.2)
+                .controlSize(.large)
                 .tint(ColorTheme.accent)
-            Text(message)
-                .font(Typography.subheadline)
-                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+            if !message.isEmpty {
+                Text(message)
+                    .font(Typography.subheadline)
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(ColorTheme.background(colorScheme))

@@ -12,10 +12,8 @@ final class APIClient: Sendable {
         config.timeoutIntervalForRequest = 30
         session = URLSession(configuration: config)
         decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
         decoder.dateDecodingStrategy = .iso8601
         encoder = JSONEncoder()
-        encoder.keyEncodingStrategy = .convertToSnakeCase
     }
 
     func request<T: Decodable>(

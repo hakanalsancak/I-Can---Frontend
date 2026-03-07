@@ -3,12 +3,28 @@ import SwiftUI
 enum ColorTheme {
     static let accent = Color(hex: "42AAB1")
 
+    static let accentGradient = LinearGradient(
+        colors: [Color(hex: "42AAB1"), Color(hex: "358A90")],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+
+    static let warmGradient = LinearGradient(
+        colors: [Color(hex: "F97316"), Color(hex: "EF4444")],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+
     static func background(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color(hex: "03213F") : .white
+        scheme == .dark ? Color(hex: "0A1628") : Color(hex: "F5F7FA")
     }
 
     static func cardBackground(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color(hex: "0E2F55") : Color(hex: "F6F8FA")
+        scheme == .dark ? Color(hex: "152035") : .white
+    }
+
+    static func elevatedBackground(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? Color(hex: "1A2842") : Color(hex: "FAFBFC")
     }
 
     static func primaryText(_ scheme: ColorScheme) -> Color {
@@ -17,6 +33,22 @@ enum ColorTheme {
 
     static func secondaryText(_ scheme: ColorScheme) -> Color {
         scheme == .dark ? Color(hex: "94A3B8") : Color(hex: "64748B")
+    }
+
+    static func tertiaryText(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? Color(hex: "475569") : Color(hex: "CBD5E1")
+    }
+
+    static func separator(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.06)
+    }
+
+    static func cardShadow(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? .clear : Color(hex: "0F172A").opacity(0.06)
+    }
+
+    static func subtleAccent(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? accent.opacity(0.15) : accent.opacity(0.08)
     }
 }
 

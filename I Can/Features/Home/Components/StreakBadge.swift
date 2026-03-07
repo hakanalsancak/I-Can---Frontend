@@ -5,16 +5,19 @@ struct StreakBadge: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        HStack(spacing: 4) {
-            Text("🔥")
+        HStack(spacing: 5) {
+            Image(systemName: "flame.fill")
+                .font(.system(size: 13, weight: .semibold).width(.condensed))
+                .foregroundColor(Color(hex: "F97316"))
             Text("\(streak)")
-                .font(Typography.headline)
+                .font(Typography.number(15, weight: .semibold))
                 .foregroundColor(ColorTheme.primaryText(colorScheme))
                 .monospacedDigit()
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
         .background(ColorTheme.cardBackground(colorScheme))
-        .clipShape(Capsule())
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 4, x: 0, y: 1)
     }
 }

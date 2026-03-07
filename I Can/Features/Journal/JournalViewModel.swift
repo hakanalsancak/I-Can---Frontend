@@ -50,8 +50,11 @@ final class JournalViewModel {
                 endDate: lastDay.apiDateString,
                 limit: 31
             )
+            let dateStr = selectedDate.apiDateString
+            selectedEntry = entries.first { $0.entryDate == dateStr }
         } catch {
             entries = []
+            selectedEntry = nil
         }
         isLoading = false
     }

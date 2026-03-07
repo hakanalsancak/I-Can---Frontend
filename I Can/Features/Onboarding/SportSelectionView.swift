@@ -7,16 +7,17 @@ struct SportSelectionView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        VStack(spacing: 24) {
-            VStack(spacing: 8) {
+        VStack(spacing: 0) {
+            VStack(spacing: 6) {
                 Text("Choose Your Sport")
                     .font(Typography.title)
                     .foregroundColor(ColorTheme.primaryText(colorScheme))
                 Text("Select the sport you play")
-                    .font(Typography.body)
+                    .font(Typography.subheadline)
                     .foregroundColor(ColorTheme.secondaryText(colorScheme))
             }
-            .padding(.top, 24)
+            .padding(.top, 32)
+            .padding(.bottom, 28)
 
             LazyVGrid(columns: [
                 GridItem(.flexible(), spacing: 12),
@@ -29,8 +30,10 @@ struct SportSelectionView: View {
                         isSelected: selectedSport == sport.id,
                         colorScheme: colorScheme
                     ) {
-                        HapticManager.selection()
-                        selectedSport = sport.id
+                        HapticManager.impact(.light)
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            selectedSport = sport.id
+                        }
                     }
                 }
             }
@@ -45,7 +48,7 @@ struct SportSelectionView: View {
                 withAnimation { onNext() }
             }
             .padding(.horizontal, 24)
-            .padding(.bottom, 40)
+            .padding(.bottom, 48)
         }
     }
 }
@@ -59,23 +62,32 @@ private struct SportCard: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 12) {
+            VStack(spacing: 10) {
                 Image(systemName: icon)
-                    .font(.system(size: 32))
-                    .foregroundColor(isSelected ? .white : ColorTheme.accent)
+                    .font(.system(size: 28, weight: .medium).width(.condensed))
+                    .foregroundColor(isSelected ? ColorTheme.accent : ColorTheme.secondaryText(colorScheme))
 
                 Text(name)
-                    .font(Typography.headline)
-                    .foregroundColor(isSelected ? .white : ColorTheme.primaryText(colorScheme))
+                    .font(Typography.subheadline)
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 24)
-            .background(isSelected ? ColorTheme.accent : ColorTheme.cardBackground(colorScheme))
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(isSelected ? ColorTheme.accent : .clear, lineWidth: 2)
+            .padding(.vertical, 22)
+            .background(
+                isSelected
+                ? ColorTheme.subtleAccent(colorScheme)
+                : ColorTheme.cardBackground(colorScheme)
             )
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(
+                        isSelected ? ColorTheme.accent : ColorTheme.separator(colorScheme),
+                        lineWidth: isSelected ? 1.5 : 1
+                    )
+            )
+            .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 4, x: 0, y: 1)
         }
+        .buttonStyle(.plain)
     }
 }

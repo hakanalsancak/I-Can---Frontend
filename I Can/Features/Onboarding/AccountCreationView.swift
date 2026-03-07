@@ -6,20 +6,20 @@ struct AccountCreationView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                VStack(spacing: 8) {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 28) {
+                VStack(spacing: 6) {
                     Text("Create Account")
                         .font(Typography.title)
                         .foregroundColor(ColorTheme.primaryText(colorScheme))
                     Text("Save your progress and access\nyour data across devices")
-                        .font(Typography.body)
+                        .font(Typography.subheadline)
                         .foregroundColor(ColorTheme.secondaryText(colorScheme))
                         .multilineTextAlignment(.center)
                 }
-                .padding(.top, 24)
+                .padding(.top, 32)
 
-                VStack(spacing: 12) {
+                VStack(spacing: 10) {
                     SignInWithAppleButton(.signIn) { request in
                         request.requestedScopes = [.fullName, .email]
                     } onCompletion: { result in
@@ -32,14 +32,14 @@ struct AccountCreationView: View {
                     }
                     .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
                     .frame(height: 52)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
                     Button {
                         // Google Sign-In requires GoogleSignIn SDK
                     } label: {
                         HStack(spacing: 8) {
                             Image(systemName: "g.circle.fill")
-                                .font(.title2)
+                                .font(.title3)
                             Text("Continue with Google")
                                 .font(Typography.headline)
                         }
@@ -47,14 +47,19 @@ struct AccountCreationView: View {
                         .padding(.vertical, 14)
                         .background(ColorTheme.cardBackground(colorScheme))
                         .foregroundColor(ColorTheme.primaryText(colorScheme))
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .strokeBorder(ColorTheme.separator(colorScheme), lineWidth: 1)
+                        )
+                        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 4, x: 0, y: 1)
                     }
                 }
                 .padding(.horizontal, 24)
 
                 dividerRow
 
-                VStack(spacing: 12) {
+                VStack(spacing: 10) {
                     TextField("Full Name", text: $viewModel.fullName)
                         .textContentType(.name)
                         .textFieldStyle(ICanTextFieldStyle())
@@ -78,35 +83,39 @@ struct AccountCreationView: View {
                         .padding(.horizontal, 24)
                 }
 
-                PrimaryButton(
-                    title: "Create Account",
-                    isLoading: viewModel.isLoading,
-                    isDisabled: viewModel.email.isEmpty || viewModel.password.isEmpty
-                ) {
-                    Task { await viewModel.registerWithEmail() }
+                VStack(spacing: 16) {
+                    PrimaryButton(
+                        title: "Create Account",
+                        isLoading: viewModel.isLoading,
+                        isDisabled: viewModel.email.isEmpty || viewModel.password.isEmpty
+                    ) {
+                        Task { await viewModel.registerWithEmail() }
+                    }
+
+                    Button {
+                        Task { await viewModel.skipAccountCreation() }
+                    } label: {
+                        Text("Skip for now")
+                            .font(Typography.subheadline)
+                            .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                    }
                 }
                 .padding(.horizontal, 24)
-
-                Button("Skip for now") {
-                    Task { await viewModel.skipAccountCreation() }
-                }
-                .font(Typography.subheadline)
-                .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                .padding(.bottom, 40)
+                .padding(.bottom, 48)
             }
         }
     }
 
     private var dividerRow: some View {
-        HStack {
+        HStack(spacing: 16) {
             Rectangle()
-                .fill(ColorTheme.cardBackground(colorScheme))
+                .fill(ColorTheme.separator(colorScheme))
                 .frame(height: 1)
             Text("or")
                 .font(Typography.caption)
-                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                .foregroundColor(ColorTheme.tertiaryText(colorScheme))
             Rectangle()
-                .fill(ColorTheme.cardBackground(colorScheme))
+                .fill(ColorTheme.separator(colorScheme))
                 .frame(height: 1)
         }
         .padding(.horizontal, 24)
@@ -119,8 +128,13 @@ struct ICanTextFieldStyle: TextFieldStyle {
     func _body(configuration: TextField<Self._Label>) -> some View {
         configuration
             .font(Typography.body)
-            .padding(16)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
             .background(ColorTheme.cardBackground(colorScheme))
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(ColorTheme.separator(colorScheme), lineWidth: 1)
+            )
     }
 }

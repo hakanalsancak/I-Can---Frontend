@@ -8,49 +8,45 @@ struct MainTabView: View {
         TabView(selection: $selectedTab) {
             HomeView()
                 .tabItem {
-                    Image(systemName: "house.fill")
+                    Image(systemName: selectedTab == 0 ? "house.fill" : "house")
                     Text("Home")
                 }
                 .tag(0)
 
             JournalView()
                 .tabItem {
-                    Image(systemName: "book.fill")
+                    Image(systemName: selectedTab == 1 ? "book.fill" : "book")
                     Text("Journal")
                 }
                 .tag(1)
+
+            ReportsView()
+                .tabItem {
+                    Image(systemName: selectedTab == 2 ? "brain.fill" : "brain")
+                    Text("AI Coach")
+                }
+                .tag(2)
 
             GoalsView()
                 .tabItem {
                     Image(systemName: "target")
                     Text("Goals")
                 }
-                .tag(2)
-
-            MentalToolsView()
-                .tabItem {
-                    Image(systemName: "brain.head.profile")
-                    Text("Mental")
-                }
                 .tag(3)
-
-            ReportsView()
-                .tabItem {
-                    Image(systemName: "chart.bar.fill")
-                    Text("Reports")
-                }
-                .tag(4)
 
             ProfileView()
                 .tabItem {
-                    Image(systemName: "person.fill")
+                    Image(systemName: selectedTab == 4 ? "person.fill" : "person")
                     Text("Profile")
                 }
-                .tag(5)
+                .tag(4)
         }
         .tint(ColorTheme.accent)
         .onAppear {
             requestNotificationPermission()
+            let appearance = UITabBarAppearance()
+            appearance.configureWithDefaultBackground()
+            UITabBar.appearance().scrollEdgeAppearance = appearance
         }
     }
 

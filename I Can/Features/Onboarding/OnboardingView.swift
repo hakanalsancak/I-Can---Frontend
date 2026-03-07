@@ -9,8 +9,12 @@ struct OnboardingView: View {
         ZStack {
             ColorTheme.background(colorScheme).ignoresSafeArea()
 
-            VStack {
-                progressBar
+            VStack(spacing: 0) {
+                if viewModel.currentStep != .welcome {
+                    progressBar
+                        .padding(.top, 12)
+                        .padding(.bottom, 8)
+                }
 
                 Group {
                     switch viewModel.currentStep {
@@ -43,7 +47,7 @@ struct OnboardingView: View {
                     insertion: .move(edge: .trailing).combined(with: .opacity),
                     removal: .move(edge: .leading).combined(with: .opacity)
                 ))
-                .animation(.easeInOut(duration: 0.3), value: viewModel.currentStep)
+                .animation(.easeInOut(duration: 0.35), value: viewModel.currentStep)
             }
         }
         .onAppear {
@@ -52,45 +56,63 @@ struct OnboardingView: View {
     }
 
     private var progressBar: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 6) {
             ForEach(OnboardingStep.allCases, id: \.rawValue) { step in
                 RoundedRectangle(cornerRadius: 2)
                     .fill(step.rawValue <= viewModel.currentStep.rawValue
                           ? ColorTheme.accent
-                          : ColorTheme.cardBackground(colorScheme))
-                    .frame(height: 4)
+                          : ColorTheme.separator(colorScheme))
+                    .frame(height: 3)
+                    .animation(.easeInOut(duration: 0.3), value: viewModel.currentStep)
             }
         }
         .padding(.horizontal, 24)
-        .padding(.top, 8)
     }
 
     private var welcomeView: some View {
-        VStack(spacing: 32) {
+        VStack(spacing: 0) {
             Spacer()
 
-            Image(systemName: "flame.fill")
-                .font(.system(size: 80))
-                .foregroundColor(ColorTheme.accent)
+            VStack(spacing: 24) {
+                ZStack {
+                    Circle()
+                        .fill(ColorTheme.accent.opacity(0.1))
+                        .frame(width: 140, height: 140)
+                    Circle()
+                        .fill(ColorTheme.accent.opacity(0.15))
+                        .frame(width: 100, height: 100)
+                    Image(systemName: "flame.fill")
+                        .font(.system(size: 48, weight: .medium).width(.condensed))
+                        .foregroundStyle(ColorTheme.accentGradient)
+                }
 
-            VStack(spacing: 12) {
-                Text("I Can")
-                    .font(Typography.largeTitle)
-                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+                VStack(spacing: 10) {
+                    Text("I Can")
+                        .font(.system(size: 44, weight: .heavy).width(.condensed))
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
 
-                Text("Track Your Performance.\nImprove Mentally & Physically.")
-                    .font(Typography.body)
-                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                    .multilineTextAlignment(.center)
+                    Text("Track Your Performance.\nImprove Mentally & Physically.")
+                        .font(Typography.body)
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(4)
+                }
             }
 
             Spacer()
+            Spacer()
 
-            PrimaryButton(title: "Get Started") {
-                withAnimation { viewModel.nextStep() }
+            VStack(spacing: 16) {
+                PrimaryButton(title: "Get Started") {
+                    withAnimation { viewModel.nextStep() }
+                }
+
+                Text("Join thousands of athletes improving daily")
+                    .font(Typography.footnote)
+                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
             }
             .padding(.horizontal, 24)
-            .padding(.bottom, 40)
+            .padding(.bottom, 48)
         }
     }
 }
