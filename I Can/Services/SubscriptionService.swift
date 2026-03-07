@@ -40,11 +40,16 @@ final class SubscriptionService {
         switch result {
         case .success(let verification):
             let transaction = try checkVerified(verification)
-            try await verifyReceipt(
-                transactionId: String(transaction.id),
-                productId: transaction.productID,
-                originalTransactionId: String(transaction.originalID)
-            )
+            isPremium = true
+            do {
+                try await verifyReceipt(
+                    transactionId: String(transaction.id),
+                    productId: transaction.productID,
+                    originalTransactionId: String(transaction.originalID)
+                )
+            } catch {
+                // Backend verification failed but StoreKit purchase succeeded
+            }
             await transaction.finish()
             return true
         case .userCancelled:
@@ -59,12 +64,22 @@ final class SubscriptionService {
     func listenForTransactions() async {
         for await result in Transaction.updates {
             if let transaction = try? checkVerified(result) {
+                isPremium = true
                 try? await verifyReceipt(
                     transactionId: String(transaction.id),
                     productId: transaction.productID,
                     originalTransactionId: String(transaction.originalID)
                 )
                 await transaction.finish()
+            }
+        }
+    }
+
+    func checkLocalEntitlement() async {
+        for await result in Transaction.currentEntitlements {
+            if let _ = try? checkVerified(result) {
+                isPremium = true
+                return
             }
         }
     }

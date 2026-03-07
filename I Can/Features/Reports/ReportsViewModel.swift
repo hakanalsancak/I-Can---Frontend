@@ -2,25 +2,39 @@ import Foundation
 
 @Observable
 final class ReportsViewModel {
-    var reports: [AIReport] = []
+    var weeklyReports: [AIReport] = []
+    var monthlyReports: [AIReport] = []
     var selectedReport: AIReport?
     var isLoading = false
     var isGenerating = false
-    var selectedType: String = "weekly"
     var errorMessage: String?
     var showPaywall = false
+
+    var weeklyEligibility: GenerateEligibility?
+    var monthlyEligibility: GenerateEligibility?
+    var generationSuccessType: String?
 
     func loadReports() async {
         isLoading = true
         do {
-            reports = try await ReportService.shared.getReports(type: selectedType)
+            let all = try await ReportService.shared.getReports()
+            weeklyReports = all.filter { $0.reportType == "weekly" }
+            monthlyReports = all.filter { $0.reportType == "monthly" }
         } catch {
-            reports = []
+            weeklyReports = []
+            monthlyReports = []
         }
         isLoading = false
     }
 
-    func generateReport() async {
+    func checkEligibility() async {
+        async let w = ReportService.shared.checkEligibility(type: "weekly")
+        async let m = ReportService.shared.checkEligibility(type: "monthly")
+        weeklyEligibility = try? await w
+        monthlyEligibility = try? await m
+    }
+
+    func generateReport(type: String) async {
         let isPremium = SubscriptionService.shared.isPremium
         if !isPremium {
             showPaywall = true
@@ -29,31 +43,30 @@ final class ReportsViewModel {
 
         isGenerating = true
         errorMessage = nil
-
-        let now = Date()
-        let periodStart: Date
-        let periodEnd = now
-
-        switch selectedType {
-        case "weekly": periodStart = now.daysAgo(7)
-        case "monthly": periodStart = now.monthsAgo(1)
-        case "yearly": periodStart = now.monthsAgo(12)
-        default: periodStart = now.daysAgo(7)
-        }
+        generationSuccessType = nil
 
         do {
-            let report = try await ReportService.shared.generateReport(
-                type: selectedType,
-                periodStart: periodStart.apiDateString,
-                periodEnd: periodEnd.apiDateString
-            )
-            reports.insert(report, at: 0)
-            selectedReport = report
-            HapticManager.notification(.success)
-        } catch let error as APIError {
-            if case .premiumRequired = error {
-                showPaywall = true
+            let report = try await ReportService.shared.generateReport(type: type)
+            if report.alreadyExists == true {
+                errorMessage = "You already generated a \(type) report for this period"
             } else {
+                if type == "weekly" {
+                    weeklyReports.insert(report, at: 0)
+                } else {
+                    monthlyReports.insert(report, at: 0)
+                }
+                generationSuccessType = type
+                selectedReport = report
+                HapticManager.notification(.success)
+            }
+            await checkEligibility()
+        } catch let error as APIError {
+            switch error {
+            case .premiumRequired:
+                showPaywall = true
+            case .serverError(let msg):
+                errorMessage = msg
+            default:
                 errorMessage = error.localizedDescription
             }
         } catch {

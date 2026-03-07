@@ -11,8 +11,8 @@
     "_developerTeamID" : "XXXXXXXXXX",
     "_failTransactionsEnabled" : false,
     "_lastError" : "",
-    "_locale" : "en_US",
-    "_storefront" : "USA",
+    "_locale" : "en_GB",
+    "_storefront" : "GBR",
     "_storeKitErrors" : [
       {
         "current" : null,
@@ -92,6 +92,11 @@
               "description" : "AI coaching insights, weekly/monthly/yearly reports, goal-based feedback",
               "displayName" : "I Can Premium",
               "locale" : "en_US"
+            },
+            {
+              "description" : "AI coaching insights, weekly/monthly/yearly reports, goal-based feedback",
+              "displayName" : "I Can Premium",
+              "locale" : "en_GB"
             }
           ],
           "productID" : "com.hakanalsancak.ican.premium.monthly",

@@ -145,16 +145,22 @@ struct ProfileView: View {
 
     private var subscriptionCard: some View {
         Button {
-            viewModel.showSubscription = true
+            if viewModel.isPremium {
+                // No action needed for premium users
+            } else {
+                viewModel.showSubscription = true
+            }
         } label: {
             if viewModel.isPremium {
                 HStack(spacing: 14) {
-                    Image(systemName: "crown.fill")
-                        .font(.system(size: 18).width(.condensed))
-                        .foregroundColor(Color(hex: "EAB308"))
-                        .frame(width: 40, height: 40)
-                        .background(Color(hex: "EAB308").opacity(0.12))
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    ZStack {
+                        Circle()
+                            .fill(Color(hex: "EAB308").opacity(0.12))
+                            .frame(width: 40, height: 40)
+                        Image(systemName: "crown.fill")
+                            .font(.system(size: 18).width(.condensed))
+                            .foregroundColor(Color(hex: "EAB308"))
+                    }
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Premium Active")
@@ -162,14 +168,14 @@ struct ProfileView: View {
                             .foregroundColor(ColorTheme.primaryText(colorScheme))
                         Text("AI coaching reports unlocked")
                             .font(Typography.footnote)
-                            .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                            .foregroundColor(Color(hex: "22C55E"))
                     }
 
                     Spacer()
 
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 13, weight: .semibold).width(.condensed))
-                        .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(Color(hex: "22C55E"))
                 }
                 .padding(14)
                 .background(ColorTheme.cardBackground(colorScheme))

@@ -3,8 +3,6 @@ import SwiftUI
 struct MentalToolsView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var showBreathing = false
-    @State private var showVisualization = false
-    @State private var showFocusReset = false
 
     var body: some View {
         NavigationStack {
@@ -28,26 +26,6 @@ struct MentalToolsView: View {
                             )
                         }
                         .buttonStyle(.plain)
-
-                        Button { showVisualization = true } label: {
-                            toolCard(
-                                title: "Visualization",
-                                subtitle: "Mentally rehearse success",
-                                icon: "eye",
-                                color: Color(hex: "8B5CF6")
-                            )
-                        }
-                        .buttonStyle(.plain)
-
-                        Button { showFocusReset = true } label: {
-                            toolCard(
-                                title: "Focus Reset",
-                                subtitle: "Quick mental reset between plays",
-                                icon: "arrow.counterclockwise",
-                                color: Color(hex: "F97316")
-                            )
-                        }
-                        .buttonStyle(.plain)
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 16)
@@ -58,12 +36,6 @@ struct MentalToolsView: View {
             .navigationBarHidden(true)
             .fullScreenCover(isPresented: $showBreathing) {
                 BreathingExerciseView()
-            }
-            .sheet(isPresented: $showVisualization) {
-                VisualizationView()
-            }
-            .fullScreenCover(isPresented: $showFocusReset) {
-                FocusResetView()
             }
         }
     }

@@ -44,9 +44,8 @@ final class APIClient: Sendable {
             throw APIError.invalidResponse
         }
 
-        if httpResponse.statusCode == 401 {
-            let errorBody = try? decoder.decode(APIErrorResponse.self, from: data)
-            if errorBody?.code == "TOKEN_EXPIRED", authenticated {
+        if httpResponse.statusCode == 401, authenticated {
+            do {
                 try await refreshAccessToken()
                 if let newToken = TokenManager.shared.accessToken {
                     var retryRequest = urlRequest
@@ -58,6 +57,8 @@ final class APIClient: Sendable {
                     }
                     return try decoder.decode(T.self, from: retryData)
                 }
+            } catch {
+                throw APIError.unauthorized
             }
             throw APIError.unauthorized
         }

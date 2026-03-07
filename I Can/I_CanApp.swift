@@ -11,6 +11,7 @@ struct I_CanApp: App {
             ContentView()
                 .preferredColorScheme(.dark)
                 .task {
+                    await SubscriptionService.shared.checkLocalEntitlement()
                     await SubscriptionService.shared.listenForTransactions()
                 }
         }

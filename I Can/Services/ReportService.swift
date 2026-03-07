@@ -4,10 +4,8 @@ import Foundation
 final class ReportService {
     static let shared = ReportService()
 
-    func getReports(type: String? = nil) async throws -> [AIReport] {
-        var endpoint = APIEndpoints.Reports.base
-        if let type { endpoint += "?type=\(type)" }
-        let response: ReportsResponse = try await APIClient.shared.request(endpoint)
+    func getReports() async throws -> [AIReport] {
+        let response: ReportsResponse = try await APIClient.shared.request(APIEndpoints.Reports.base)
         return response.reports
     }
 
@@ -15,11 +13,16 @@ final class ReportService {
         try await APIClient.shared.request(APIEndpoints.Reports.byId(id))
     }
 
-    func generateReport(type: String, periodStart: String, periodEnd: String) async throws -> AIReport {
-        let request = GenerateReportRequest(reportType: type, periodStart: periodStart, periodEnd: periodEnd)
+    func generateReport(type: String) async throws -> AIReport {
+        let request = GenerateReportRequest(reportType: type)
         return try await APIClient.shared.request(
             APIEndpoints.Reports.generate, method: "POST", body: request
         )
+    }
+
+    func checkEligibility(type: String) async throws -> GenerateEligibility {
+        let endpoint = APIEndpoints.Reports.canGenerate + "?reportType=\(type)"
+        return try await APIClient.shared.request(endpoint)
     }
 
     private init() {}

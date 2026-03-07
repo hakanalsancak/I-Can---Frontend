@@ -110,8 +110,6 @@ struct HomeView: View {
     @State private var quoteOpacity: Double = 1
     @State private var showSubscription = false
     @State private var showBreathing = false
-    @State private var showVisualization = false
-    @State private var showFocusReset = false
     @Environment(\.colorScheme) private var colorScheme
 
     private let quoteTimer = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
@@ -153,12 +151,6 @@ struct HomeView: View {
             }
             .fullScreenCover(isPresented: $showBreathing) {
                 BreathingExerciseView()
-            }
-            .sheet(isPresented: $showVisualization) {
-                VisualizationView()
-            }
-            .fullScreenCover(isPresented: $showFocusReset) {
-                FocusResetView()
             }
             .onReceive(quoteTimer) { _ in
                 rotateQuote()
@@ -428,34 +420,14 @@ struct HomeView: View {
             Text("MENTAL TOOLS")
                 .sectionHeader(colorScheme)
 
-            HStack(spacing: 12) {
-                Button { showBreathing = true } label: {
-                    mentalToolTile(
-                        icon: "wind",
-                        title: "Breathe",
-                        color: Color(hex: "3B82F6")
-                    )
-                }
-                .buttonStyle(.plain)
-
-                Button { showVisualization = true } label: {
-                    mentalToolTile(
-                        icon: "eye",
-                        title: "Visualize",
-                        color: Color(hex: "8B5CF6")
-                    )
-                }
-                .buttonStyle(.plain)
-
-                Button { showFocusReset = true } label: {
-                    mentalToolTile(
-                        icon: "arrow.counterclockwise",
-                        title: "Reset",
-                        color: Color(hex: "F97316")
-                    )
-                }
-                .buttonStyle(.plain)
+            Button { showBreathing = true } label: {
+                mentalToolTile(
+                    icon: "wind",
+                    title: "Breathing Exercise",
+                    color: Color(hex: "3B82F6")
+                )
             }
+            .buttonStyle(.plain)
         }
     }
 

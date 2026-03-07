@@ -87,9 +87,10 @@ struct SubscriptionView: View {
                     .font(Typography.subheadline)
                     .foregroundColor(ColorTheme.secondaryText(colorScheme))
             } else if !isLoading {
-                Text("$9.99/month after trial")
+                Text("Free for 1 month, then auto-renews monthly")
                     .font(Typography.subheadline)
                     .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                    .multilineTextAlignment(.center)
             }
 
             if isLoading {

@@ -3,6 +3,7 @@ import SwiftUI
 struct ReportsView: View {
     @State private var viewModel = ReportsViewModel()
     @State private var showSubscription = false
+    @State private var generatingType: String?
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -11,36 +12,17 @@ struct ReportsView: View {
                 PageHeader("AI Coach")
 
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 20) {
+                    VStack(spacing: 24) {
                         if SubscriptionService.shared.isPremium {
-                            premiumGenerateSection
+                            premiumContent
                         } else {
                             lockedHeroSection
-                        }
-
-                        if SubscriptionService.shared.isPremium {
-                            if viewModel.isLoading {
-                                LoadingView(message: "Loading reports...")
-                                    .frame(height: 160)
-                            } else if viewModel.reports.isEmpty {
-                                premiumEmptyState
-                            } else {
-                                reportsList
-                            }
-                        } else {
                             featureShowcase
-                        }
-
-                        if let error = viewModel.errorMessage {
-                            Text(error)
-                                .font(Typography.footnote)
-                                .foregroundColor(.red)
-                                .padding(.horizontal, 4)
                         }
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 16)
-                    .padding(.bottom, 24)
+                    .padding(.bottom, 32)
                 }
             }
             .background(ColorTheme.background(colorScheme).ignoresSafeArea())
@@ -48,11 +30,7 @@ struct ReportsView: View {
             .task {
                 if SubscriptionService.shared.isPremium {
                     await viewModel.loadReports()
-                }
-            }
-            .onChange(of: viewModel.selectedType) { _, _ in
-                if SubscriptionService.shared.isPremium {
-                    Task { await viewModel.loadReports() }
+                    await viewModel.checkEligibility()
                 }
             }
             .sheet(item: $viewModel.selectedReport) { report in
@@ -67,74 +45,264 @@ struct ReportsView: View {
         }
     }
 
-    // MARK: - Premium Generate Section
+    // MARK: - Premium Content
 
-    private var premiumGenerateSection: some View {
-        VStack(spacing: 16) {
-            typePicker
+    private var premiumContent: some View {
+        VStack(spacing: 24) {
+            weeklySection
+            monthlySection
 
+            if let error = viewModel.errorMessage {
+                errorBanner(error)
+            }
+        }
+    }
+
+    // MARK: - Weekly Section
+
+    private var weeklySection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Image(systemName: "chart.bar.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(Color(hex: "8B5CF6"))
+                Text("WEEKLY REPORTS")
+                    .sectionHeader(colorScheme)
+                Spacer()
+            }
+
+            generateCard(
+                type: "weekly",
+                eligibility: viewModel.weeklyEligibility,
+                icon: "chart.bar.fill",
+                gradient: [Color(hex: "7C3AED"), Color(hex: "4F46E5")]
+            )
+
+            if viewModel.isLoading {
+                loadingPlaceholder
+            } else if !viewModel.weeklyReports.isEmpty {
+                reportCards(viewModel.weeklyReports)
+            }
+        }
+    }
+
+    // MARK: - Monthly Section
+
+    private var monthlySection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(Color(hex: "2563EB"))
+                Text("MONTHLY REPORTS")
+                    .sectionHeader(colorScheme)
+                Spacer()
+            }
+
+            generateCard(
+                type: "monthly",
+                eligibility: viewModel.monthlyEligibility,
+                icon: "chart.line.uptrend.xyaxis",
+                gradient: [Color(hex: "2563EB"), Color(hex: "1D4ED8")]
+            )
+
+            if viewModel.isLoading {
+                loadingPlaceholder
+            } else if !viewModel.monthlyReports.isEmpty {
+                reportCards(viewModel.monthlyReports)
+            }
+        }
+    }
+
+    // MARK: - Generate Card
+
+    private func generateCard(
+        type: String,
+        eligibility: GenerateEligibility?,
+        icon: String,
+        gradient: [Color]
+    ) -> some View {
+        let canGenerate = eligibility?.canGenerate ?? false
+        let isThisGenerating = viewModel.isGenerating && generatingType == type
+        let periodLabel = eligibility.flatMap { e -> String? in
+            guard let s = e.periodStart, let ed = e.periodEnd,
+                  let startD = Date.fromAPIString(s),
+                  let endD = Date.fromAPIString(ed) else { return nil }
+            let fmt = DateFormatter()
+            fmt.dateFormat = "MMM d"
+            return "\(fmt.string(from: startD)) – \(fmt.string(from: endD))"
+        }
+
+        return VStack(spacing: 0) {
             Button {
+                guard canGenerate, !viewModel.isGenerating else { return }
                 HapticManager.impact(.medium)
-                Task { await viewModel.generateReport() }
+                generatingType = type
+                Task { await viewModel.generateReport(type: type) }
             } label: {
-                HStack(spacing: 10) {
-                    if viewModel.isGenerating {
-                        ProgressView()
-                            .tint(.white)
-                    } else {
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 16, weight: .bold))
+                HStack(spacing: 12) {
+                    ZStack {
+                        if isThisGenerating {
+                            ProgressView()
+                                .tint(.white)
+                        } else {
+                            Image(systemName: canGenerate ? "sparkles" : "lock.fill")
+                                .font(.system(size: 16, weight: .bold))
+                        }
                     }
-                    Text(viewModel.isGenerating ? "Analyzing..." : "Generate \(viewModel.selectedType.capitalized) Report")
-                        .font(.system(size: 16, weight: .bold).width(.condensed))
+                    .frame(width: 20)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(isThisGenerating ? "Analyzing Your Data..." : (canGenerate ? "Generate \(type.capitalized) Report" : "Already Generated"))
+                            .font(.system(size: 15, weight: .bold).width(.condensed))
+
+                        if let period = periodLabel {
+                            Text(period)
+                                .font(.system(size: 12, weight: .medium).width(.condensed))
+                                .opacity(0.8)
+                        }
+                    }
+
+                    Spacer()
+
+                    if canGenerate && !isThisGenerating {
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 13, weight: .bold))
+                    }
                 }
                 .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 14)
                 .background(
                     LinearGradient(
-                        colors: [Color(hex: "7C3AED"), Color(hex: "4F46E5")],
+                        colors: canGenerate ? gradient : [Color(hex: "374151"), Color(hex: "1F2937")],
                         startPoint: .leading,
                         endPoint: .trailing
                     )
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .shadow(color: Color(hex: "7C3AED").opacity(0.3), radius: 10, x: 0, y: 4)
+                .shadow(color: (canGenerate ? gradient[0] : .clear).opacity(0.25), radius: 8, x: 0, y: 4)
             }
-            .disabled(viewModel.isGenerating)
-        }
-    }
+            .buttonStyle(.plain)
+            .disabled(!canGenerate || viewModel.isGenerating)
 
-    private var typePicker: some View {
-        HStack(spacing: 8) {
-            ForEach(["weekly", "monthly", "yearly"], id: \.self) { type in
-                Button {
-                    HapticManager.selection()
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        viewModel.selectedType = type
-                    }
-                } label: {
-                    Text(type.capitalized)
-                        .font(Typography.subheadline)
-                        .foregroundColor(viewModel.selectedType == type ? .white : ColorTheme.primaryText(colorScheme))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(
-                            viewModel.selectedType == type
-                            ? AnyShapeStyle(
-                                LinearGradient(
-                                    colors: [Color(hex: "7C3AED"), Color(hex: "4F46E5")],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                              )
-                            : AnyShapeStyle(ColorTheme.cardBackground(colorScheme))
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 4, x: 0, y: 1)
+            if !canGenerate, let reason = eligibility?.reason {
+                HStack(spacing: 6) {
+                    Image(systemName: "info.circle.fill")
+                        .font(.system(size: 11))
+                    Text(reason)
+                        .font(.system(size: 12, weight: .medium).width(.condensed))
+                }
+                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                .padding(.top, 8)
+                .padding(.horizontal, 4)
+
+                if let required = eligibility?.required, let current = eligibility?.current {
+                    progressBar(current: current, required: required, gradient: gradient)
+                        .padding(.top, 6)
                 }
             }
         }
+    }
+
+    private func progressBar(current: Int, required: Int, gradient: [Color]) -> some View {
+        VStack(spacing: 6) {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(ColorTheme.cardBackground(colorScheme))
+                        .frame(height: 6)
+
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(LinearGradient(colors: gradient, startPoint: .leading, endPoint: .trailing))
+                        .frame(width: geo.size.width * min(CGFloat(current) / CGFloat(required), 1.0), height: 6)
+                }
+            }
+            .frame(height: 6)
+
+            HStack {
+                Text("\(current)/\(required) entries logged")
+                    .font(.system(size: 11, weight: .medium).width(.condensed))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                Spacer()
+            }
+        }
+        .padding(.horizontal, 4)
+    }
+
+    // MARK: - Report Cards
+
+    private func reportCards(_ reports: [AIReport]) -> some View {
+        VStack(spacing: 10) {
+            ForEach(reports) { report in
+                Button {
+                    HapticManager.selection()
+                    Task { await viewModel.loadReportDetail(report) }
+                } label: {
+                    HStack(spacing: 14) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(report.dateRangeDisplay)
+                                .font(.system(size: 15, weight: .semibold).width(.condensed))
+                                .foregroundColor(ColorTheme.primaryText(colorScheme))
+
+                            if let created = report.createdDateDisplay {
+                                Text("Generated \(created)")
+                                    .font(.system(size: 12, weight: .medium).width(.condensed))
+                                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                            }
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                    }
+                    .padding(14)
+                    .background(ColorTheme.cardBackground(colorScheme))
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 4, x: 0, y: 1)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    // MARK: - Loading
+
+    private var loadingPlaceholder: some View {
+        VStack(spacing: 10) {
+            ForEach(0..<2, id: \.self) { _ in
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(ColorTheme.cardBackground(colorScheme))
+                    .frame(height: 60)
+                    .shimmering()
+            }
+        }
+    }
+
+    // MARK: - Error Banner
+
+    private func errorBanner(_ message: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(Color(hex: "F59E0B"))
+            Text(message)
+                .font(.system(size: 13, weight: .medium).width(.condensed))
+                .foregroundColor(ColorTheme.primaryText(colorScheme))
+            Spacer()
+            Button {
+                viewModel.errorMessage = nil
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+            }
+        }
+        .padding(14)
+        .background(Color(hex: "F59E0B").opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     // MARK: - Locked Hero (Non-Premium)
@@ -204,7 +372,7 @@ struct ReportsView: View {
                 Image(systemName: "gift.fill")
                     .font(.system(size: 12, weight: .bold))
                     .foregroundColor(Color(hex: "EAB308"))
-                Text("1 month free, then $9.99/month")
+                Text("1 month free trial included")
                     .font(Typography.footnote)
                     .foregroundColor(ColorTheme.secondaryText(colorScheme))
             }
@@ -232,16 +400,9 @@ struct ReportsView: View {
 
             featureCard(
                 icon: "chart.line.uptrend.xyaxis",
-                iconColors: ["8B5CF6", "6D28D9"],
+                iconColors: ["2563EB", "1D4ED8"],
                 title: "Monthly Deep Dives",
                 description: "Comprehensive monthly reviews covering strengths, areas to improve, and consistency tracking."
-            )
-
-            featureCard(
-                icon: "star.fill",
-                iconColors: ["EAB308", "D97706"],
-                title: "Yearly Performance Review",
-                description: "Your complete annual athletic journey with long-term growth analysis and milestone tracking."
             )
 
             featureCard(
@@ -291,88 +452,43 @@ struct ReportsView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
     }
+}
 
-    // MARK: - Reports List (Premium)
+// MARK: - Shimmer Modifier
 
-    private var reportsList: some View {
-        VStack(spacing: 12) {
-            Text("YOUR REPORTS")
-                .sectionHeader(colorScheme)
+struct ShimmeringModifier: ViewModifier {
+    @State private var phase: CGFloat = -1
 
-            ForEach(viewModel.reports) { report in
-                Button {
-                    Task { await viewModel.loadReportDetail(report) }
-                } label: {
-                    reportRow(report)
-                }
-                .buttonStyle(.plain)
+    func body(content: Content) -> some View {
+        content.overlay(
+            GeometryReader { geo in
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            stops: [
+                                .init(color: .clear, location: 0),
+                                .init(color: .white.opacity(0.08), location: 0.5),
+                                .init(color: .clear, location: 1)
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(width: geo.size.width * 0.6)
+                    .offset(x: phase * geo.size.width)
+            }
+            .clipped()
+        )
+        .onAppear {
+            withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
+                phase = 2
             }
         }
     }
+}
 
-    private func reportRow(_ report: AIReport) -> some View {
-        HStack(spacing: 14) {
-            Image(systemName: report.reportIcon)
-                .font(.system(size: 18, weight: .medium))
-                .foregroundColor(.white)
-                .frame(width: 40, height: 40)
-                .background(
-                    LinearGradient(
-                        colors: [Color(hex: "7C3AED"), Color(hex: "4F46E5")],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(report.reportTypeDisplay)
-                    .font(Typography.headline)
-                    .foregroundColor(ColorTheme.primaryText(colorScheme))
-
-                if let start = Date.fromAPIString(report.periodStart),
-                   let end = Date.fromAPIString(report.periodEnd) {
-                    Text("\(start.shortDisplayString) – \(end.shortDisplayString)")
-                        .font(Typography.footnote)
-                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                }
-            }
-
-            Spacer()
-
-            Image(systemName: "chevron.right")
-                .font(.system(size: 13, weight: .semibold).width(.condensed))
-                .foregroundColor(ColorTheme.tertiaryText(colorScheme))
-        }
-        .padding(14)
-        .background(ColorTheme.cardBackground(colorScheme))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
-    }
-
-    private var premiumEmptyState: some View {
-        VStack(spacing: 14) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 32))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [Color(hex: "8B5CF6"), Color(hex: "4F46E5")],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-            Text("Ready to Analyze")
-                .font(Typography.title3)
-                .foregroundColor(ColorTheme.primaryText(colorScheme))
-            Text("Select a report type above and generate\nyour first AI coaching report")
-                .font(Typography.subheadline)
-                .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 40)
-        .background(ColorTheme.cardBackground(colorScheme))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
+extension View {
+    func shimmering() -> some View {
+        modifier(ShimmeringModifier())
     }
 }
