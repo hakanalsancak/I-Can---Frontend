@@ -93,19 +93,33 @@ struct MantraCreationView: View {
 
             VStack(spacing: 0) {
                 Divider().opacity(0.3)
-                HStack(spacing: 12) {
-                    Button {
-                        withAnimation { onBack() }
-                    } label: {
-                        Text("Back")
-                            .font(Typography.headline)
-                            .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
+                VStack(spacing: 8) {
+                    HStack(spacing: 12) {
+                        Button {
+                            withAnimation { onBack() }
+                        } label: {
+                            Text("Back")
+                                .font(Typography.headline)
+                                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                        }
+
+                        PrimaryButton(
+                            title: "Continue",
+                            isDisabled: mantra.trimmingCharacters(in: .whitespaces).isEmpty
+                        ) {
+                            withAnimation { onNext() }
+                        }
                     }
 
-                    PrimaryButton(title: "Continue") {
+                    Button {
+                        mantra = ""
                         withAnimation { onNext() }
+                    } label: {
+                        Text("Skip for now")
+                            .font(.system(size: 13, weight: .semibold).width(.condensed))
+                            .foregroundColor(ColorTheme.tertiaryText(colorScheme))
                     }
                 }
                 .padding(.horizontal, 24)

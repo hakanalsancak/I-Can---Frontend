@@ -14,6 +14,7 @@ struct I_CanApp: App {
                 .preferredColorScheme(appearanceManager.current.colorScheme)
                 .task {
                     await SubscriptionService.shared.checkLocalEntitlement()
+                    try? await SubscriptionService.shared.checkStatus()
                     await SubscriptionService.shared.listenForTransactions()
                 }
         }

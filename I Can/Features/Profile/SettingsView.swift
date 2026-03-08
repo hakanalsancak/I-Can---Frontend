@@ -154,7 +154,9 @@ struct SettingsView: View {
             try await AuthService.shared.completeOnboarding(
                 sport: AuthService.shared.currentUser?.sport ?? "soccer",
                 mantra: mantra.isEmpty ? nil : mantra,
-                notificationFrequency: Int(notificationFrequency)
+                notificationFrequency: Int(notificationFrequency),
+                fullName: nil,
+                age: nil
             )
             try await NotificationService.shared.updatePreferences(
                 frequency: Int(notificationFrequency)

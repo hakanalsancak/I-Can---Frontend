@@ -1,7 +1,7 @@
 import SwiftUI
 import AuthenticationServices
 
-struct AccountCreationView: View {
+struct LoginView: View {
     @Bindable var viewModel: OnboardingViewModel
     @Environment(\.colorScheme) private var colorScheme
 
@@ -9,13 +9,12 @@ struct AccountCreationView: View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 28) {
                 VStack(spacing: 6) {
-                    Text("Create Account")
-                        .font(Typography.title)
+                    Text("Welcome Back")
+                        .font(.system(size: 28, weight: .heavy).width(.condensed))
                         .foregroundColor(ColorTheme.primaryText(colorScheme))
-                    Text("Save your progress and access\nyour data across devices")
-                        .font(Typography.subheadline)
+                    Text("Sign in to continue your journey")
+                        .font(.system(size: 14, weight: .medium).width(.condensed))
                         .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                        .multilineTextAlignment(.center)
                 }
                 .padding(.top, 32)
 
@@ -62,18 +61,14 @@ struct AccountCreationView: View {
                 dividerRow
 
                 VStack(spacing: 10) {
-                    TextField("Full Name", text: $viewModel.fullName)
-                        .textContentType(.name)
-                        .textFieldStyle(ICanTextFieldStyle())
-
-                    TextField("Email", text: $viewModel.email)
+                    TextField("Email", text: $viewModel.loginEmail)
                         .textContentType(.emailAddress)
                         .keyboardType(.emailAddress)
                         .autocapitalization(.none)
                         .textFieldStyle(ICanTextFieldStyle())
 
-                    SecureField("Password", text: $viewModel.password)
-                        .textContentType(.newPassword)
+                    SecureField("Password", text: $viewModel.loginPassword)
+                        .textContentType(.password)
                         .textFieldStyle(ICanTextFieldStyle())
                 }
                 .padding(.horizontal, 24)
@@ -87,29 +82,22 @@ struct AccountCreationView: View {
 
                 VStack(spacing: 16) {
                     PrimaryButton(
-                        title: "Create Account",
+                        title: "Sign In",
                         isLoading: viewModel.isLoading,
-                        isDisabled: viewModel.email.isEmpty || viewModel.password.isEmpty
+                        isDisabled: viewModel.loginEmail.isEmpty || viewModel.loginPassword.isEmpty
                     ) {
-                        Task { await viewModel.registerWithEmail() }
+                        Task { await viewModel.loginWithEmail() }
                     }
 
-                    HStack(spacing: 24) {
-                        Button {
-                            withAnimation { viewModel.previousStep() }
-                        } label: {
-                            Text("Back")
-                                .font(Typography.subheadline)
-                                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                    Button {
+                        withAnimation {
+                            viewModel.errorMessage = nil
+                            viewModel.showLogin = false
                         }
-
-                        Button {
-                            Task { await viewModel.skipAccountCreation() }
-                        } label: {
-                            Text("Skip for now")
-                                .font(Typography.subheadline)
-                                .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                        }
+                    } label: {
+                        Text("Don't have an account? Sign up")
+                            .font(.system(size: 13, weight: .semibold).width(.condensed))
+                            .foregroundColor(ColorTheme.accent)
                     }
                 }
                 .padding(.horizontal, 24)
@@ -131,22 +119,5 @@ struct AccountCreationView: View {
                 .frame(height: 1)
         }
         .padding(.horizontal, 24)
-    }
-}
-
-struct ICanTextFieldStyle: TextFieldStyle {
-    @Environment(\.colorScheme) private var colorScheme
-
-    func _body(configuration: TextField<Self._Label>) -> some View {
-        configuration
-            .font(Typography.body)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(ColorTheme.cardBackground(colorScheme))
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(ColorTheme.separator(colorScheme), lineWidth: 1)
-            )
     }
 }

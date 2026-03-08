@@ -4,6 +4,7 @@ struct SportSelectionView: View {
     @Binding var selectedSport: String
     let sports: [(id: String, name: String, icon: String)]
     let onNext: () -> Void
+    let onBack: () -> Void
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -42,11 +43,23 @@ struct SportSelectionView: View {
 
             Spacer()
 
-            PrimaryButton(
-                title: "Continue",
-                isDisabled: selectedSport.isEmpty
-            ) {
-                withAnimation { onNext() }
+            HStack(spacing: 12) {
+                Button {
+                    withAnimation { onBack() }
+                } label: {
+                    Text("Back")
+                        .font(Typography.headline)
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                }
+
+                PrimaryButton(
+                    title: "Continue",
+                    isDisabled: selectedSport.isEmpty
+                ) {
+                    withAnimation { onNext() }
+                }
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 48)

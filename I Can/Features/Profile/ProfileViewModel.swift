@@ -8,7 +8,7 @@ final class ProfileViewModel {
     var isLoading = false
     var showSubscription = false
     var showSettings = false
-    var showMentalTools = false
+    var showMantraEditor = false
 
     var isPremium: Bool { SubscriptionService.shared.isPremium }
 
@@ -31,6 +31,13 @@ final class ProfileViewModel {
             try await SubscriptionService.shared.checkStatus()
             subscriptionStatus = SubscriptionService.shared.subscriptionStatus
         } catch { }
+    }
+
+    func saveMantra(_ mantra: String) async {
+        do {
+            try await AuthService.shared.updateMantra(mantra)
+            HapticManager.notification(.success)
+        } catch {}
     }
 
     func signOut() {

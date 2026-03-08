@@ -10,6 +10,7 @@ struct SubscriptionView: View {
     @State private var errorMessage: String?
 
     private let features = [
+        ("sparkles", "Daily Coach Insights", "AI coaching after every log"),
         ("chart.bar.fill", "Weekly AI Reports", "Get coaching insights every week"),
         ("chart.line.uptrend.xyaxis", "Monthly Analysis", "Deep-dive into monthly progress"),
         ("star.fill", "Yearly Review", "Comprehensive annual review"),

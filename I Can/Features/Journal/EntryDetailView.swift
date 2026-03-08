@@ -4,24 +4,13 @@ struct EntryDetailView: View {
     let entry: DailyEntry
     @Environment(\.colorScheme) private var colorScheme
 
-    private let rotatingQuestions: [Int: String] = [
-        1: "How focused were you during training today?",
-        2: "Did you give maximum effort today?",
-        3: "How confident did you feel today?",
-        4: "How well did you handle mistakes today?",
-        5: "How disciplined were you today?",
-        6: "How was your energy level today?",
-        7: "Did you follow your training plan today?",
-        8: "What did you learn today?",
-        9: "How prepared did you feel today?",
-        10: "How satisfied are you with today's performance?",
-    ]
+    private var r: EntryResponses? { entry.responses }
 
     var body: some View {
         VStack(spacing: 12) {
             HStack(spacing: 14) {
                 Label(entry.activityTypeDisplay, systemImage: entry.activityIcon)
-                    .font(Typography.subheadline)
+                    .font(.system(size: 14, weight: .semibold).width(.condensed))
                     .foregroundColor(ColorTheme.secondaryText(colorScheme))
                 Spacer()
                 PerformanceScoreCard(score: entry.performanceScore)
@@ -31,11 +20,7 @@ struct EntryDetailView: View {
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
 
-            HStack(spacing: 10) {
-                ratingCard(label: "Focus", value: entry.focusRating)
-                ratingCard(label: "Effort", value: entry.effortRating)
-                ratingCard(label: "Confidence", value: entry.confidenceRating)
-            }
+            activitySpecificSection
 
             if let didWell = entry.didWell, !didWell.isEmpty {
                 reflectionCard(title: "Did Well", icon: "hand.thumbsup", text: didWell)
@@ -45,38 +30,117 @@ struct EntryDetailView: View {
                 reflectionCard(title: "Improve Next", icon: "arrow.up.right", text: improve)
             }
 
-            if let qId = entry.rotatingQuestionId, let answer = entry.rotatingAnswer {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(rotatingQuestions[qId] ?? "Daily Question")
-                        .font(Typography.caption)
-                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                    Text(answer)
-                        .font(Typography.body)
-                        .foregroundColor(ColorTheme.primaryText(colorScheme))
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(16)
-                .background(ColorTheme.cardBackground(colorScheme))
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
+            if let reflection = r?.recoveryReflection, !reflection.isEmpty {
+                reflectionCard(title: "Recovery", icon: "heart.circle", text: reflection)
+            }
+
+            if let q = r?.rotatingQ, let a = r?.rotatingA {
+                reflectionCard(title: q, icon: "questionmark.circle", text: a)
             }
         }
     }
 
-    private func ratingCard(label: String, value: Int) -> some View {
+    // MARK: - Activity-Specific
+
+    @ViewBuilder
+    private var activitySpecificSection: some View {
+        if let r {
+            switch entry.activityType {
+            case "training":
+                VStack(spacing: 10) {
+                    HStack(spacing: 10) {
+                        labelPill(title: "Focus", label: r.focusLabel ?? "\(entry.focusRating)/10", color: Color(hex: "3B82F6"))
+                        labelPill(title: "Effort", label: r.effortLabel ?? "\(entry.effortRating)/10", color: Color(hex: "F97316"))
+                    }
+                    if let w = r.workedOn, !w.isEmpty {
+                        chipRow(chips: w)
+                    }
+                }
+            case "game":
+                VStack(spacing: 10) {
+                    HStack(spacing: 10) {
+                        labelPill(title: "Pre-game", label: r.preGameFeeling ?? "\(entry.confidenceRating)/10", color: Color(hex: "8B5CF6"))
+                        labelPill(title: "Performance", label: r.overallPerformance ?? "\(entry.focusRating)/10", color: Color(hex: "22C55E"))
+                    }
+                    if let s = r.strongestAreas, !s.isEmpty {
+                        chipRow(chips: s)
+                    }
+                }
+            case "rest_day":
+                VStack(spacing: 10) {
+                    HStack(spacing: 10) {
+                        labelPill(title: "Recovery", label: r.recoveryQuality ?? "\(entry.focusRating)/10", color: Color(hex: "3B82F6"))
+                        labelPill(title: "Discipline", label: r.discipline ?? "\(entry.effortRating)/10", color: Color(hex: "22C55E"))
+                    }
+                    if let a = r.restActivities, !a.isEmpty {
+                        chipRow(chips: a)
+                    }
+                }
+            default:
+                numericRow
+            }
+        } else {
+            numericRow
+        }
+    }
+
+    private var numericRow: some View {
+        HStack(spacing: 10) {
+            numericCard(label: "Focus", value: entry.focusRating)
+            numericCard(label: "Effort", value: entry.effortRating)
+            numericCard(label: "Confidence", value: entry.confidenceRating)
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func labelPill(title: String, label: String, color: Color) -> some View {
+        VStack(spacing: 4) {
+            Text(title.uppercased())
+                .font(.system(size: 10, weight: .heavy).width(.condensed))
+                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+            Text(label)
+                .font(.system(size: 14, weight: .bold).width(.condensed))
+                .foregroundColor(color)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 14)
+        .background(ColorTheme.cardBackground(colorScheme))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
+    }
+
+    private func chipRow(chips: [String]) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(chips, id: \.self) { chip in
+                    Text(chip)
+                        .font(.system(size: 12, weight: .semibold).width(.condensed))
+                        .foregroundColor(ColorTheme.accent)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(ColorTheme.accent.opacity(0.12))
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                }
+            }
+        }
+    }
+
+    private func numericCard(label: String, value: Int) -> some View {
         VStack(spacing: 6) {
             Text("\(value)")
-                .font(Typography.number(22))
+                .font(.system(size: 22, weight: .heavy, design: .rounded))
                 .foregroundColor(ratingColor(value))
             Text(label)
-                .font(Typography.caption)
+                .font(.system(size: 11, weight: .bold).width(.condensed))
                 .foregroundColor(ColorTheme.secondaryText(colorScheme))
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
+        .padding(.vertical, 14)
         .background(ColorTheme.cardBackground(colorScheme))
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
+        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
     }
 
     private func ratingColor(_ value: Int) -> Color {
@@ -90,10 +154,10 @@ struct EntryDetailView: View {
     private func reflectionCard(title: String, icon: String, text: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Label(title, systemImage: icon)
-                .font(Typography.caption)
+                .font(.system(size: 12, weight: .bold).width(.condensed))
                 .foregroundColor(ColorTheme.secondaryText(colorScheme))
             Text(text)
-                .font(Typography.body)
+                .font(.system(size: 15, weight: .regular).width(.condensed))
                 .foregroundColor(ColorTheme.primaryText(colorScheme))
         }
         .frame(maxWidth: .infinity, alignment: .leading)

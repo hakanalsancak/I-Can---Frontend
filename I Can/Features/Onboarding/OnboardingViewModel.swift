@@ -7,6 +7,8 @@ import GoogleSignIn
 enum OnboardingStep: Int, CaseIterable {
     case welcome
     case sportSelection
+    case nameEntry
+    case ageSelection
     case mantraCreation
     case notificationFrequency
     case accountCreation
@@ -16,6 +18,8 @@ enum OnboardingStep: Int, CaseIterable {
 final class OnboardingViewModel {
     var currentStep: OnboardingStep = .welcome
     var selectedSport: String = ""
+    var athleteName: String = ""
+    var selectedAge: Int = 18
     var mantra: String = ""
     var notificationFrequency: Int = 1
     var email: String = ""
@@ -23,6 +27,9 @@ final class OnboardingViewModel {
     var fullName: String = ""
     var isLoading = false
     var errorMessage: String?
+    var showLogin = false
+    var loginEmail = ""
+    var loginPassword = ""
 
     let sports = [
         ("soccer", "Soccer", "sportscourt"),
@@ -52,6 +59,22 @@ final class OnboardingViewModel {
         currentStep = prev
     }
 
+    func loginWithEmail() async {
+        guard !loginEmail.isEmpty, !loginPassword.isEmpty else {
+            errorMessage = "Please fill in email and password"
+            return
+        }
+
+        isLoading = true
+        errorMessage = nil
+        do {
+            try await AuthService.shared.login(email: loginEmail, password: loginPassword)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isLoading = false
+    }
+
     func registerWithEmail() async {
         guard !email.isEmpty, !password.isEmpty else {
             errorMessage = "Please fill in email and password"
@@ -61,8 +84,9 @@ final class OnboardingViewModel {
         isLoading = true
         errorMessage = nil
         do {
+            let nameToUse = athleteName.isEmpty ? (fullName.isEmpty ? nil : fullName) : athleteName
             try await AuthService.shared.register(
-                email: email, password: password, fullName: fullName.isEmpty ? nil : fullName
+                email: email, password: password, fullName: nameToUse
             )
             try await completeOnboarding()
         } catch {
@@ -134,7 +158,7 @@ final class OnboardingViewModel {
             try await AuthService.shared.register(
                 email: "guest_\(UUID().uuidString.prefix(8))@ican.app",
                 password: UUID().uuidString,
-                fullName: nil
+                fullName: athleteName.isEmpty ? nil : athleteName
             )
             try await completeOnboarding()
         } catch {
@@ -149,7 +173,9 @@ final class OnboardingViewModel {
             try await AuthService.shared.completeOnboarding(
                 sport: selectedSport,
                 mantra: mantra.isEmpty ? nil : mantra,
-                notificationFrequency: notificationFrequency
+                notificationFrequency: notificationFrequency,
+                fullName: athleteName.isEmpty ? nil : athleteName,
+                age: selectedAge
             )
         }
     }

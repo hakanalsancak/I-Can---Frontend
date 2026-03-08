@@ -9,170 +9,237 @@ struct GoalsView: View {
             VStack(spacing: 0) {
                 PageHeader("Goals") {
                     Button {
+                        HapticManager.impact(.light)
                         viewModel.showCreateGoal = true
                     } label: {
-                        Image(systemName: "plus")
-                            .font(.system(size: 15, weight: .semibold).width(.condensed))
-                            .foregroundColor(ColorTheme.accent)
-                            .frame(width: 32, height: 32)
-                            .background(ColorTheme.subtleAccent(colorScheme))
-                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        HStack(spacing: 5) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 12, weight: .heavy))
+                            Text("ADD")
+                                .font(.system(size: 11, weight: .heavy).width(.condensed))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(ColorTheme.accentGradient)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     }
                 }
 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 20) {
-                        filterRow
+                        filterSegments
 
-                        if !viewModel.weeklyGoals.isEmpty || viewModel.selectedFilter == nil || viewModel.selectedFilter == "weekly" {
-                            goalSection(title: "WEEKLY GOALS", goals: viewModel.weeklyGoals)
-                        }
-                        if !viewModel.monthlyGoals.isEmpty || viewModel.selectedFilter == nil || viewModel.selectedFilter == "monthly" {
-                            goalSection(title: "MONTHLY GOALS", goals: viewModel.monthlyGoals)
-                        }
-                        if !viewModel.yearlyGoals.isEmpty || viewModel.selectedFilter == nil || viewModel.selectedFilter == "yearly" {
-                            goalSection(title: "YEARLY GOALS", goals: viewModel.yearlyGoals)
-                        }
-
-                        if viewModel.goals.isEmpty && !viewModel.isLoading {
+                        if viewModel.isLoading {
+                            ProgressView()
+                                .tint(ColorTheme.accent)
+                                .padding(.top, 40)
+                        } else if viewModel.filteredGoals.isEmpty {
                             emptyState
+                        } else {
+                            goalsList
                         }
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 16)
-                    .padding(.bottom, 24)
+                    .padding(.bottom, 100)
                 }
             }
             .background(ColorTheme.background(colorScheme).ignoresSafeArea())
             .navigationBarHidden(true)
             .sheet(isPresented: $viewModel.showCreateGoal) {
                 GoalFormView { type, title, description in
-                    Task { await viewModel.createGoal(type: type, title: title, description: description) }
+                    Task {
+                        await viewModel.createGoal(
+                            type: type, title: title,
+                            description: description
+                        )
+                    }
                 }
             }
             .task { await viewModel.loadGoals() }
             .refreshable { await viewModel.loadGoals() }
+            .overlay(alignment: .bottom) {
+                addGoalButton
+            }
         }
     }
 
-    private var filterRow: some View {
-        HStack(spacing: 8) {
-            ForEach([
-                (nil as String?, "All"),
-                ("weekly" as String?, "Weekly"),
-                ("monthly" as String?, "Monthly"),
-                ("yearly" as String?, "Yearly"),
-            ], id: \.1) { filter in
+    // MARK: - Filter Segments
+
+    private var filterSegments: some View {
+        HStack(spacing: 0) {
+            ForEach(filterOptions, id: \.0) { filter in
                 Button {
                     HapticManager.selection()
-                    withAnimation(.easeInOut(duration: 0.2)) {
+                    withAnimation(.easeInOut(duration: 0.25)) {
                         viewModel.selectedFilter = filter.0
                     }
                 } label: {
-                    Text(filter.1)
-                        .font(Typography.subheadline)
-                        .foregroundColor(viewModel.selectedFilter == filter.0 ? .white : ColorTheme.primaryText(colorScheme))
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(
-                            viewModel.selectedFilter == filter.0
-                            ? AnyShapeStyle(ColorTheme.accentGradient)
-                            : AnyShapeStyle(ColorTheme.cardBackground(colorScheme))
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 4, x: 0, y: 1)
+                    let isSelected = viewModel.selectedFilter == filter.0
+                    VStack(spacing: 4) {
+                        Text(filter.1)
+                            .font(.system(size: 12, weight: isSelected ? .heavy : .semibold).width(.condensed))
+                            .foregroundColor(
+                                isSelected
+                                ? ColorTheme.accent
+                                : ColorTheme.secondaryText(colorScheme)
+                            )
+                        Text("\(filter.2)")
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .foregroundColor(
+                                isSelected
+                                ? ColorTheme.accent
+                                : ColorTheme.tertiaryText(colorScheme)
+                            )
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(
+                        isSelected
+                        ? ColorTheme.accent.opacity(colorScheme == .dark ? 0.12 : 0.08)
+                        : Color.clear
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
+                .buttonStyle(.plain)
             }
-            Spacer()
+        }
+        .padding(4)
+        .background(ColorTheme.cardBackground(colorScheme))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(ColorTheme.separator(colorScheme), lineWidth: 1)
+        )
+    }
+
+    private var filterOptions: [(String?, String, Int)] {
+        [
+            (nil, "All", viewModel.goals.count),
+            ("weekly", "Weekly", viewModel.weeklyCount),
+            ("monthly", "Monthly", viewModel.monthlyCount),
+            ("yearly", "Yearly", viewModel.yearlyCount),
+        ]
+    }
+
+    // MARK: - Goals List
+
+    private var goalsList: some View {
+        VStack(spacing: 20) {
+            let active = viewModel.filteredGoals.filter { !$0.isCompleted }
+            let completed = viewModel.filteredGoals.filter { $0.isCompleted }
+
+            if !active.isEmpty {
+                goalsSection(title: "ACTIVE", count: active.count, goals: active)
+            }
+
+            if !completed.isEmpty {
+                goalsSection(title: "COMPLETED", count: completed.count, goals: completed)
+            }
         }
     }
 
-    private func goalSection(title: String, goals: [Goal]) -> some View {
+    private func goalsSection(title: String, count: Int, goals: [Goal]) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(title)
-                .sectionHeader(colorScheme)
-
-            if goals.isEmpty {
-                Text("No goals set yet")
-                    .font(Typography.subheadline)
+            HStack(spacing: 6) {
+                Text(title)
+                    .font(.system(size: 10, weight: .heavy).width(.condensed))
                     .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(16)
-                    .background(ColorTheme.cardBackground(colorScheme))
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
-            } else {
-                ForEach(goals) { goal in
-                    GoalRow(goal: goal, colorScheme: colorScheme) {
+
+                Text("\(count)")
+                    .font(.system(size: 9, weight: .heavy, design: .rounded))
+                    .foregroundColor(ColorTheme.accent)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(ColorTheme.accent.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+            }
+            .padding(.leading, 4)
+
+            ForEach(goals) { goal in
+                GoalCard(
+                    goal: goal,
+                    isJustCompleted: viewModel.justCompleted == goal.id,
+                    colorScheme: colorScheme,
+                    onToggle: {
                         Task { await viewModel.toggleComplete(goal) }
-                    } onDelete: {
+                    },
+                    onDelete: {
                         Task { await viewModel.deleteGoal(goal) }
                     }
-                }
+                )
             }
         }
     }
 
+    // MARK: - Empty State
+
     private var emptyState: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "target")
-                .font(.system(size: 36).width(.condensed))
-                .foregroundColor(ColorTheme.tertiaryText(colorScheme))
-            Text("Set Your First Goal")
-                .font(Typography.title3)
-                .foregroundColor(ColorTheme.primaryText(colorScheme))
-            Text("Create weekly, monthly, or yearly\ngoals to track your progress")
-                .font(Typography.subheadline)
-                .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                .multilineTextAlignment(.center)
+        VStack(spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(ColorTheme.accent.opacity(0.08))
+                    .frame(width: 80, height: 80)
+                Image(systemName: "target")
+                    .font(.system(size: 32, weight: .light))
+                    .foregroundColor(ColorTheme.accent)
+            }
+
+            VStack(spacing: 6) {
+                Text("No Goals Yet")
+                    .font(.system(size: 20, weight: .heavy).width(.condensed))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+                Text("Set weekly, monthly, or yearly goals\nto track your progress")
+                    .font(.system(size: 13, weight: .medium).width(.condensed))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                    .multilineTextAlignment(.center)
+            }
+
+            Button {
+                HapticManager.impact(.light)
+                viewModel.showCreateGoal = true
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 12, weight: .heavy))
+                    Text("Create Your First Goal")
+                        .font(.system(size: 14, weight: .bold).width(.condensed))
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 12)
+                .background(ColorTheme.accentGradient)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+            .padding(.top, 4)
         }
         .padding(.top, 40)
     }
-}
 
-private struct GoalRow: View {
-    let goal: Goal
-    let colorScheme: ColorScheme
-    let onToggle: () -> Void
-    let onDelete: () -> Void
+    // MARK: - Floating Add Button
 
-    var body: some View {
-        HStack(spacing: 14) {
-            Button(action: {
-                HapticManager.impact(.light)
-                onToggle()
-            }) {
-                Image(systemName: goal.isCompleted ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 22).width(.condensed))
-                    .foregroundColor(goal.isCompleted ? Color(hex: "22C55E") : ColorTheme.tertiaryText(colorScheme))
-            }
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(goal.title)
-                    .font(Typography.body)
-                    .foregroundColor(
-                        goal.isCompleted
-                        ? ColorTheme.secondaryText(colorScheme)
-                        : ColorTheme.primaryText(colorScheme)
-                    )
-                    .strikethrough(goal.isCompleted)
-                if let desc = goal.description, !desc.isEmpty {
-                    Text(desc)
-                        .font(Typography.footnote)
-                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                        .lineLimit(2)
+    private var addGoalButton: some View {
+        Group {
+            if !viewModel.goals.isEmpty {
+                Button {
+                    HapticManager.impact(.medium)
+                    viewModel.showCreateGoal = true
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 14, weight: .heavy))
+                        Text("Add Goal")
+                            .font(.system(size: 14, weight: .heavy).width(.condensed))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 14)
+                    .background(ColorTheme.accentGradient)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .shadow(color: ColorTheme.accent.opacity(0.3), radius: 12, x: 0, y: 6)
                 }
-            }
-
-            Spacer()
-        }
-        .padding(14)
-        .background(ColorTheme.cardBackground(colorScheme))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
-        .swipeActions(edge: .trailing) {
-            Button(role: .destructive, action: onDelete) {
-                Label("Delete", systemImage: "trash")
+                .padding(.bottom, 8)
             }
         }
     }

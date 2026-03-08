@@ -22,5 +22,12 @@ final class EntryService {
         try await APIClient.shared.request(APIEndpoints.Entries.byDate(date))
     }
 
+    func generateInsight(_ request: InsightRequest) async throws -> String {
+        let response: InsightResponse = try await APIClient.shared.request(
+            APIEndpoints.Entries.insight, method: "POST", body: request
+        )
+        return response.insight
+    }
+
     private init() {}
 }

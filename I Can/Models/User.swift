@@ -4,6 +4,7 @@ struct User: Codable, Identifiable {
     let id: String
     let email: String?
     let fullName: String?
+    var age: Int?
     var sport: String
     var mantra: String?
     var notificationFrequency: Int
@@ -46,4 +47,6 @@ struct OnboardingRequest: Encodable {
     let sport: String
     let mantra: String?
     let notificationFrequency: Int
+    let fullName: String?
+    let age: Int?
 }

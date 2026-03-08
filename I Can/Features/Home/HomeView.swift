@@ -145,7 +145,9 @@ struct HomeView: View {
             .navigationBarHidden(true)
             .refreshable { await viewModel.loadData() }
             .task { await viewModel.loadData() }
-            .fullScreenCover(isPresented: $viewModel.showDailyEntry) {
+            .fullScreenCover(isPresented: $viewModel.showDailyEntry, onDismiss: {
+                Task { await viewModel.loadData() }
+            }) {
                 DailyEntryFlowView(
                     existingEntry: editingEntry ? viewModel.todayEntry : nil
                 ) { response in
@@ -470,13 +472,9 @@ struct HomeView: View {
                     .frame(height: 1)
                     .padding(.horizontal, 16)
 
-                HStack(spacing: 0) {
-                    ratingColumn(label: "Focus", value: entry.focusRating, color: Color(hex: "3B82F6"))
-                    ratingColumn(label: "Effort", value: entry.effortRating, color: Color(hex: "F97316"))
-                    ratingColumn(label: "Confidence", value: entry.confidenceRating, color: Color(hex: "8B5CF6"))
-                }
-                .padding(.vertical, 16)
-                .padding(.horizontal, 12)
+                loggedHeroMetrics(entry: entry)
+                    .padding(.vertical, 14)
+                    .padding(.horizontal, 16)
             }
 
             HStack(spacing: 5) {
@@ -495,6 +493,82 @@ struct HomeView: View {
                 .strokeBorder(Color(hex: "22C55E").opacity(0.15), lineWidth: 1)
         )
         .shadow(color: Color(hex: "22C55E").opacity(colorScheme == .dark ? 0.06 : 0.1), radius: 16, x: 0, y: 6)
+    }
+
+    @ViewBuilder
+    private func loggedHeroMetrics(entry: DailyEntry) -> some View {
+        if let r = entry.responses {
+            switch entry.activityType {
+            case "training":
+                VStack(spacing: 10) {
+                    HStack(spacing: 10) {
+                        heroMetricPill(label: "Focus", value: r.focusLabel ?? "\(entry.focusRating)/10", color: Color(hex: "3B82F6"))
+                        heroMetricPill(label: "Effort", value: r.effortLabel ?? "\(entry.effortRating)/10", color: Color(hex: "F97316"))
+                    }
+                    if let worked = r.workedOn, !worked.isEmpty {
+                        heroChipRow(chips: worked)
+                    }
+                }
+            case "game":
+                VStack(spacing: 10) {
+                    HStack(spacing: 10) {
+                        heroMetricPill(label: "Pre-game", value: r.preGameFeeling ?? "", color: Color(hex: "8B5CF6"))
+                        heroMetricPill(label: "Performance", value: r.overallPerformance ?? "", color: Color(hex: "22C55E"))
+                    }
+                    if let strongest = r.strongestAreas, !strongest.isEmpty {
+                        heroChipRow(chips: strongest)
+                    }
+                }
+            case "rest_day":
+                HStack(spacing: 10) {
+                    heroMetricPill(label: "Recovery", value: r.recoveryQuality ?? "", color: Color(hex: "3B82F6"))
+                    heroMetricPill(label: "Discipline", value: r.discipline ?? "", color: Color(hex: "22C55E"))
+                }
+            default:
+                numericMetricsRow(entry: entry)
+            }
+        } else {
+            numericMetricsRow(entry: entry)
+        }
+    }
+
+    private func heroMetricPill(label: String, value: String, color: Color) -> some View {
+        VStack(spacing: 3) {
+            Text(label.uppercased())
+                .font(.system(size: 9, weight: .heavy).width(.condensed))
+                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+            Text(value)
+                .font(.system(size: 13, weight: .bold).width(.condensed))
+                .foregroundColor(color)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .background(color.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+
+    private func heroChipRow(chips: [String]) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(chips, id: \.self) { chip in
+                    Text(chip)
+                        .font(.system(size: 11, weight: .semibold).width(.condensed))
+                        .foregroundColor(ColorTheme.accent)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(ColorTheme.accent.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                }
+            }
+        }
+    }
+
+    private func numericMetricsRow(entry: DailyEntry) -> some View {
+        HStack(spacing: 0) {
+            ratingColumn(label: "Focus", value: entry.focusRating, color: Color(hex: "3B82F6"))
+            ratingColumn(label: "Effort", value: entry.effortRating, color: Color(hex: "F97316"))
+            ratingColumn(label: "Confidence", value: entry.confidenceRating, color: Color(hex: "8B5CF6"))
+        }
     }
 
     private func scoreRing(value: Int) -> some View {

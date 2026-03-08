@@ -6,26 +6,16 @@ struct TodayEntryDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
 
-    private let rotatingQuestions: [Int: String] = [
-        1: "How focused were you during training today?",
-        2: "Did you give maximum effort today?",
-        3: "How confident did you feel today?",
-        4: "How well did you handle mistakes today?",
-        5: "How disciplined were you today?",
-        6: "How was your energy level today?",
-        7: "Did you follow your training plan today?",
-        8: "What did you learn today?",
-        9: "How prepared did you feel today?",
-        10: "How satisfied are you with today's performance?",
-    ]
+    private var r: EntryResponses? { entry.responses }
 
     var body: some View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 16) {
                     headerCard
-                    ratingsRow
-                    
+
+                    activitySpecificSection
+
                     if let didWell = entry.didWell, !didWell.isEmpty {
                         reflectionCard(
                             title: "What went well",
@@ -44,13 +34,17 @@ struct TodayEntryDetailSheet: View {
                         )
                     }
 
-                    if let qId = entry.rotatingQuestionId, let answer = entry.rotatingAnswer {
+                    if let reflection = r?.recoveryReflection, !reflection.isEmpty {
                         reflectionCard(
-                            title: rotatingQuestions[qId] ?? "Daily Question",
-                            icon: "questionmark.circle.fill",
-                            text: answer,
-                            color: Color(hex: "8B5CF6")
+                            title: "Recovery reflection",
+                            icon: "heart.circle.fill",
+                            text: reflection,
+                            color: ColorTheme.accent
                         )
+                    }
+
+                    if let q = r?.rotatingQ, let a = r?.rotatingA {
+                        reflectionCard(title: q, icon: "questionmark.circle.fill", text: a, color: Color(hex: "8B5CF6"))
                     }
                 }
                 .padding(.horizontal, 20)
@@ -151,31 +145,127 @@ struct TodayEntryDetailSheet: View {
         }
     }
 
-    // MARK: - Ratings
+    // MARK: - Activity-Specific Section
 
-    private var ratingsRow: some View {
-        HStack(spacing: 10) {
-            ratingCard(label: "Focus", value: entry.focusRating, color: Color(hex: "3B82F6"))
-            ratingCard(label: "Effort", value: entry.effortRating, color: Color(hex: "F97316"))
-            ratingCard(label: "Confidence", value: entry.confidenceRating, color: Color(hex: "8B5CF6"))
+    @ViewBuilder
+    private var activitySpecificSection: some View {
+        if let r {
+            switch entry.activityType {
+            case "training":
+                trainingSection(r)
+            case "game":
+                gameSection(r)
+            case "rest_day":
+                restSection(r)
+            default:
+                numericFallback
+            }
+        } else {
+            numericFallback
         }
     }
 
-    private func ratingCard(label: String, value: Int, color: Color) -> some View {
-        VStack(spacing: 8) {
-            Text("\(value)")
-                .font(.system(size: 28, weight: .heavy, design: .rounded))
-                .foregroundColor(ratingColor(value))
+    private func trainingSection(_ r: EntryResponses) -> some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 10) {
+                labelCard(title: "FOCUS", label: r.focusLabel ?? "\(entry.focusRating)/10", color: Color(hex: "3B82F6"))
+                labelCard(title: "EFFORT", label: r.effortLabel ?? "\(entry.effortRating)/10", color: Color(hex: "F97316"))
+            }
 
-            HStack(spacing: 0) {
-                ForEach(0..<10, id: \.self) { i in
-                    RoundedRectangle(cornerRadius: 1)
-                        .fill(i < value ? color : color.opacity(0.12))
-                        .frame(height: 3)
+            if let worked = r.workedOn, !worked.isEmpty {
+                chipSection(title: "WORKED ON", chips: worked, color: ColorTheme.accent)
+            }
+        }
+    }
+
+    private func gameSection(_ r: EntryResponses) -> some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 10) {
+                labelCard(title: "PRE-GAME", label: r.preGameFeeling ?? "\(entry.confidenceRating)/10", color: Color(hex: "8B5CF6"))
+                labelCard(title: "PERFORMANCE", label: r.overallPerformance ?? "\(entry.focusRating)/10", color: Color(hex: "22C55E"))
+            }
+
+            if let strongest = r.strongestAreas, !strongest.isEmpty {
+                chipSection(title: "STRONGEST", chips: strongest, color: Color(hex: "22C55E"))
+            }
+        }
+    }
+
+    private func restSection(_ r: EntryResponses) -> some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 10) {
+                labelCard(title: "RECOVERY", label: r.recoveryQuality ?? "\(entry.focusRating)/10", color: Color(hex: "3B82F6"))
+                labelCard(title: "DISCIPLINE", label: r.discipline ?? "\(entry.effortRating)/10", color: Color(hex: "22C55E"))
+            }
+
+            if let activities = r.restActivities, !activities.isEmpty {
+                chipSection(title: "ACTIVITIES", chips: activities, color: ColorTheme.accent)
+            }
+        }
+    }
+
+    private var numericFallback: some View {
+        HStack(spacing: 10) {
+            numericCard(label: "Focus", value: entry.focusRating, color: Color(hex: "3B82F6"))
+            numericCard(label: "Effort", value: entry.effortRating, color: Color(hex: "F97316"))
+            numericCard(label: "Confidence", value: entry.confidenceRating, color: Color(hex: "8B5CF6"))
+        }
+    }
+
+    // MARK: - Label Card
+
+    private func labelCard(title: String, label: String, color: Color) -> some View {
+        VStack(spacing: 6) {
+            Text(title)
+                .font(.system(size: 10, weight: .heavy).width(.condensed))
+                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+
+            Text(label)
+                .font(.system(size: 15, weight: .bold).width(.condensed))
+                .foregroundColor(color)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
+        .background(ColorTheme.cardBackground(colorScheme))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
+    }
+
+    // MARK: - Chip Section
+
+    private func chipSection(title: String, chips: [String], color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.system(size: 10, weight: .heavy).width(.condensed))
+                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+
+            FlowLayout(spacing: 8) {
+                ForEach(chips, id: \.self) { chip in
+                    Text(chip)
+                        .font(.system(size: 13, weight: .semibold).width(.condensed))
+                        .foregroundColor(color)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(color.opacity(0.12))
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
             }
-            .padding(.horizontal, 6)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(ColorTheme.cardBackground(colorScheme))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
+    }
 
+    // MARK: - Numeric Fallback Card
+
+    private func numericCard(label: String, value: Int, color: Color) -> some View {
+        VStack(spacing: 6) {
+            Text("\(value)")
+                .font(.system(size: 24, weight: .heavy, design: .rounded))
+                .foregroundColor(ratingColor(value))
             Text(label)
                 .font(.system(size: 11, weight: .bold).width(.condensed))
                 .foregroundColor(ColorTheme.secondaryText(colorScheme))
@@ -211,7 +301,7 @@ struct TodayEntryDetailSheet: View {
             }
 
             Text(text)
-                .font(Typography.body)
+                .font(.system(size: 15, weight: .regular).width(.condensed))
                 .foregroundColor(ColorTheme.primaryText(colorScheme))
                 .lineSpacing(3)
         }

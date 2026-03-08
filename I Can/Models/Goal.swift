@@ -11,6 +11,7 @@ struct Goal: Codable, Identifiable {
     var startDate: String?
     var endDate: String?
     var createdAt: String?
+    var autoProgress: Int?
 
     var goalTypeDisplay: String {
         switch goalType {
@@ -28,6 +29,22 @@ struct Goal: Codable, Identifiable {
         case "yearly": return "star.circle"
         default: return "target"
         }
+    }
+
+    var hasTarget: Bool { targetValue != nil && (targetValue ?? 0) > 0 }
+
+    var progressValue: Int {
+        autoProgress ?? currentValue ?? 0
+    }
+
+    var progressFraction: Double {
+        guard let target = targetValue, target > 0 else { return 0 }
+        return min(1.0, Double(progressValue) / Double(target))
+    }
+
+    var isAutoCompleted: Bool {
+        guard let target = targetValue, target > 0 else { return false }
+        return progressValue >= target
     }
 }
 

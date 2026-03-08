@@ -10,21 +10,36 @@ struct OnboardingView: View {
             ColorTheme.background(colorScheme).ignoresSafeArea()
 
             VStack(spacing: 0) {
-                if viewModel.currentStep != .welcome {
+                if viewModel.currentStep != .welcome && !viewModel.showLogin {
                     progressBar
                         .padding(.top, 12)
                         .padding(.bottom, 8)
                 }
 
                 Group {
-                    switch viewModel.currentStep {
+                    if viewModel.showLogin {
+                        LoginView(viewModel: viewModel)
+                    } else { switch viewModel.currentStep {
                     case .welcome:
                         welcomeView
                     case .sportSelection:
                         SportSelectionView(
                             selectedSport: $viewModel.selectedSport,
                             sports: viewModel.sports,
-                            onNext: { viewModel.nextStep() }
+                            onNext: { viewModel.nextStep() },
+                            onBack: { viewModel.previousStep() }
+                        )
+                    case .nameEntry:
+                        NameEntryView(
+                            name: $viewModel.athleteName,
+                            onNext: { viewModel.nextStep() },
+                            onBack: { viewModel.previousStep() }
+                        )
+                    case .ageSelection:
+                        AgeSelectionView(
+                            age: $viewModel.selectedAge,
+                            onNext: { viewModel.nextStep() },
+                            onBack: { viewModel.previousStep() }
                         )
                     case .mantraCreation:
                         MantraCreationView(
@@ -41,7 +56,7 @@ struct OnboardingView: View {
                         )
                     case .accountCreation:
                         AccountCreationView(viewModel: viewModel)
-                    }
+                    }}
                 }
                 .transition(.asymmetric(
                     insertion: .move(edge: .trailing).combined(with: .opacity),
@@ -98,9 +113,13 @@ struct OnboardingView: View {
                     withAnimation { viewModel.nextStep() }
                 }
 
-                Text("Join thousands of athletes improving daily")
-                    .font(Typography.footnote)
-                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                Button {
+                    withAnimation { viewModel.showLogin = true }
+                } label: {
+                    Text("Already have an account? **Sign In**")
+                        .font(.system(size: 13, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                }
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 48)

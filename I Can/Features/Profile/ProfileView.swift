@@ -42,26 +42,17 @@ struct ProfileView: View {
             .sheet(isPresented: $viewModel.showSubscription) {
                 SubscriptionView()
             }
+            .sheet(isPresented: $viewModel.showMantraEditor) {
+                MantraEditorSheet(
+                    currentMantra: viewModel.user?.mantra ?? "",
+                    onSave: { newMantra in
+                        Task { await viewModel.saveMantra(newMantra) }
+                    }
+                )
+            }
             .sheet(isPresented: $viewModel.showSettings) {
                 SettingsView()
                     .preferredColorScheme(AppearanceManager.shared.current.resolvedColorScheme)
-            }
-            .sheet(isPresented: $viewModel.showMentalTools) {
-                NavigationStack {
-                    MentalToolsView()
-                        .toolbar {
-                            ToolbarItem(placement: .topBarTrailing) {
-                                Button { viewModel.showMentalTools = false } label: {
-                                    Image(systemName: "xmark")
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                                        .frame(width: 30, height: 30)
-                                        .background(ColorTheme.elevatedBackground(colorScheme))
-                                        .clipShape(Circle())
-                                }
-                            }
-                        }
-                }
             }
         }
     }
@@ -206,40 +197,85 @@ struct ProfileView: View {
     private var mantraCard: some View {
         Group {
             if let mantra = viewModel.user?.mantra, !mantra.isEmpty {
-                VStack(spacing: 10) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "quote.opening")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(ColorTheme.accent)
-                        Text("YOUR MANTRA")
-                            .font(.system(size: 11, weight: .heavy).width(.condensed))
-                            .foregroundColor(ColorTheme.accent)
-                        Spacer()
-                    }
+                Button {
+                    viewModel.showMantraEditor = true
+                } label: {
+                    VStack(spacing: 10) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "quote.opening")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(ColorTheme.accent)
+                            Text("YOUR MANTRA")
+                                .font(.system(size: 11, weight: .heavy).width(.condensed))
+                                .foregroundColor(ColorTheme.accent)
+                            Spacer()
+                            Image(systemName: "pencil")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                        }
 
-                    Text(mantra)
-                        .font(.system(size: 18, weight: .bold).width(.condensed))
-                        .foregroundColor(ColorTheme.primaryText(colorScheme))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .lineSpacing(3)
-                }
-                .padding(16)
-                .background(
-                    ZStack {
-                        ColorTheme.cardBackground(colorScheme)
-                        LinearGradient(
-                            colors: [ColorTheme.accent.opacity(0.05), .clear],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
+                        Text(mantra)
+                            .font(.system(size: 18, weight: .bold).width(.condensed))
+                            .foregroundColor(ColorTheme.primaryText(colorScheme))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .lineSpacing(3)
                     }
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .strokeBorder(ColorTheme.accent.opacity(0.12), lineWidth: 1)
-                )
-                .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
+                    .padding(16)
+                    .background(
+                        ZStack {
+                            ColorTheme.cardBackground(colorScheme)
+                            LinearGradient(
+                                colors: [ColorTheme.accent.opacity(0.05), .clear],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        }
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .strokeBorder(ColorTheme.accent.opacity(0.12), lineWidth: 1)
+                    )
+                    .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
+                }
+                .buttonStyle(.plain)
+            } else {
+                Button {
+                    viewModel.showMantraEditor = true
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "quote.opening")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(ColorTheme.accent)
+                            .frame(width: 36, height: 36)
+                            .background(ColorTheme.subtleAccent(colorScheme))
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Add Your Mantra")
+                                .font(.system(size: 14, weight: .bold).width(.condensed))
+                                .foregroundColor(ColorTheme.primaryText(colorScheme))
+                            Text("A personal phrase to keep you focused")
+                                .font(.system(size: 11, weight: .medium).width(.condensed))
+                                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(ColorTheme.accent)
+                    }
+                    .padding(14)
+                    .background(ColorTheme.cardBackground(colorScheme))
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .strokeBorder(ColorTheme.accent.opacity(0.15), lineWidth: 1)
+                    )
+                    .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
+                }
+                .buttonStyle(.plain)
             }
         }
     }
@@ -378,14 +414,6 @@ struct ProfileView: View {
                 viewModel.showSettings = true
             }
 
-            menuRow(
-                icon: "wind",
-                title: "Mental Tools",
-                subtitle: "Breathing exercises",
-                color: Color(hex: "3B82F6")
-            ) {
-                viewModel.showMentalTools = true
-            }
         }
     }
 
