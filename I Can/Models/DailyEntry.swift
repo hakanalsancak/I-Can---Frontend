@@ -13,6 +13,9 @@ struct EntryResponses: Codable {
     var recoveryReflection: String?
     var rotatingQ: String?
     var rotatingA: String?
+    var otherActivities: [String]?
+    var otherFeeling: String?
+    var otherDescription: String?
 }
 
 struct DailyEntry: Codable, Identifiable {
@@ -39,6 +42,7 @@ struct DailyEntry: Codable, Identifiable {
         case "training": return "Training"
         case "game": return "Game"
         case "rest_day": return "Rest Day"
+        case "other": return "Mixed Day"
         default: return activityType.capitalized
         }
     }
@@ -48,6 +52,7 @@ struct DailyEntry: Codable, Identifiable {
         case "training": return "figure.run"
         case "game": return "trophy"
         case "rest_day": return "bed.double"
+        case "other": return "ellipsis.circle"
         default: return "questionmark"
         }
     }
@@ -91,6 +96,9 @@ struct InsightRequest: Encodable {
     var restActivities: [String]?
     var discipline: String?
     var recoveryReflection: String?
+    var otherActivities: [String]?
+    var otherFeeling: String?
+    var otherDescription: String?
 }
 
 struct InsightResponse: Codable {

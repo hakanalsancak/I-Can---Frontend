@@ -27,6 +27,10 @@ final class DailyEntryViewModel {
     var disciplineLevel: String = ""
     var recoveryReflection: String = ""
 
+    var otherActivities: Set<String> = []
+    var otherFeeling: String = ""
+    var otherDescription: String = ""
+
     var didWell: String = ""
     var improveNext: String = ""
 
@@ -63,6 +67,12 @@ final class DailyEntryViewModel {
                 .singleChoice(id: "discipline"),
                 .reflections,
             ]
+        case "other":
+            s += [
+                .multiSelect(id: "otherActivities"),
+                .singleChoice(id: "otherFeeling"),
+                .reflections,
+            ]
         default:
             break
         }
@@ -93,6 +103,8 @@ final class DailyEntryViewModel {
             return Self.performanceMap[overallPerformance] ?? 5
         case "rest_day":
             return Self.recoveryMap[recoveryQuality] ?? 5
+        case "other":
+            return Self.otherFeelingMap[otherFeeling] ?? 5
         default: return 5
         }
     }
@@ -105,6 +117,8 @@ final class DailyEntryViewModel {
             return Self.performanceMap[overallPerformance] ?? 5
         case "rest_day":
             return Self.disciplineMap[disciplineLevel] ?? 5
+        case "other":
+            return Self.otherFeelingMap[otherFeeling] ?? 5
         default: return 5
         }
     }
@@ -117,6 +131,8 @@ final class DailyEntryViewModel {
             return Self.preGameMap[preGameFeeling] ?? 5
         case "rest_day":
             return Int(round(Double(focusRating + effortRating) / 2.0))
+        case "other":
+            return Self.otherFeelingMap[otherFeeling] ?? 5
         default: return 5
         }
     }
@@ -140,6 +156,9 @@ final class DailyEntryViewModel {
     ]
     static let disciplineMap: [String: Int] = [
         "Yes": 9, "Mostly": 6, "Not really": 3,
+    ]
+    static let otherFeelingMap: [String: Int] = [
+        "Great": 9, "Good": 7, "Okay": 5, "Not great": 3,
     ]
 
     // MARK: - Navigation
@@ -174,6 +193,9 @@ final class DailyEntryViewModel {
             self.disciplineLevel = r.discipline ?? ""
             self.recoveryReflection = r.recoveryReflection ?? ""
             self.rotatingAnswer = r.rotatingA ?? ""
+            self.otherActivities = Set(r.otherActivities ?? [])
+            self.otherFeeling = r.otherFeeling ?? ""
+            self.otherDescription = r.otherDescription ?? ""
         }
     }
 
@@ -203,6 +225,12 @@ final class DailyEntryViewModel {
             responses.discipline = disciplineLevel
             if !recoveryReflection.isEmpty {
                 responses.recoveryReflection = recoveryReflection
+            }
+        case "other":
+            responses.otherActivities = Array(otherActivities)
+            responses.otherFeeling = otherFeeling
+            if !otherDescription.isEmpty {
+                responses.otherDescription = otherDescription
             }
         default: break
         }
@@ -240,6 +268,7 @@ final class DailyEntryViewModel {
         case "training": displayType = "Training"
         case "game": displayType = "Game"
         case "rest_day": displayType = "Rest Day"
+        case "other": displayType = "Mixed / Other"
         default: displayType = activityType.capitalized
         }
         var request = InsightRequest(activityType: displayType)
@@ -266,6 +295,12 @@ final class DailyEntryViewModel {
             request.restActivities = Array(restActivities)
             request.discipline = disciplineLevel
             request.recoveryReflection = recoveryReflection.isEmpty ? nil : recoveryReflection
+        case "other":
+            request.otherActivities = Array(otherActivities)
+            request.otherFeeling = otherFeeling
+            request.otherDescription = otherDescription.isEmpty ? nil : otherDescription
+            request.reflectionPositive = didWell.isEmpty ? nil : didWell
+            request.reflectionImprove = improveNext.isEmpty ? nil : improveNext
         default: break
         }
 
@@ -490,6 +525,21 @@ struct DailyEntryFlowView: View {
                 onBack: { viewModel.previousStep() }
             )
 
+        case "otherFeeling":
+            SingleChoiceStepView(
+                question: "How do you feel about today overall?",
+                subtitle: "Your honest take on the day",
+                options: [
+                    ChoiceOption("Great", icon: "star.fill", subtitle: "Productive and positive day"),
+                    ChoiceOption("Good", icon: "hand.thumbsup.fill", subtitle: "Solid day, can't complain"),
+                    ChoiceOption("Okay", icon: "equal.circle", subtitle: "Nothing special"),
+                    ChoiceOption("Not great", icon: "arrow.down.circle", subtitle: "Could have been better"),
+                ],
+                selection: $viewModel.otherFeeling,
+                onNext: { viewModel.nextStep() },
+                onBack: { viewModel.previousStep() }
+            )
+
         default:
             EmptyView()
         }
@@ -670,6 +720,26 @@ struct DailyEntryFlowView: View {
                     ("Full rest", "bed.double.fill"),
                 ],
                 selected: $viewModel.restActivities,
+                onNext: { viewModel.nextStep() },
+                onBack: { viewModel.previousStep() }
+            )
+
+        case "otherActivities":
+            MultiSelectStepView(
+                question: "What did you do today?",
+                subtitle: "Select everything that applies",
+                items: [
+                    ("Training", "figure.run"),
+                    ("Game / Match", "trophy"),
+                    ("Recovery", "heart.circle"),
+                    ("Gym / Weights", "dumbbell.fill"),
+                    ("Cardio", "flame.fill"),
+                    ("Stretching", "figure.flexibility"),
+                    ("Film / Study", "play.rectangle"),
+                    ("Mental work", "brain.head.profile"),
+                    ("Team activity", "person.3.fill"),
+                ],
+                selected: $viewModel.otherActivities,
                 onNext: { viewModel.nextStep() },
                 onBack: { viewModel.previousStep() }
             )

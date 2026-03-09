@@ -536,6 +536,13 @@ struct HomeView: View {
                     heroMetricPill(label: "Recovery", value: r.recoveryQuality ?? "", color: Color(hex: "3B82F6"))
                     heroMetricPill(label: "Discipline", value: r.discipline ?? "", color: Color(hex: "22C55E"))
                 }
+            case "other":
+                VStack(spacing: 10) {
+                    heroMetricPill(label: "Feeling", value: r.otherFeeling ?? "", color: Color(hex: "8B5CF6"))
+                    if let activities = r.otherActivities, !activities.isEmpty {
+                        heroChipRow(chips: activities)
+                    }
+                }
             default:
                 numericMetricsRow(entry: entry)
             }

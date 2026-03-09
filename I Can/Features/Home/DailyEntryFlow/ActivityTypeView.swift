@@ -9,6 +9,7 @@ struct ActivityTypeView: View {
         ("training", "Training", "figure.run", "Practice, drills, conditioning"),
         ("game", "Game", "trophy", "Match, competition, scrimmage"),
         ("rest_day", "Rest Day", "moon.stars", "Recovery, stretching, off day"),
+        ("other", "Something Else", "ellipsis.circle", "Mixed day, multiple activities, etc."),
     ]
 
     var body: some View {
