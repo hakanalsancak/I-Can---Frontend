@@ -52,8 +52,8 @@ final class AuthService {
         isAuthenticated = true
     }
 
-    func completeOnboarding(sport: String, mantra: String?, notificationFrequency: Int, fullName: String?, age: Int?) async throws {
-        let request = OnboardingRequest(sport: sport, mantra: mantra, notificationFrequency: notificationFrequency, fullName: fullName, age: age)
+    func completeOnboarding(sport: String, mantra: String?, notificationFrequency: Int, fullName: String?, age: Int?, country: String? = nil) async throws {
+        let request = OnboardingRequest(sport: sport, mantra: mantra, notificationFrequency: notificationFrequency, fullName: fullName, age: age, country: country)
         let user: User = try await APIClient.shared.request(
             APIEndpoints.Auth.onboarding, method: "PUT", body: request
         )
@@ -63,6 +63,14 @@ final class AuthService {
     func loadProfile() async throws {
         let user: User = try await APIClient.shared.request(APIEndpoints.Auth.profile)
         currentUser = user
+
+        if user.country == nil, let deviceCountry = Locale.current.region?.identifier {
+            let body = ["country": deviceCountry]
+            let updated: User = try await APIClient.shared.request(
+                APIEndpoints.Auth.profile, method: "PUT", body: body
+            )
+            currentUser = updated
+        }
     }
 
     func updateMantra(_ mantra: String) async throws {

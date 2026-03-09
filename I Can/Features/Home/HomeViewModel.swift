@@ -35,8 +35,15 @@ final class HomeViewModel {
         do {
             let today = Date().apiDateString
             todayEntry = try await EntryService.shared.getEntry(date: today)
+        } catch let error as APIError {
+            switch error {
+            case .serverError(let msg) where msg.lowercased().contains("no entry") || msg.contains("404"):
+                todayEntry = nil
+            default:
+                break
+            }
         } catch {
-            todayEntry = nil
+            // Keep existing entry on transient failures
         }
     }
 

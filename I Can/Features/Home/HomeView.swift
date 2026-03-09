@@ -110,6 +110,7 @@ struct HomeView: View {
     @State private var quoteOpacity: Double = 1
     @State private var showSubscription = false
     @State private var showBreathing = false
+    @State private var showLeaderboard = false
     @State private var showEntryDetail = false
     @State private var editingEntry = false
     @State private var heroAppeared = false
@@ -158,6 +159,9 @@ struct HomeView: View {
             .sheet(isPresented: $showSubscription) {
                 SubscriptionView()
             }
+            .sheet(isPresented: $showLeaderboard) {
+                LeaderboardView()
+            }
             .fullScreenCover(isPresented: $showBreathing) {
                 BreathingExerciseView()
             }
@@ -197,10 +201,10 @@ struct HomeView: View {
 
                 Spacer()
 
-                HStack(spacing: 12) {
+                HStack(spacing: 10) {
                     streakBadge
 
-                    todayDot
+                    rankingBadge
                 }
             }
             .padding(.horizontal, 20)
@@ -245,17 +249,25 @@ struct HomeView: View {
         .clipShape(Capsule())
     }
 
-    private var todayDot: some View {
-        ZStack {
-            Circle()
-                .fill(viewModel.hasLoggedToday ? Color(hex: "22C55E") : ColorTheme.tertiaryText(colorScheme).opacity(0.3))
-                .frame(width: 10, height: 10)
-            if viewModel.hasLoggedToday {
-                Circle()
-                    .fill(Color(hex: "22C55E").opacity(0.3))
-                    .frame(width: 18, height: 18)
+    private var rankingBadge: some View {
+        Button {
+            HapticManager.impact(.light)
+            showLeaderboard = true
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "trophy.fill")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(Color(hex: "EAB308"))
+                Text("Rankings")
+                    .font(.system(size: 13, weight: .heavy).width(.condensed))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
             }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(Color(hex: "EAB308").opacity(0.1))
+            .clipShape(Capsule())
         }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Mantra Card

@@ -170,12 +170,14 @@ final class OnboardingViewModel {
 
     private func completeOnboarding() async throws {
         if !selectedSport.isEmpty {
+            let deviceCountry = Locale.current.region?.identifier
             try await AuthService.shared.completeOnboarding(
                 sport: selectedSport,
                 mantra: mantra.isEmpty ? nil : mantra,
                 notificationFrequency: notificationFrequency,
                 fullName: athleteName.isEmpty ? nil : athleteName,
-                age: selectedAge
+                age: selectedAge,
+                country: deviceCountry
             )
         }
     }

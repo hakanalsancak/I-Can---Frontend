@@ -48,4 +48,9 @@ enum APIEndpoints {
         static let preferences = "/api/notifications/preferences"
         static let deviceToken = "/api/notifications/device-token"
     }
+
+    enum Leaderboard {
+        static let global = "/api/leaderboard"
+        static func country(_ code: String) -> String { "/api/leaderboard/country/\(code)" }
+    }
 }
