@@ -578,7 +578,7 @@ struct HomeView: View {
                 .frame(width: 64, height: 64)
 
             Circle()
-                .trim(from: 0, to: CGFloat(value) / 10.0)
+                .trim(from: 0, to: CGFloat(value) / 100.0)
                 .stroke(
                     LinearGradient(
                         colors: [ColorTheme.accent, Color(hex: "22C55E")],

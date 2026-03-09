@@ -6,7 +6,7 @@ struct AgeSelectionView: View {
     let onBack: () -> Void
     @Environment(\.colorScheme) private var colorScheme
 
-    private let minAge = 14
+    private let minAge = 13
     private let maxAge = 50
 
     var body: some View {

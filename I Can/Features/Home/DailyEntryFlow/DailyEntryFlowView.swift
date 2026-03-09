@@ -495,6 +495,144 @@ struct DailyEntryFlowView: View {
         }
     }
 
+    // MARK: - Sport Config
+
+    private var userSport: String {
+        AuthService.shared.currentUser?.sport ?? "soccer"
+    }
+
+    private func trainingItems(for sport: String) -> [(String, String)] {
+        switch sport {
+        case "soccer":
+            return [
+                ("Shooting", "scope"),
+                ("Passing", "arrow.right.arrow.left"),
+                ("Dribbling", "figure.run"),
+                ("Defense", "shield.fill"),
+                ("Set pieces", "sportscourt"),
+                ("Conditioning", "flame.fill"),
+            ]
+        case "basketball":
+            return [
+                ("Shooting", "scope"),
+                ("Defense", "shield.fill"),
+                ("Ball handling", "hand.raised.fill"),
+                ("Conditioning", "flame.fill"),
+                ("Plays", "brain.head.profile"),
+                ("Rebounding", "arrow.up.circle"),
+            ]
+        case "tennis":
+            return [
+                ("Serve", "arrow.up.forward"),
+                ("Groundstrokes", "arrow.left.arrow.right"),
+                ("Volleys", "hand.raised.fill"),
+                ("Footwork", "figure.walk"),
+                ("Strategy", "brain.head.profile"),
+                ("Conditioning", "flame.fill"),
+            ]
+        case "football":
+            return [
+                ("Throwing", "arrow.up.forward"),
+                ("Routes", "point.topleft.down.to.point.bottomright.curvepath"),
+                ("Blocking", "shield.fill"),
+                ("Tackling", "figure.american.football"),
+                ("Conditioning", "flame.fill"),
+                ("Film study", "play.rectangle"),
+            ]
+        case "boxing":
+            return [
+                ("Sparring", "figure.boxing"),
+                ("Bag work", "circle.fill"),
+                ("Footwork", "figure.walk"),
+                ("Defense", "shield.fill"),
+                ("Conditioning", "flame.fill"),
+                ("Combinations", "bolt.fill"),
+            ]
+        case "cricket":
+            return [
+                ("Batting", "figure.cricket"),
+                ("Bowling", "arrow.up.forward"),
+                ("Fielding", "hand.raised.fill"),
+                ("Fitness", "flame.fill"),
+                ("Match scenarios", "brain.head.profile"),
+                ("Net practice", "sportscourt"),
+            ]
+        default:
+            return [
+                ("Skills", "sportscourt"),
+                ("Defense", "shield.fill"),
+                ("Conditioning", "flame.fill"),
+                ("Tactics", "brain.head.profile"),
+                ("Recovery", "heart.circle"),
+            ]
+        }
+    }
+
+    private func gameStrengthItems(for sport: String) -> [(String, String)] {
+        switch sport {
+        case "soccer":
+            return [
+                ("Passing", "arrow.right.arrow.left"),
+                ("Shooting", "scope"),
+                ("Defense", "shield.fill"),
+                ("Positioning", "mappin.circle"),
+                ("Stamina", "flame.fill"),
+                ("Leadership", "person.3.fill"),
+            ]
+        case "basketball":
+            return [
+                ("Defense", "shield.fill"),
+                ("Shooting", "scope"),
+                ("Decision making", "brain.head.profile"),
+                ("Energy", "bolt.fill"),
+                ("Leadership", "person.3.fill"),
+            ]
+        case "tennis":
+            return [
+                ("Serve", "arrow.up.forward"),
+                ("Returns", "arrow.left.arrow.right"),
+                ("Net play", "hand.raised.fill"),
+                ("Mental toughness", "brain.head.profile"),
+                ("Consistency", "checkmark.circle"),
+            ]
+        case "football":
+            return [
+                ("Execution", "checkmark.circle"),
+                ("Blocking", "shield.fill"),
+                ("Coverage", "eye"),
+                ("Tackling", "figure.american.football"),
+                ("Awareness", "brain.head.profile"),
+                ("Leadership", "person.3.fill"),
+            ]
+        case "boxing":
+            return [
+                ("Offense", "bolt.fill"),
+                ("Defense", "shield.fill"),
+                ("Footwork", "figure.walk"),
+                ("Ring control", "circle.circle"),
+                ("Power", "flame.fill"),
+                ("Composure", "brain.head.profile"),
+            ]
+        case "cricket":
+            return [
+                ("Batting", "figure.cricket"),
+                ("Bowling", "arrow.up.forward"),
+                ("Fielding", "hand.raised.fill"),
+                ("Running", "figure.run"),
+                ("Concentration", "brain.head.profile"),
+                ("Partnerships", "person.2.fill"),
+            ]
+        default:
+            return [
+                ("Offense", "bolt.fill"),
+                ("Defense", "shield.fill"),
+                ("Decision making", "brain.head.profile"),
+                ("Energy", "flame.fill"),
+                ("Leadership", "person.3.fill"),
+            ]
+        }
+    }
+
     // MARK: - Multi Select Router
 
     @ViewBuilder
@@ -504,14 +642,7 @@ struct DailyEntryFlowView: View {
             MultiSelectStepView(
                 question: "What did you work on today?",
                 subtitle: "Select all that apply",
-                items: [
-                    ("Shooting", "scope"),
-                    ("Defense", "shield.fill"),
-                    ("Conditioning", "figure.run"),
-                    ("Skills", "sportscourt"),
-                    ("Tactics", "brain.head.profile"),
-                    ("Recovery", "heart.circle"),
-                ],
+                items: trainingItems(for: userSport),
                 selected: $viewModel.workedOn,
                 onNext: { viewModel.nextStep() },
                 onBack: { viewModel.previousStep() }
@@ -521,13 +652,7 @@ struct DailyEntryFlowView: View {
             MultiSelectStepView(
                 question: "What was strongest today?",
                 subtitle: "Select your standout areas",
-                items: [
-                    ("Defense", "shield.fill"),
-                    ("Shooting", "scope"),
-                    ("Decision making", "brain.head.profile"),
-                    ("Energy", "bolt.fill"),
-                    ("Leadership", "person.3.fill"),
-                ],
+                items: gameStrengthItems(for: userSport),
                 selected: $viewModel.strongestAreas,
                 onNext: { viewModel.nextStep() },
                 onBack: { viewModel.previousStep() }

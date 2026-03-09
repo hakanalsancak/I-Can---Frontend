@@ -32,7 +32,7 @@ struct PerformanceScoreCard: View {
         }
         .onAppear {
             withAnimation(.easeOut(duration: 0.8).delay(0.2)) {
-                animatedProgress = CGFloat(score) / 10.0
+                animatedProgress = CGFloat(score) / 100.0
             }
         }
     }

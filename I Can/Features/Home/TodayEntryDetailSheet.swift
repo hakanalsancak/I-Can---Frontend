@@ -122,7 +122,7 @@ struct TodayEntryDetailSheet: View {
                 .frame(width: 64, height: 64)
 
             Circle()
-                .trim(from: 0, to: CGFloat(entry.performanceScore) / 10.0)
+                .trim(from: 0, to: CGFloat(entry.performanceScore) / 100.0)
                 .stroke(
                     LinearGradient(
                         colors: [ColorTheme.accent, Color(hex: "22C55E")],
@@ -138,7 +138,7 @@ struct TodayEntryDetailSheet: View {
                 Text("\(entry.performanceScore)")
                     .font(.system(size: 22, weight: .heavy, design: .rounded))
                     .foregroundColor(ColorTheme.primaryText(colorScheme))
-                Text("/10")
+                Text("/100")
                     .font(.system(size: 10, weight: .bold).width(.condensed))
                     .foregroundColor(ColorTheme.secondaryText(colorScheme))
             }
