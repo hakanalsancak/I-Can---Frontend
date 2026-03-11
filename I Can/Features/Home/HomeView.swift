@@ -156,7 +156,9 @@ struct HomeView: View {
                     editingEntry = false
                 }
             }
-            .sheet(isPresented: $showSubscription) {
+            .sheet(isPresented: $showSubscription, onDismiss: {
+                Task { try? await SubscriptionService.shared.checkStatus() }
+            }) {
                 SubscriptionView()
             }
             .sheet(isPresented: $showLeaderboard) {

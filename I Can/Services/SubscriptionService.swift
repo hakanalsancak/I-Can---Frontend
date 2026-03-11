@@ -8,7 +8,9 @@ final class SubscriptionService {
     var isPremium = false
     var subscriptionStatus: SubscriptionStatus?
 
-    static let productId = "com.hakanalsancak.ican.premium.monthly"
+    static let monthlyProductId = "com.hakanalsancak.ican.premium.monthly"
+    static let yearlyProductId = "com.hakanalsancak.ican.premium.yearly"
+    static let productIds: [String] = [monthlyProductId, yearlyProductId]
 
     func checkStatus() async throws {
         let status: SubscriptionStatus = try await APIClient.shared.request(
@@ -32,7 +34,7 @@ final class SubscriptionService {
     }
 
     func loadProducts() async throws -> [Product] {
-        try await Product.products(for: [Self.productId])
+        try await Product.products(for: Self.productIds)
     }
 
     func purchase(_ product: Product) async throws -> Bool {
@@ -40,15 +42,16 @@ final class SubscriptionService {
         switch result {
         case .success(let verification):
             let transaction = try checkVerified(verification)
-            isPremium = true
             do {
                 try await verifyReceipt(
                     transactionId: String(transaction.id),
                     productId: transaction.productID,
                     originalTransactionId: String(transaction.originalID)
                 )
+                isPremium = true
             } catch {
-                // Backend verification failed but StoreKit purchase succeeded
+                await transaction.finish()
+                throw error
             }
             await transaction.finish()
             return true
@@ -64,22 +67,17 @@ final class SubscriptionService {
     func listenForTransactions() async {
         for await result in Transaction.updates {
             if let transaction = try? checkVerified(result) {
-                isPremium = true
-                try? await verifyReceipt(
-                    transactionId: String(transaction.id),
-                    productId: transaction.productID,
-                    originalTransactionId: String(transaction.originalID)
-                )
+                do {
+                    try await verifyReceipt(
+                        transactionId: String(transaction.id),
+                        productId: transaction.productID,
+                        originalTransactionId: String(transaction.originalID)
+                    )
+                    isPremium = true
+                } catch {
+                    // Backend rejected (e.g. guest account) — do not grant premium
+                }
                 await transaction.finish()
-            }
-        }
-    }
-
-    func checkLocalEntitlement() async {
-        for await result in Transaction.currentEntitlements {
-            if let _ = try? checkVerified(result) {
-                isPremium = true
-                return
             }
         }
     }
@@ -89,6 +87,11 @@ final class SubscriptionService {
         case .unverified: throw APIError.serverError("Transaction verification failed")
         case .verified(let safe): return safe
         }
+    }
+
+    func resetForSignOut() {
+        isPremium = false
+        subscriptionStatus = nil
     }
 
     private init() {}

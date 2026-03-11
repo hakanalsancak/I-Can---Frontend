@@ -29,6 +29,13 @@ struct ContentView: View {
         .task {
             await loadInitialState()
         }
+        .onChange(of: authService.isAuthenticated) { _, newValue in
+            if newValue {
+                Task {
+                    try? await SubscriptionService.shared.checkStatus()
+                }
+            }
+        }
     }
 
     private var splashScreen: some View {
@@ -55,6 +62,7 @@ struct ContentView: View {
         if authService.isAuthenticated {
             do {
                 try await authService.loadProfile()
+                try? await SubscriptionService.shared.checkStatus()
             } catch {
                 authService.signOut()
             }

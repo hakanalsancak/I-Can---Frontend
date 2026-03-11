@@ -3,7 +3,12 @@ import SwiftUI
 struct ProfileView: View {
     @State private var viewModel = ProfileViewModel()
     @State private var subscriptionShimmer: CGFloat = -1
+    @State private var showAccountUpgrade = false
     @Environment(\.colorScheme) private var colorScheme
+
+    private var isGuest: Bool {
+        viewModel.user?.isGuest ?? false
+    }
 
     var body: some View {
         NavigationStack {
@@ -25,6 +30,9 @@ struct ProfileView: View {
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 20) {
                         identityCard
+                        if isGuest {
+                            guestAccountSection
+                        }
                         statsRow
                         mantraCard
                         premiumCard
@@ -39,7 +47,9 @@ struct ProfileView: View {
             .background(ColorTheme.background(colorScheme).ignoresSafeArea())
             .navigationBarHidden(true)
             .task { await viewModel.loadData() }
-            .sheet(isPresented: $viewModel.showSubscription) {
+            .sheet(isPresented: $viewModel.showSubscription, onDismiss: {
+                Task { try? await SubscriptionService.shared.checkStatus() }
+            }) {
                 SubscriptionView()
             }
             .sheet(isPresented: $viewModel.showMantraEditor) {
@@ -54,7 +64,55 @@ struct ProfileView: View {
                 SettingsView()
                     .preferredColorScheme(AppearanceManager.shared.current.resolvedColorScheme)
             }
+            .sheet(isPresented: $showAccountUpgrade) {
+                AccountUpgradeSheet()
+            }
         }
+    }
+
+    // MARK: - Guest Account Section
+
+    private var guestAccountSection: some View {
+        Button {
+            HapticManager.impact(.medium)
+            showAccountUpgrade = true
+        } label: {
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(Color(hex: "F59E0B").opacity(0.15))
+                        .frame(width: 44, height: 44)
+                    Image(systemName: "person.crop.circle.badge.plus")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(Color(hex: "F59E0B"))
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Sign In or Create Account")
+                        .font(.system(size: 15, weight: .bold).width(.condensed))
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    Text("Required to subscribe and restore purchases")
+                        .font(.system(size: 12, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+            }
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color(hex: "F59E0B").opacity(0.08))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .strokeBorder(Color(hex: "F59E0B").opacity(0.25), lineWidth: 1)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Identity Card

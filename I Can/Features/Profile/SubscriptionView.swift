@@ -8,6 +8,11 @@ struct SubscriptionView: View {
     @State private var isLoading = true
     @State private var isPurchasing = false
     @State private var errorMessage: String?
+    @State private var showAccountUpgrade = false
+
+    private var isGuest: Bool {
+        AuthService.shared.currentUser?.isGuest ?? false
+    }
 
     private let features = [
         ("sparkles", "Daily Coach Insights", "AI coaching after every log"),
@@ -69,11 +74,29 @@ struct SubscriptionView: View {
                 }
             }
             .task { await loadProducts() }
+            .sheet(isPresented: $showAccountUpgrade) {
+                AccountUpgradeSheet()
+            }
         }
     }
 
     private var trialSection: some View {
         VStack(spacing: 14) {
+            if isGuest {
+                HStack(spacing: 10) {
+                    Image(systemName: "person.crop.circle.badge.exclamationmark")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(Color(hex: "F59E0B"))
+                    Text("Create an account or sign in to subscribe. This ensures you can restore your purchase on any device.")
+                        .font(.system(size: 13, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(hex: "F59E0B").opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+
             HStack(spacing: 6) {
                 Image(systemName: "sparkles")
                     .font(.system(size: 14, weight: .bold))
@@ -83,12 +106,13 @@ struct SubscriptionView: View {
                     .foregroundColor(Color(hex: "EAB308"))
             }
 
-            if let product = products.first {
-                Text("Then \(product.displayPrice)/month")
+            if !isLoading && !products.isEmpty {
+                Text("Then \(monthlyPriceText) monthly or \(yearlyPriceText) yearly")
                     .font(Typography.subheadline)
                     .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                    .multilineTextAlignment(.center)
             } else if !isLoading {
-                Text("Free for 1 month, then auto-renews monthly")
+                Text("Free for 1 month, then auto-renews")
                     .font(Typography.subheadline)
                     .foregroundColor(ColorTheme.secondaryText(colorScheme))
                     .multilineTextAlignment(.center)
@@ -97,12 +121,11 @@ struct SubscriptionView: View {
             if isLoading {
                 PrimaryButton(title: "Loading...", isLoading: true) {}
                     .padding(.horizontal, 20)
-            } else if let product = products.first {
-                PrimaryButton(
-                    title: "Start Free Trial",
-                    isLoading: isPurchasing
-                ) {
-                    Task { await purchase(product) }
+            } else if !products.isEmpty {
+                VStack(spacing: 12) {
+                    ForEach(products.sorted { productOrder($0) < productOrder($1) }, id: \.id) { product in
+                        planButton(product: product)
+                    }
                 }
                 .padding(.horizontal, 20)
             } else {
@@ -179,6 +202,56 @@ struct SubscriptionView: View {
         .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
     }
 
+    private var monthlyPriceText: String {
+        products.first { $0.id == SubscriptionService.monthlyProductId }?.displayPrice ?? "£7.99"
+    }
+
+    private var yearlyPriceText: String {
+        products.first { $0.id == SubscriptionService.yearlyProductId }?.displayPrice ?? "£59.99"
+    }
+
+    private func productOrder(_ product: Product) -> Int {
+        product.id == SubscriptionService.yearlyProductId ? 0 : 1
+    }
+
+    private func planButton(product: Product) -> some View {
+        let isYearly = product.id == SubscriptionService.yearlyProductId
+        return Button {
+            if isGuest {
+                showAccountUpgrade = true
+            } else {
+                Task { await purchase(product) }
+            }
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(isYearly ? "Yearly" : "Monthly")
+                        .font(.system(size: 16, weight: .bold).width(.condensed))
+                        .foregroundColor(.white)
+                    Text(isYearly ? "\(product.displayPrice)/year · Save 38%" : "\(product.displayPrice)/month")
+                        .font(.system(size: 13, weight: .medium).width(.condensed))
+                        .foregroundColor(.white.opacity(0.9))
+                }
+                Spacer()
+                Text("Start Free Trial")
+                    .font(.system(size: 14, weight: .bold).width(.condensed))
+                    .foregroundColor(.white)
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 16)
+            .background(
+                LinearGradient(
+                    colors: isYearly ? [Color(hex: "EAB308"), Color(hex: "D97706")] : [Color(hex: "7C3AED"), Color(hex: "4F46E5")],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .disabled(isPurchasing)
+    }
+
     private func loadProducts() async {
         do {
             products = try await SubscriptionService.shared.loadProducts()
@@ -200,19 +273,17 @@ struct SubscriptionView: View {
     }
 
     private func retryLoadAndPurchase() async {
-        isPurchasing = true
+        isLoading = true
+        errorMessage = nil
         do {
             products = try await SubscriptionService.shared.loadProducts()
-            if let product = products.first {
-                let success = try await SubscriptionService.shared.purchase(product)
-                if success { dismiss() }
-            } else {
+            if products.isEmpty {
                 errorMessage = "Subscription not available. Please try again later."
             }
         } catch {
             errorMessage = error.localizedDescription
         }
-        isPurchasing = false
+        isLoading = false
     }
 
     private func restorePurchases() async {

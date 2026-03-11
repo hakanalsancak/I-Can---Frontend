@@ -44,7 +44,9 @@ struct JournalView: View {
             .onChange(of: viewModel.currentMonth) { _, _ in
                 Task { await viewModel.loadEntries() }
             }
-            .sheet(isPresented: $showSubscription) {
+            .sheet(isPresented: $showSubscription, onDismiss: {
+                Task { try? await SubscriptionService.shared.checkStatus() }
+            }) {
                 SubscriptionView()
             }
             .sheet(isPresented: $showEntryDetail) {

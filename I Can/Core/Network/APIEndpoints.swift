@@ -30,8 +30,7 @@ enum APIEndpoints {
 
     enum Reports {
         static let base = "/api/reports"
-        static let generate = "/api/reports/generate"
-        static let canGenerate = "/api/reports/can-generate"
+        static let status = "/api/reports/status"
         static func byId(_ id: String) -> String { "/api/reports/\(id)" }
     }
 

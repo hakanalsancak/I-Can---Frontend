@@ -6,8 +6,8 @@ struct AIReport: Codable, Identifiable {
     let periodStart: String
     let periodEnd: String
     let content: ReportContent?
+    let entryCount: Int?
     let createdAt: String?
-    let alreadyExists: Bool?
 
     var reportTypeDisplay: String {
         switch reportType {
@@ -82,16 +82,41 @@ struct ReportsResponse: Codable {
     let reports: [AIReport]
 }
 
-struct GenerateReportRequest: Encodable {
-    let reportType: String
+struct PeriodInfo: Codable {
+    let periodStart: String
+    let periodEnd: String
+    let entryCount: Int
+    let requiredEntries: Int
+    let daysRemaining: Int
+    let reportReady: Bool
+    let reportId: String?
+
+    var dateRangeDisplay: String {
+        guard let start = Date.fromAPIString(periodStart),
+              let end = Date.fromAPIString(periodEnd) else {
+            return "\(periodStart) – \(periodEnd)"
+        }
+        let fmt = DateFormatter()
+        fmt.dateFormat = "MMM d"
+        let endFmt = DateFormatter()
+        let startYear = Calendar.current.component(.year, from: start)
+        let endYear = Calendar.current.component(.year, from: end)
+        endFmt.dateFormat = startYear != endYear ? "MMM d, yyyy" : "MMM d"
+        return "\(fmt.string(from: start)) – \(endFmt.string(from: end))"
+    }
+
+    var progressFraction: Double {
+        guard requiredEntries > 0 else { return 0 }
+        return min(Double(entryCount) / Double(requiredEntries), 1.0)
+    }
+
+    var isEligible: Bool {
+        entryCount >= requiredEntries
+    }
 }
 
-struct GenerateEligibility: Codable {
-    let canGenerate: Bool
-    let reason: String?
-    let required: Int?
-    let current: Int?
-    let periodStart: String?
-    let periodEnd: String?
-    let entryCount: Int?
+struct PeriodStatus: Codable {
+    let weekly: PeriodInfo
+    let monthly: PeriodInfo
+    let yearly: PeriodInfo
 }

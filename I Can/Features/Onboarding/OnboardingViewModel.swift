@@ -17,6 +17,7 @@ enum OnboardingStep: Int, CaseIterable {
 @Observable
 final class OnboardingViewModel {
     var currentStep: OnboardingStep = .welcome
+    var skipCompleteOnboardingAfterSocialAuth = false
     var selectedSport: String = ""
     var athleteName: String = ""
     var selectedAge: Int = 18
@@ -109,7 +110,9 @@ final class OnboardingViewModel {
             try await AuthService.shared.signInWithApple(
                 identityToken: token, fullName: credential.fullName
             )
-            try await completeOnboarding()
+            if !skipCompleteOnboardingAfterSocialAuth {
+                try await completeOnboarding()
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -137,7 +140,9 @@ final class OnboardingViewModel {
             }
 
             try await AuthService.shared.signInWithGoogle(idToken: idToken)
-            try await completeOnboarding()
+            if !skipCompleteOnboardingAfterSocialAuth {
+                try await completeOnboarding()
+            }
         } catch {
             if (error as NSError).code == GIDSignInError.canceled.rawValue {
                 errorMessage = nil

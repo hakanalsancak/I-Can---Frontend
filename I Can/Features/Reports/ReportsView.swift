@@ -3,7 +3,6 @@ import SwiftUI
 struct ReportsView: View {
     @State private var viewModel = ReportsViewModel()
     @State private var showSubscription = false
-    @State private var generatingType: String?
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -29,17 +28,25 @@ struct ReportsView: View {
             .navigationBarHidden(true)
             .task {
                 if SubscriptionService.shared.isPremium {
-                    await viewModel.loadReports()
-                    await viewModel.checkEligibility()
+                    await viewModel.loadAll()
+                }
+            }
+            .refreshable {
+                if SubscriptionService.shared.isPremium {
+                    await viewModel.loadAll()
                 }
             }
             .sheet(item: $viewModel.selectedReport) { report in
                 ReportDetailView(report: report)
             }
-            .sheet(isPresented: $showSubscription) {
+            .sheet(isPresented: $showSubscription, onDismiss: {
+                Task { try? await SubscriptionService.shared.checkStatus() }
+            }) {
                 SubscriptionView()
             }
-            .sheet(isPresented: $viewModel.showPaywall) {
+            .sheet(isPresented: $viewModel.showPaywall, onDismiss: {
+                Task { try? await SubscriptionService.shared.checkStatus() }
+            }) {
                 SubscriptionView()
             }
         }
@@ -48,9 +55,36 @@ struct ReportsView: View {
     // MARK: - Premium Content
 
     private var premiumContent: some View {
-        VStack(spacing: 24) {
-            weeklySection
-            monthlySection
+        VStack(spacing: 28) {
+            reportSection(
+                title: "WEEKLY REPORTS",
+                icon: "chart.bar.fill",
+                iconColor: Color(hex: "8B5CF6"),
+                gradient: [Color(hex: "7C3AED"), Color(hex: "4F46E5")],
+                period: viewModel.periodStatus?.weekly,
+                reports: viewModel.weeklyReports,
+                periodLabel: "week"
+            )
+
+            reportSection(
+                title: "MONTHLY REPORTS",
+                icon: "chart.line.uptrend.xyaxis",
+                iconColor: Color(hex: "2563EB"),
+                gradient: [Color(hex: "2563EB"), Color(hex: "1D4ED8")],
+                period: viewModel.periodStatus?.monthly,
+                reports: viewModel.monthlyReports,
+                periodLabel: "month"
+            )
+
+            reportSection(
+                title: "YEARLY REPORTS",
+                icon: "star.fill",
+                iconColor: Color(hex: "F59E0B"),
+                gradient: [Color(hex: "F59E0B"), Color(hex: "D97706")],
+                period: viewModel.periodStatus?.yearly,
+                reports: viewModel.yearlyReports,
+                periodLabel: "year"
+            )
 
             if let error = viewModel.errorMessage {
                 errorBanner(error)
@@ -58,176 +92,153 @@ struct ReportsView: View {
         }
     }
 
-    // MARK: - Weekly Section
+    // MARK: - Report Section
 
-    private var weeklySection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Image(systemName: "chart.bar.fill")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(Color(hex: "8B5CF6"))
-                Text("WEEKLY REPORTS")
-                    .sectionHeader(colorScheme)
-                Spacer()
-            }
-
-            generateCard(
-                type: "weekly",
-                eligibility: viewModel.weeklyEligibility,
-                icon: "chart.bar.fill",
-                gradient: [Color(hex: "7C3AED"), Color(hex: "4F46E5")]
-            )
-
-            if viewModel.isLoading {
-                loadingPlaceholder
-            } else if !viewModel.weeklyReports.isEmpty {
-                reportCards(viewModel.weeklyReports)
-            }
-        }
-    }
-
-    // MARK: - Monthly Section
-
-    private var monthlySection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Image(systemName: "chart.line.uptrend.xyaxis")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(Color(hex: "2563EB"))
-                Text("MONTHLY REPORTS")
-                    .sectionHeader(colorScheme)
-                Spacer()
-            }
-
-            generateCard(
-                type: "monthly",
-                eligibility: viewModel.monthlyEligibility,
-                icon: "chart.line.uptrend.xyaxis",
-                gradient: [Color(hex: "2563EB"), Color(hex: "1D4ED8")]
-            )
-
-            if viewModel.isLoading {
-                loadingPlaceholder
-            } else if !viewModel.monthlyReports.isEmpty {
-                reportCards(viewModel.monthlyReports)
-            }
-        }
-    }
-
-    // MARK: - Generate Card
-
-    private func generateCard(
-        type: String,
-        eligibility: GenerateEligibility?,
+    private func reportSection(
+        title: String,
         icon: String,
-        gradient: [Color]
+        iconColor: Color,
+        gradient: [Color],
+        period: PeriodInfo?,
+        reports: [AIReport],
+        periodLabel: String
     ) -> some View {
-        let canGenerate = eligibility?.canGenerate ?? false
-        let isThisGenerating = viewModel.isGenerating && generatingType == type
-        let periodLabel = eligibility.flatMap { e -> String? in
-            guard let s = e.periodStart, let ed = e.periodEnd,
-                  let startD = Date.fromAPIString(s),
-                  let endD = Date.fromAPIString(ed) else { return nil }
-            let fmt = DateFormatter()
-            fmt.dateFormat = "MMM d"
-            return "\(fmt.string(from: startD)) – \(fmt.string(from: endD))"
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Image(systemName: icon)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(iconColor)
+                Text(title)
+                    .sectionHeader(colorScheme)
+                Spacer()
+            }
+
+            if let period {
+                periodProgressCard(period: period, gradient: gradient, periodLabel: periodLabel)
+            } else if viewModel.isStatusLoading {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(ColorTheme.cardBackground(colorScheme))
+                    .frame(height: 100)
+                    .shimmering()
+            }
+
+            if viewModel.isLoading {
+                loadingPlaceholder
+            } else if !reports.isEmpty {
+                reportCards(reports)
+            }
         }
+    }
 
-        return VStack(spacing: 0) {
-            Button {
-                guard canGenerate, !viewModel.isGenerating else { return }
-                HapticManager.impact(.medium)
-                generatingType = type
-                Task { await viewModel.generateReport(type: type) }
-            } label: {
-                HStack(spacing: 12) {
-                    ZStack {
-                        if isThisGenerating {
-                            ProgressView()
-                                .tint(.white)
+    // MARK: - Period Progress Card
+
+    private func periodProgressCard(period: PeriodInfo, gradient: [Color], periodLabel: String) -> some View {
+        VStack(spacing: 0) {
+            VStack(spacing: 12) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(period.dateRangeDisplay)
+                            .font(.system(size: 17, weight: .bold).width(.condensed))
+                            .foregroundColor(ColorTheme.primaryText(colorScheme))
+
+                        if period.reportReady {
+                            HStack(spacing: 5) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundColor(Color(hex: "22C55E"))
+                                Text("Report ready!")
+                                    .font(.system(size: 13, weight: .semibold).width(.condensed))
+                                    .foregroundColor(Color(hex: "22C55E"))
+                            }
                         } else {
-                            Image(systemName: canGenerate ? "sparkles" : "lock.fill")
-                                .font(.system(size: 16, weight: .bold))
-                        }
-                    }
-                    .frame(width: 20)
-
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(isThisGenerating ? "Analyzing Your Data..." : (canGenerate ? "Generate \(type.capitalized) Report" : "Already Generated"))
-                            .font(.system(size: 15, weight: .bold).width(.condensed))
-
-                        if let period = periodLabel {
-                            Text(period)
-                                .font(.system(size: 12, weight: .medium).width(.condensed))
-                                .opacity(0.8)
+                            Text("\(period.daysRemaining) day\(period.daysRemaining == 1 ? "" : "s") remaining")
+                                .font(.system(size: 13, weight: .medium).width(.condensed))
+                                .foregroundColor(ColorTheme.secondaryText(colorScheme))
                         }
                     }
 
                     Spacer()
 
-                    if canGenerate && !isThisGenerating {
-                        Image(systemName: "arrow.right")
-                            .font(.system(size: 13, weight: .bold))
+                    if period.reportReady {
+                        Button {
+                            HapticManager.selection()
+                            if let reportId = period.reportId {
+                                Task { await viewModel.loadReportDetail(AIReport(
+                                    id: reportId,
+                                    reportType: periodLabel == "week" ? "weekly" : (periodLabel == "month" ? "monthly" : "yearly"),
+                                    periodStart: period.periodStart,
+                                    periodEnd: period.periodEnd,
+                                    content: nil,
+                                    entryCount: nil,
+                                    createdAt: nil
+                                ))}
+                            }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 12, weight: .bold))
+                                Text("View")
+                                    .font(.system(size: 14, weight: .bold).width(.condensed))
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .background(
+                                LinearGradient(colors: gradient, startPoint: .leading, endPoint: .trailing)
+                            )
+                            .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
-                .foregroundColor(.white)
-                .padding(.horizontal, 18)
-                .padding(.vertical, 14)
-                .background(
-                    LinearGradient(
-                        colors: canGenerate ? gradient : [Color(hex: "374151"), Color(hex: "1F2937")],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .shadow(color: (canGenerate ? gradient[0] : .clear).opacity(0.25), radius: 8, x: 0, y: 4)
-            }
-            .buttonStyle(.plain)
-            .disabled(!canGenerate || viewModel.isGenerating)
 
-            if !canGenerate, let reason = eligibility?.reason {
-                HStack(spacing: 6) {
-                    Image(systemName: "info.circle.fill")
-                        .font(.system(size: 11))
-                    Text(reason)
-                        .font(.system(size: 12, weight: .medium).width(.condensed))
-                }
-                .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                .padding(.top, 8)
-                .padding(.horizontal, 4)
+                // Progress bar
+                VStack(spacing: 6) {
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.06))
+                                .frame(height: 8)
 
-                if let required = eligibility?.required, let current = eligibility?.current {
-                    progressBar(current: current, required: required, gradient: gradient)
-                        .padding(.top, 6)
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(
+                                    LinearGradient(colors: period.isEligible ? [Color(hex: "22C55E"), Color(hex: "16A34A")] : gradient, startPoint: .leading, endPoint: .trailing)
+                                )
+                                .frame(width: geo.size.width * CGFloat(period.progressFraction), height: 8)
+                                .animation(.spring(duration: 0.6), value: period.progressFraction)
+                        }
+                    }
+                    .frame(height: 8)
+
+                    HStack {
+                        Text("\(period.entryCount) / \(period.requiredEntries) entries logged")
+                            .font(.system(size: 13, weight: .medium).width(.condensed))
+                            .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                        Spacer()
+                        if !period.reportReady && period.isEligible {
+                            Text("Eligible")
+                                .font(.system(size: 12, weight: .bold).width(.condensed))
+                                .foregroundColor(Color(hex: "22C55E"))
+                        }
+                    }
+                }
+
+                if !period.reportReady {
+                    HStack(spacing: 6) {
+                        Image(systemName: "clock.fill")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text("Report generates at end of \(periodLabel)")
+                            .font(.system(size: 12, weight: .medium).width(.condensed))
+                    }
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme).opacity(0.8))
+                    .padding(.top, 2)
                 }
             }
+            .padding(16)
+            .background(ColorTheme.cardBackground(colorScheme))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
         }
-    }
-
-    private func progressBar(current: Int, required: Int, gradient: [Color]) -> some View {
-        VStack(spacing: 6) {
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(ColorTheme.cardBackground(colorScheme))
-                        .frame(height: 6)
-
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(LinearGradient(colors: gradient, startPoint: .leading, endPoint: .trailing))
-                        .frame(width: geo.size.width * min(CGFloat(current) / CGFloat(required), 1.0), height: 6)
-                }
-            }
-            .frame(height: 6)
-
-            HStack {
-                Text("\(current)/\(required) entries logged")
-                    .font(.system(size: 11, weight: .medium).width(.condensed))
-                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                Spacer()
-            }
-        }
-        .padding(.horizontal, 4)
     }
 
     // MARK: - Report Cards
@@ -240,15 +251,29 @@ struct ReportsView: View {
                     Task { await viewModel.loadReportDetail(report) }
                 } label: {
                     HStack(spacing: 14) {
+                        Image(systemName: report.reportIcon)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(reportIconColor(report.reportType))
+                            .frame(width: 32, height: 32)
+                            .background(reportIconColor(report.reportType).opacity(0.12))
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+
                         VStack(alignment: .leading, spacing: 4) {
                             Text(report.dateRangeDisplay)
                                 .font(.system(size: 15, weight: .semibold).width(.condensed))
                                 .foregroundColor(ColorTheme.primaryText(colorScheme))
 
-                            if let created = report.createdDateDisplay {
-                                Text("Generated \(created)")
-                                    .font(.system(size: 12, weight: .medium).width(.condensed))
-                                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                            HStack(spacing: 8) {
+                                if let created = report.createdDateDisplay {
+                                    Text("Generated \(created)")
+                                        .font(.system(size: 12, weight: .medium).width(.condensed))
+                                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                                }
+                                if let count = report.entryCount {
+                                    Text("·  \(count) entries")
+                                        .font(.system(size: 12, weight: .medium).width(.condensed))
+                                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                                }
                             }
                         }
 
@@ -265,6 +290,15 @@ struct ReportsView: View {
                 }
                 .buttonStyle(.plain)
             }
+        }
+    }
+
+    private func reportIconColor(_ type: String) -> Color {
+        switch type {
+        case "weekly": return Color(hex: "8B5CF6")
+        case "monthly": return Color(hex: "2563EB")
+        case "yearly": return Color(hex: "F59E0B")
+        default: return ColorTheme.accent
         }
     }
 
@@ -392,6 +426,13 @@ struct ReportsView: View {
                 .sectionHeader(colorScheme)
 
             featureCard(
+                icon: "sparkles",
+                iconColors: ["42AAB1", "358A90"],
+                title: "Daily Log Insights",
+                description: "Get a personalized AI coaching insight every time you submit your daily performance log."
+            )
+
+            featureCard(
                 icon: "chart.bar.fill",
                 iconColors: ["7C3AED", "4F46E5"],
                 title: "Weekly Reports",
@@ -403,6 +444,13 @@ struct ReportsView: View {
                 iconColors: ["2563EB", "1D4ED8"],
                 title: "Monthly Deep Dives",
                 description: "Comprehensive monthly reviews covering strengths, areas to improve, and consistency tracking."
+            )
+
+            featureCard(
+                icon: "star.fill",
+                iconColors: ["F59E0B", "D97706"],
+                title: "Yearly Reviews",
+                description: "Full year performance analysis covering your growth, patterns, and transformation over time."
             )
 
             featureCard(

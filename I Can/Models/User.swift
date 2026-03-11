@@ -11,6 +11,11 @@ struct User: Codable, Identifiable {
     var notificationFrequency: Int
     var onboardingCompleted: Bool
     var createdAt: String?
+
+    var isGuest: Bool {
+        guard let email = email else { return true }
+        return email.hasPrefix("guest_") && email.hasSuffix("@ican.app")
+    }
 }
 
 struct AuthResponse: Codable {

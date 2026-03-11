@@ -2,17 +2,31 @@ import Foundation
 
 @Observable
 final class ReportsViewModel {
+    var periodStatus: PeriodStatus?
     var weeklyReports: [AIReport] = []
     var monthlyReports: [AIReport] = []
+    var yearlyReports: [AIReport] = []
     var selectedReport: AIReport?
     var isLoading = false
-    var isGenerating = false
+    var isStatusLoading = false
     var errorMessage: String?
     var showPaywall = false
 
-    var weeklyEligibility: GenerateEligibility?
-    var monthlyEligibility: GenerateEligibility?
-    var generationSuccessType: String?
+    func loadAll() async {
+        async let s: () = loadStatus()
+        async let r: () = loadReports()
+        _ = await (s, r)
+    }
+
+    func loadStatus() async {
+        isStatusLoading = true
+        do {
+            periodStatus = try await ReportService.shared.getStatus()
+        } catch {
+            periodStatus = nil
+        }
+        isStatusLoading = false
+    }
 
     func loadReports() async {
         isLoading = true
@@ -20,59 +34,13 @@ final class ReportsViewModel {
             let all = try await ReportService.shared.getReports()
             weeklyReports = all.filter { $0.reportType == "weekly" }
             monthlyReports = all.filter { $0.reportType == "monthly" }
+            yearlyReports = all.filter { $0.reportType == "yearly" }
         } catch {
             weeklyReports = []
             monthlyReports = []
+            yearlyReports = []
         }
         isLoading = false
-    }
-
-    func checkEligibility() async {
-        async let w = ReportService.shared.checkEligibility(type: "weekly")
-        async let m = ReportService.shared.checkEligibility(type: "monthly")
-        weeklyEligibility = try? await w
-        monthlyEligibility = try? await m
-    }
-
-    func generateReport(type: String) async {
-        let isPremium = SubscriptionService.shared.isPremium
-        if !isPremium {
-            showPaywall = true
-            return
-        }
-
-        isGenerating = true
-        errorMessage = nil
-        generationSuccessType = nil
-
-        do {
-            let report = try await ReportService.shared.generateReport(type: type)
-            if report.alreadyExists == true {
-                errorMessage = "You already generated a \(type) report for this period"
-            } else {
-                if type == "weekly" {
-                    weeklyReports.insert(report, at: 0)
-                } else {
-                    monthlyReports.insert(report, at: 0)
-                }
-                generationSuccessType = type
-                selectedReport = report
-                HapticManager.notification(.success)
-            }
-            await checkEligibility()
-        } catch let error as APIError {
-            switch error {
-            case .premiumRequired:
-                showPaywall = true
-            case .serverError(let msg):
-                errorMessage = msg
-            default:
-                errorMessage = error.localizedDescription
-            }
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-        isGenerating = false
     }
 
     func loadReportDetail(_ report: AIReport) async {

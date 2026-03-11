@@ -100,7 +100,9 @@ struct EntrySubmittedView: View {
             }
             HapticManager.notification(.success)
         }
-        .sheet(isPresented: $showSubscription) {
+        .sheet(isPresented: $showSubscription, onDismiss: {
+            Task { try? await SubscriptionService.shared.checkStatus() }
+        }) {
             SubscriptionView()
         }
     }

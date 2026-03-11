@@ -76,7 +76,7 @@
           "codeOffers" : [
 
           ],
-          "displayPrice" : "9.99",
+          "displayPrice" : "7.99",
           "familyShareable" : false,
           "groupNumber" : 1,
           "internalID" : "E5F6A7B8",
@@ -90,18 +90,57 @@
           "localizations" : [
             {
               "description" : "AI coaching insights, weekly/monthly/yearly reports, goal-based feedback",
-              "displayName" : "I Can Premium",
+              "displayName" : "I Can Premium Monthly",
               "locale" : "en_US"
             },
             {
               "description" : "AI coaching insights, weekly/monthly/yearly reports, goal-based feedback",
-              "displayName" : "I Can Premium",
+              "displayName" : "I Can Premium Monthly",
               "locale" : "en_GB"
             }
           ],
           "productID" : "com.hakanalsancak.ican.premium.monthly",
           "recurringSubscriptionPeriod" : "P1M",
           "referenceName" : "Monthly Premium",
+          "subscriptionGroupID" : "A1B2C3D4",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "59.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "F6G7H8I9",
+          "introductoryOffer" : {
+            "displayPrice" : "0",
+            "internalID" : "D0E1F2G3",
+            "numberOfPeriods" : 1,
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1M"
+          },
+          "localizations" : [
+            {
+              "description" : "AI coaching insights, weekly/monthly/yearly reports, goal-based feedback. Save 38% vs monthly.",
+              "displayName" : "I Can Premium Yearly",
+              "locale" : "en_US"
+            },
+            {
+              "description" : "AI coaching insights, weekly/monthly/yearly reports, goal-based feedback. Save 38% vs monthly.",
+              "displayName" : "I Can Premium Yearly",
+              "locale" : "en_GB"
+            }
+          ],
+          "productID" : "com.hakanalsancak.ican.premium.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Yearly Premium",
           "subscriptionGroupID" : "A1B2C3D4",
           "type" : "RecurringSubscription",
           "winbackOffers" : [

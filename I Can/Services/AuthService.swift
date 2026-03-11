@@ -85,6 +85,7 @@ final class AuthService {
         TokenManager.shared.clearTokens()
         currentUser = nil
         isAuthenticated = false
+        SubscriptionService.shared.resetForSignOut()
     }
 
     private init() {}
