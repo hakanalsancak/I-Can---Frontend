@@ -3,6 +3,7 @@ import SwiftUI
 struct ReportsView: View {
     @State private var viewModel = ReportsViewModel()
     @State private var showSubscription = false
+    @State private var showChat = false
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -26,9 +27,9 @@ struct ReportsView: View {
             }
             .background(ColorTheme.background(colorScheme).ignoresSafeArea())
             .navigationBarHidden(true)
-            .task {
+            .onAppear {
                 if SubscriptionService.shared.isPremium {
-                    await viewModel.loadAll()
+                    Task { await viewModel.loadAll() }
                 }
             }
             .refreshable {
@@ -49,6 +50,9 @@ struct ReportsView: View {
             }) {
                 SubscriptionView()
             }
+            .sheet(isPresented: $showChat) {
+                CoachChatView()
+            }
         }
     }
 
@@ -56,6 +60,8 @@ struct ReportsView: View {
 
     private var premiumContent: some View {
         VStack(spacing: 28) {
+            chatWithCoachCard
+
             reportSection(
                 title: "WEEKLY REPORTS",
                 icon: "chart.bar.fill",
@@ -90,6 +96,101 @@ struct ReportsView: View {
                 errorBanner(error)
             }
         }
+    }
+
+    // MARK: - Chat with Coach
+
+    private let coachGradient = [Color(hex: "0EA5E9"), Color(hex: "22C55E")]
+
+    private var chatWithCoachCard: some View {
+        Button {
+            HapticManager.impact(.medium)
+            showChat = true
+        } label: {
+            VStack(spacing: 0) {
+                HStack(spacing: 16) {
+                    ZStack {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: coachGradient,
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 52, height: 52)
+                            .shadow(color: Color(hex: "0EA5E9").opacity(0.35), radius: 10, x: 0, y: 4)
+
+                        Image(systemName: "figure.strengthtraining.traditional")
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundColor(.white)
+                    }
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("Chat with Your Coach")
+                            .font(.system(size: 18, weight: .heavy).width(.condensed))
+                            .foregroundColor(ColorTheme.primaryText(colorScheme))
+
+                        Text("Ask anything about your sport")
+                            .font(.system(size: 13, weight: .medium).width(.condensed))
+                            .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                    }
+
+                    Spacer()
+
+                    ZStack {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: coachGradient,
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 32, height: 32)
+
+                        Image(systemName: "arrow.up.right")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(.white)
+                    }
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 18)
+            }
+            .background(
+                ZStack {
+                    ColorTheme.cardBackground(colorScheme)
+
+                    LinearGradient(
+                        colors: [
+                            Color(hex: "0EA5E9").opacity(colorScheme == .dark ? 0.08 : 0.05),
+                            Color(hex: "22C55E").opacity(colorScheme == .dark ? 0.04 : 0.02),
+                            Color.clear
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                }
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [
+                                Color(hex: "0EA5E9").opacity(0.2),
+                                Color(hex: "22C55E").opacity(0.1),
+                                Color.clear
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+            )
+            .shadow(color: Color(hex: "0EA5E9").opacity(colorScheme == .dark ? 0.12 : 0.08), radius: 16, x: 0, y: 6)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Report Section

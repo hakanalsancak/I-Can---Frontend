@@ -321,6 +321,80 @@ struct DailyEntryFlowView: View {
         AuthService.shared.currentUser?.sport ?? "soccer"
     }
 
+    private var trainingAreasForSport: [(String, String)] {
+        switch userSport.lowercased() {
+        case "soccer":
+            return [
+                ("Shooting / scoring", "scope"),
+                ("Passing", "arrow.right.arrow.left"),
+                ("Defense", "shield.fill"),
+                ("Dribbling", "figure.run"),
+                ("Fitness / conditioning", "flame.fill"),
+                ("Tactics", "brain.head.profile"),
+                ("Set pieces", "sportscourt"),
+            ]
+        case "basketball":
+            return [
+                ("Shooting", "scope"),
+                ("Ball handling", "hand.point.up.fill"),
+                ("Passing", "arrow.right.arrow.left"),
+                ("Defense", "shield.fill"),
+                ("Rebounding", "arrow.up.circle.fill"),
+                ("Fitness / conditioning", "flame.fill"),
+                ("Court vision / IQ", "brain.head.profile"),
+            ]
+        case "tennis":
+            return [
+                ("Serve", "arrow.up.forward"),
+                ("Return", "arrow.turn.left.up"),
+                ("Groundstrokes", "figure.tennis"),
+                ("Volleys", "hand.raised.fill"),
+                ("Footwork", "figure.walk"),
+                ("Fitness / conditioning", "flame.fill"),
+                ("Match strategy", "brain.head.profile"),
+            ]
+        case "football":
+            return [
+                ("Throwing / passing", "football.fill"),
+                ("Catching / receiving", "hand.raised.fill"),
+                ("Blocking", "shield.fill"),
+                ("Tackling", "figure.american.football"),
+                ("Route running", "arrow.triangle.turn.up.right.diamond"),
+                ("Fitness / conditioning", "flame.fill"),
+                ("Playbook / film study", "brain.head.profile"),
+            ]
+        case "cricket":
+            return [
+                ("Batting", "figure.cricket"),
+                ("Bowling", "arrow.up.forward"),
+                ("Fielding", "hand.raised.fill"),
+                ("Wicket keeping", "shield.fill"),
+                ("Running between wickets", "figure.run"),
+                ("Fitness / conditioning", "flame.fill"),
+                ("Match awareness", "brain.head.profile"),
+            ]
+        case "boxing":
+            return [
+                ("Combinations", "hands.sparkles.fill"),
+                ("Footwork", "figure.walk"),
+                ("Defense / head movement", "shield.fill"),
+                ("Body work", "figure.boxing"),
+                ("Sparring", "person.2.fill"),
+                ("Bag / pad work", "flame.fill"),
+                ("Conditioning / cardio", "heart.circle.fill"),
+            ]
+        default:
+            return [
+                ("Skill work", "star.fill"),
+                ("Technique", "figure.run"),
+                ("Defense", "shield.fill"),
+                ("Fitness / conditioning", "flame.fill"),
+                ("Tactics / strategy", "brain.head.profile"),
+                ("Speed / agility", "hare.fill"),
+            ]
+        }
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -440,14 +514,7 @@ struct DailyEntryFlowView: View {
             MultiSelectStepView(
                 question: "What did you work on today?",
                 subtitle: "Select all that apply",
-                items: [
-                    ("Shooting / scoring", "scope"),
-                    ("Passing", "arrow.right.arrow.left"),
-                    ("Defense", "shield.fill"),
-                    ("Fitness / conditioning", "flame.fill"),
-                    ("Tactics", "brain.head.profile"),
-                    ("Technique", "figure.run"),
-                ],
+                items: trainingAreasForSport,
                 selected: $viewModel.workedOn,
                 onNext: { viewModel.nextStep() },
                 onBack: { viewModel.previousStep() }

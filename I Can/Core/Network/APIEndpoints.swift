@@ -42,6 +42,10 @@ enum APIEndpoints {
         static func byId(_ id: String) -> String { "/api/reports/\(id)" }
     }
 
+    enum Chat {
+        static let base = "/api/chat"
+    }
+
     enum Streaks {
         static let base = "/api/streaks"
     }

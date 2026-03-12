@@ -8,9 +8,14 @@ final class ReportsViewModel {
     var yearlyReports: [AIReport] = []
     var selectedReport: AIReport?
     var isLoading = false
-    var isStatusLoading = false
     var errorMessage: String?
     var showPaywall = false
+
+    var isStatusLoading: Bool {
+        periodStatus == nil && !hasFailedStatus
+    }
+
+    private var hasFailedStatus = false
 
     func loadAll() async {
         async let s: () = loadStatus()
@@ -19,26 +24,25 @@ final class ReportsViewModel {
     }
 
     func loadStatus() async {
-        isStatusLoading = true
+        hasFailedStatus = false
         do {
             periodStatus = try await ReportService.shared.getStatus()
         } catch {
-            periodStatus = nil
+            if periodStatus == nil { hasFailedStatus = true }
         }
-        isStatusLoading = false
     }
 
     func loadReports() async {
-        isLoading = true
+        if weeklyReports.isEmpty && monthlyReports.isEmpty && yearlyReports.isEmpty {
+            isLoading = true
+        }
         do {
             let all = try await ReportService.shared.getReports()
             weeklyReports = all.filter { $0.reportType == "weekly" }
             monthlyReports = all.filter { $0.reportType == "monthly" }
             yearlyReports = all.filter { $0.reportType == "yearly" }
         } catch {
-            weeklyReports = []
-            monthlyReports = []
-            yearlyReports = []
+            // Keep existing data on error
         }
         isLoading = false
     }
@@ -56,4 +60,5 @@ final class ReportsViewModel {
             errorMessage = error.localizedDescription
         }
     }
+
 }
