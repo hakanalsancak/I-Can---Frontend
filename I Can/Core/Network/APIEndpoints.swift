@@ -15,6 +15,7 @@ enum APIEndpoints {
         static let refresh = "/api/auth/refresh"
         static let onboarding = "/api/auth/onboarding"
         static let profile = "/api/auth/profile"
+        static let deleteAccount = "/api/auth/account"
     }
 
     enum Entries {

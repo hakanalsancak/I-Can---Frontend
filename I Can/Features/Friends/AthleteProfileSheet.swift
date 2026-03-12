@@ -7,6 +7,7 @@ struct AthleteProfileSheet: View {
     @State private var profile: AthleteProfile?
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var glowPhase: CGFloat = 0
 
     var body: some View {
         NavigationStack {
@@ -16,25 +17,34 @@ struct AthleteProfileSheet: View {
                 if isLoading {
                     ProgressView()
                         .tint(ColorTheme.accent)
+                        .scaleEffect(1.2)
                 } else if let profile {
                     ScrollView(showsIndicators: false) {
-                        VStack(spacing: 24) {
+                        VStack(spacing: 28) {
                             profileHeader(profile)
+                            badgesRow(profile)
                             statsRow(profile)
                             detailsSection(profile)
                         }
-                        .padding(.top, 20)
-                        .padding(.bottom, 40)
+                        .padding(.top, 24)
+                        .padding(.bottom, 48)
                     }
                 } else if let error = errorMessage {
-                    VStack(spacing: 12) {
-                        Image(systemName: "exclamationmark.triangle")
-                            .font(.system(size: 36))
-                            .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                    VStack(spacing: 16) {
+                        ZStack {
+                            Circle()
+                                .fill(ColorTheme.cardBackground(colorScheme))
+                                .frame(width: 80, height: 80)
+                            Image(systemName: "exclamationmark.triangle")
+                                .font(.system(size: 32, weight: .light))
+                                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                        }
                         Text(error)
                             .font(Typography.body)
                             .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                            .multilineTextAlignment(.center)
                     }
+                    .padding(.horizontal, 32)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -42,9 +52,11 @@ struct AthleteProfileSheet: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { dismiss() } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.system(size: 13, weight: .bold))
                             .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                            .frame(width: 30, height: 30)
+                            .frame(width: 32, height: 32)
+                            .background(ColorTheme.elevatedBackground(colorScheme))
+                            .clipShape(Circle())
                     }
                 }
             }
@@ -52,136 +64,251 @@ struct AthleteProfileSheet: View {
         }
     }
 
-    private func profileHeader(_ p: AthleteProfile) -> some View {
-        VStack(spacing: 14) {
-            Text(String((p.fullName ?? "?").prefix(1)).uppercased())
-                .font(.system(size: 36, weight: .bold).width(.condensed))
-                .foregroundColor(.white)
-                .frame(width: 90, height: 90)
-                .background(
-                    LinearGradient(
-                        colors: [ColorTheme.accent, Color(hex: "358A90")],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .clipShape(Circle())
-                .shadow(color: ColorTheme.accent.opacity(0.3), radius: 12, x: 0, y: 4)
+    // MARK: - Profile Header
 
-            VStack(spacing: 4) {
+    private func profileHeader(_ p: AthleteProfile) -> some View {
+        VStack(spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(ColorTheme.accent.opacity(0.08))
+                    .frame(width: 140, height: 140)
+                Circle()
+                    .fill(ColorTheme.accent.opacity(0.04))
+                    .frame(width: 170, height: 170)
+
+                Circle()
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [ColorTheme.accent, Color(hex: "358A90"), ColorTheme.accent.opacity(0.5)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 3
+                    )
+                    .frame(width: 108, height: 108)
+
+                Text(String((p.fullName ?? "?").prefix(1)).uppercased())
+                    .font(.system(size: 42, weight: .heavy).width(.condensed))
+                    .foregroundColor(.white)
+                    .frame(width: 100, height: 100)
+                    .background(
+                        LinearGradient(
+                            colors: [ColorTheme.accent, Color(hex: "2A7A80")],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .clipShape(Circle())
+                    .shadow(color: ColorTheme.accent.opacity(0.4), radius: 16, x: 0, y: 6)
+            }
+
+            VStack(spacing: 6) {
                 Text(p.fullName ?? "Athlete")
-                    .font(.system(size: 24, weight: .heavy).width(.condensed))
+                    .font(.system(size: 26, weight: .heavy).width(.condensed))
                     .foregroundColor(ColorTheme.primaryText(colorScheme))
 
                 if let username = p.username {
                     Text("@\(username)")
-                        .font(.system(size: 15, weight: .medium).width(.condensed))
+                        .font(.system(size: 15, weight: .semibold).width(.condensed))
                         .foregroundColor(ColorTheme.accent)
                 }
             }
 
             if let team = p.team, !team.isEmpty {
                 HStack(spacing: 6) {
-                    Image(systemName: "building.2")
-                        .font(.system(size: 13))
+                    Image(systemName: "shield.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(ColorTheme.accent)
                     Text(team)
                         .font(.system(size: 14, weight: .semibold).width(.condensed))
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
                 }
-                .foregroundColor(ColorTheme.secondaryText(colorScheme))
             }
 
-            HStack(spacing: 16) {
-                if let position = p.position, !position.isEmpty {
-                    detailPill(icon: "person.fill", text: position)
-                }
-                if let sport = p.sport, !sport.isEmpty {
-                    detailPill(icon: "sportscourt", text: sport.capitalized)
-                }
-                if let country = p.country, !country.isEmpty {
-                    detailPill(icon: "globe", text: country)
-                }
-            }
         }
         .padding(.horizontal, 20)
     }
 
-    private func detailPill(icon: String, text: String) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.system(size: 11))
-            Text(text)
-                .font(.system(size: 12, weight: .semibold).width(.condensed))
-        }
-        .foregroundColor(ColorTheme.secondaryText(colorScheme))
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(ColorTheme.cardBackground(colorScheme))
-        .clipShape(Capsule())
+    // MARK: - Badges Row
+
+    private func badgesRow(_ p: AthleteProfile) -> some View {
+        let badges: [(icon: String, text: String, color: Color)] = {
+            var arr: [(String, String, Color)] = []
+            if let sport = p.sport, !sport.isEmpty {
+                arr.append((sportIcon(sport), sport.capitalized, sportColor(sport)))
+            }
+            if let position = p.position, !position.isEmpty {
+                arr.append(("person.fill", position, Color(hex: "8B5CF6")))
+            }
+            if let country = p.country, !country.isEmpty {
+                arr.append(("globe", country, Color(hex: "3B82F6")))
+            }
+            if let level = p.competitionLevel, !level.isEmpty {
+                arr.append(("chart.bar.fill", formatLevel(level), Color(hex: "F59E0B")))
+            }
+            return arr
+        }()
+
+        guard !badges.isEmpty else { return AnyView(EmptyView()) }
+
+        return AnyView(
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(badges.indices, id: \.self) { i in
+                        let badge = badges[i]
+                        HStack(spacing: 6) {
+                            Image(systemName: badge.icon)
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(badge.color)
+                            Text(badge.text)
+                                .font(.system(size: 13, weight: .bold).width(.condensed))
+                                .foregroundColor(ColorTheme.primaryText(colorScheme))
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(
+                            badge.color.opacity(colorScheme == .dark ? 0.12 : 0.08)
+                        )
+                        .clipShape(Capsule())
+                        .overlay(
+                            Capsule().strokeBorder(badge.color.opacity(0.2), lineWidth: 1)
+                        )
+                    }
+                }
+                .padding(.horizontal, 20)
+            }
+        )
     }
+
+    // MARK: - Stats Row
 
     private func statsRow(_ p: AthleteProfile) -> some View {
-        HStack(spacing: 16) {
-            statCard(value: "\(p.currentStreak)", label: "Current Streak", icon: "flame.fill", iconColor: .orange)
-            statCard(value: "\(p.longestStreak ?? 0)", label: "Best Streak", icon: "trophy.fill", iconColor: .yellow)
+        HStack(spacing: 14) {
+            streakCard(
+                value: p.currentStreak,
+                label: "Current Streak",
+                icon: "flame.fill",
+                iconColor: .orange,
+                gradientColors: [.orange.opacity(0.15), .red.opacity(0.08)]
+            )
+            streakCard(
+                value: p.longestStreak ?? 0,
+                label: "Best Streak",
+                icon: "trophy.fill",
+                iconColor: .yellow,
+                gradientColors: [.yellow.opacity(0.12), .orange.opacity(0.06)]
+            )
         }
         .padding(.horizontal, 20)
     }
 
-    private func statCard(value: String, label: String, icon: String, iconColor: Color) -> some View {
-        VStack(spacing: 8) {
+    private func streakCard(value: Int, label: String, icon: String, iconColor: Color, gradientColors: [Color]) -> some View {
+        VStack(spacing: 10) {
             Image(systemName: icon)
-                .font(.system(size: 22))
+                .font(.system(size: 26, weight: .medium))
                 .foregroundColor(iconColor)
+                .shadow(color: iconColor.opacity(0.4), radius: 4, x: 0, y: 2)
 
-            Text(value)
-                .font(.system(size: 28, weight: .heavy, design: .rounded))
+            Text("\(value)")
+                .font(.system(size: 34, weight: .heavy, design: .rounded))
                 .foregroundColor(ColorTheme.primaryText(colorScheme))
+                .contentTransition(.numericText())
 
-            Text(label)
-                .font(.system(size: 12, weight: .semibold).width(.condensed))
-                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+            Text(label.uppercased())
+                .font(.system(size: 10, weight: .heavy).width(.condensed))
+                .foregroundColor(ColorTheme.secondaryText(colorScheme).opacity(0.7))
+                .tracking(0.8)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 18)
-        .background(ColorTheme.cardBackground(colorScheme))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 4, x: 0, y: 2)
+        .padding(.vertical, 22)
+        .background(
+            ZStack {
+                ColorTheme.cardBackground(colorScheme)
+                LinearGradient(colors: gradientColors, startPoint: .top, endPoint: .bottom)
+            }
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(iconColor.opacity(0.15), lineWidth: 1)
+        )
+        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 3)
     }
 
+    // MARK: - Details Section
+
     private func detailsSection(_ p: AthleteProfile) -> some View {
-        VStack(spacing: 12) {
-            if let level = p.competitionLevel, !level.isEmpty {
-                detailRow(icon: "chart.bar.fill", label: "Level", value: formatLevel(level))
-            }
+        VStack(spacing: 14) {
             if let mantra = p.mantra, !mantra.isEmpty {
-                detailRow(icon: "quote.opening", label: "Mantra", value: "\"\(mantra)\"")
+                mantraCard(mantra)
             }
         }
         .padding(.horizontal, 20)
     }
 
-    private func detailRow(icon: String, label: String, value: String) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 16))
-                .foregroundColor(ColorTheme.accent)
-                .frame(width: 28)
+    private func mantraCard(_ mantra: String) -> some View {
+        VStack(spacing: 12) {
+            Image(systemName: "quote.opening")
+                .font(.system(size: 24, weight: .ultraLight))
+                .foregroundColor(ColorTheme.accent.opacity(0.5))
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(label)
-                    .font(.system(size: 12, weight: .medium).width(.condensed))
-                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                Text(value)
-                    .font(.system(size: 15, weight: .semibold).width(.condensed))
-                    .foregroundColor(ColorTheme.primaryText(colorScheme))
-            }
+            Text(mantra)
+                .font(.system(size: 17, weight: .medium, design: .serif))
+                .foregroundColor(ColorTheme.primaryText(colorScheme))
+                .multilineTextAlignment(.center)
+                .italic()
+                .lineSpacing(4)
 
-            Spacer()
+            Text("PERSONAL MANTRA")
+                .font(.system(size: 10, weight: .heavy).width(.condensed))
+                .foregroundColor(ColorTheme.secondaryText(colorScheme).opacity(0.5))
+                .tracking(1.5)
         }
-        .padding(14)
-        .background(ColorTheme.cardBackground(colorScheme))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 4, x: 0, y: 2)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 24)
+        .frame(maxWidth: .infinity)
+        .background(
+            ZStack {
+                ColorTheme.cardBackground(colorScheme)
+                LinearGradient(
+                    colors: [ColorTheme.accent.opacity(0.06), .clear],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(ColorTheme.accent.opacity(0.12), lineWidth: 1)
+        )
+        .shadow(color: ColorTheme.accent.opacity(0.06), radius: 12, x: 0, y: 4)
+    }
+
+    // MARK: - Helpers
+
+    private func sportIcon(_ sport: String) -> String {
+        switch sport.lowercased() {
+        case "soccer": return "sportscourt.fill"
+        case "basketball": return "basketball.fill"
+        case "tennis": return "tennisball.fill"
+        case "football": return "football.fill"
+        case "boxing": return "figure.boxing"
+        case "cricket": return "cricket.ball.fill"
+        default: return "figure.run"
+        }
+    }
+
+    private func sportColor(_ sport: String) -> Color {
+        switch sport.lowercased() {
+        case "soccer": return Color(hex: "22C55E")
+        case "basketball": return Color(hex: "F97316")
+        case "tennis": return Color(hex: "EAB308")
+        case "football": return Color(hex: "8B4513")
+        case "boxing": return Color(hex: "EF4444")
+        case "cricket": return Color(hex: "3B82F6")
+        default: return ColorTheme.accent
+        }
     }
 
     private func formatLevel(_ level: String) -> String {
@@ -190,7 +317,7 @@ struct AthleteProfileSheet: View {
         case "amateur": return "Amateur"
         case "semi_pro": return "Semi-Pro"
         case "professional": return "Professional"
-        case "elite": return "Elite / International"
+        case "elite": return "Elite"
         default: return level.capitalized
         }
     }

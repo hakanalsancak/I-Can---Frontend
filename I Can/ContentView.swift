@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @State private var authService = AuthService.shared
     @State private var isLoading = true
+    @State private var showMaintenance = false
     @State private var logoScale: CGFloat = 0.8
     @State private var logoOpacity: Double = 0
     @Environment(\.colorScheme) private var colorScheme
@@ -24,8 +25,15 @@ struct ContentView: View {
                 splashScreen
                     .transition(.opacity)
             }
+
+            if showMaintenance {
+                ServerMaintenanceView(onRetry: { await retryConnection() })
+                    .transition(.opacity)
+                    .zIndex(10)
+            }
         }
         .animation(.easeInOut(duration: 0.4), value: isLoading)
+        .animation(.easeInOut(duration: 0.3), value: showMaintenance)
         .task {
             await loadInitialState()
         }
@@ -34,6 +42,20 @@ struct ContentView: View {
                 Task {
                     try? await SubscriptionService.shared.checkStatus()
                 }
+            }
+        }
+    }
+
+    private func retryConnection() async {
+        do {
+            try await authService.loadProfile()
+            try? await SubscriptionService.shared.checkStatus()
+            await MainActor.run { showMaintenance = false }
+        } catch {
+            let apiErr = error as? APIError
+            if case .unauthorized = apiErr {
+                await MainActor.run { authService.signOut() }
+                await MainActor.run { showMaintenance = false }
             }
         }
     }
@@ -63,13 +85,19 @@ struct ContentView: View {
             do {
                 try await authService.loadProfile()
                 try? await SubscriptionService.shared.checkStatus()
+                await MainActor.run { showMaintenance = false }
             } catch {
-                authService.signOut()
+                let apiErr = error as? APIError
+                if case .unauthorized = apiErr {
+                    authService.signOut()
+                } else {
+                    await MainActor.run { showMaintenance = true }
+                }
             }
         }
 
         try? await Task.sleep(nanoseconds: 300_000_000)
 
-        isLoading = false
+        await MainActor.run { isLoading = false }
     }
 }

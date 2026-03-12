@@ -20,11 +20,11 @@ enum ColorTheme {
     }
 
     static func cardBackground(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color(hex: "152035") : .white
+        scheme == .dark ? Color(hex: "152035") : Color(hex: "F8F9FB")
     }
 
     static func elevatedBackground(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color(hex: "1A2842") : Color(hex: "FAFBFC")
+        scheme == .dark ? Color(hex: "1A2842") : Color(hex: "F3F4F6")
     }
 
     static func primaryText(_ scheme: ColorScheme) -> Color {

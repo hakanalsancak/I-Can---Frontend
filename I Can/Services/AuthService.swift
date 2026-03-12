@@ -92,6 +92,37 @@ final class AuthService {
         currentUser = user
     }
 
+    func updateProfile(
+        fullName: String? = nil,
+        username: String? = nil,
+        sport: String? = nil,
+        team: String? = nil,
+        position: String? = nil,
+        mantra: String? = nil
+    ) async throws {
+        var body: [String: String] = [:]
+        if let fullName { body["fullName"] = fullName }
+        if let username { body["username"] = username.lowercased() }
+        if let sport { body["sport"] = sport }
+        if let team { body["team"] = team }
+        if let position { body["position"] = position }
+        if let mantra { body["mantra"] = mantra }
+
+        guard !body.isEmpty else { return }
+        let user: User = try await APIClient.shared.request(
+            APIEndpoints.Auth.profile, method: "PUT", body: body
+        )
+        currentUser = user
+    }
+
+    func deleteAccount(confirmUsername: String) async throws {
+        let body = ["username": confirmUsername.lowercased()]
+        let _: [String: String] = try await APIClient.shared.request(
+            APIEndpoints.Auth.deleteAccount, method: "DELETE", body: body
+        )
+        signOut()
+    }
+
     func signOut() {
         TokenManager.shared.clearTokens()
         currentUser = nil

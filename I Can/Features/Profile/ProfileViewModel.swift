@@ -1,4 +1,6 @@
 import Foundation
+import SwiftUI
+import PhotosUI
 
 @Observable
 final class ProfileViewModel {
@@ -9,6 +11,9 @@ final class ProfileViewModel {
     var showSubscription = false
     var showSettings = false
     var showMantraEditor = false
+    var showEditProfile = false
+    var profileImage: UIImage?
+    var isSavingProfile = false
 
     var isPremium: Bool { SubscriptionService.shared.isPremium }
 
@@ -17,6 +22,7 @@ final class ProfileViewModel {
         async let streakTask: () = loadStreak()
         async let subTask: () = loadSubscription()
         _ = await (streakTask, subTask)
+        loadProfilePhoto()
         isLoading = false
     }
 
@@ -38,6 +44,78 @@ final class ProfileViewModel {
             try await AuthService.shared.updateMantra(mantra)
             HapticManager.notification(.success)
         } catch {}
+    }
+
+    func saveProfile(
+        fullName: String,
+        username: String,
+        sport: String,
+        team: String,
+        position: String,
+        mantra: String,
+        photo: UIImage?,
+        removePhoto: Bool = false
+    ) async -> Bool {
+        isSavingProfile = true
+        defer { isSavingProfile = false }
+        do {
+            let currentUser = AuthService.shared.currentUser
+            let nameToSend = fullName != (currentUser?.fullName ?? "") ? fullName : nil
+            let usernameToSend = username != (currentUser?.username ?? "") ? username : nil
+            let sportToSend = sport != (currentUser?.sport ?? "") ? sport : nil
+            let teamToSend = team != (currentUser?.team ?? "") ? team : nil
+            let positionToSend = position != (currentUser?.position ?? "") ? position : nil
+            let mantraToSend = mantra != (currentUser?.mantra ?? "") ? mantra : nil
+
+            try await AuthService.shared.updateProfile(
+                fullName: nameToSend,
+                username: usernameToSend,
+                sport: sportToSend,
+                team: teamToSend,
+                position: positionToSend,
+                mantra: mantraToSend
+            )
+
+            if removePhoto {
+                deleteProfilePhoto()
+                profileImage = nil
+            } else if let photo {
+                saveProfilePhoto(photo)
+                profileImage = photo
+            }
+
+            HapticManager.notification(.success)
+            return true
+        } catch {
+            HapticManager.notification(.error)
+            return false
+        }
+    }
+
+    // MARK: - Local Photo Storage
+
+    func loadProfilePhoto() {
+        guard let userId = user?.id else { return }
+        let url = Self.photoURL(for: userId)
+        guard let data = try? Data(contentsOf: url),
+              let image = UIImage(data: data) else { return }
+        profileImage = image
+    }
+
+    func saveProfilePhoto(_ image: UIImage) {
+        guard let userId = user?.id,
+              let data = image.jpegData(compressionQuality: 0.8) else { return }
+        try? data.write(to: Self.photoURL(for: userId))
+    }
+
+    func deleteProfilePhoto() {
+        guard let userId = user?.id else { return }
+        try? FileManager.default.removeItem(at: Self.photoURL(for: userId))
+    }
+
+    private static func photoURL(for userId: String) -> URL {
+        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        return dir.appendingPathComponent("profile_photo_\(userId).jpg")
     }
 
     func signOut() {
