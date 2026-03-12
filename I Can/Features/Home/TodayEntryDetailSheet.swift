@@ -16,36 +16,9 @@ struct TodayEntryDetailSheet: View {
 
                     activitySpecificSection
 
-                    if let didWell = entry.didWell, !didWell.isEmpty {
-                        reflectionCard(
-                            title: "What went well",
-                            icon: "hand.thumbsup.fill",
-                            text: didWell,
-                            color: Color(hex: "22C55E")
-                        )
-                    }
+                    universalReflections
 
-                    if let improve = entry.improveNext, !improve.isEmpty {
-                        reflectionCard(
-                            title: "What to improve",
-                            icon: "arrow.up.right",
-                            text: improve,
-                            color: Color(hex: "F97316")
-                        )
-                    }
-
-                    if let reflection = r?.recoveryReflection, !reflection.isEmpty {
-                        reflectionCard(
-                            title: "Recovery reflection",
-                            icon: "heart.circle.fill",
-                            text: reflection,
-                            color: ColorTheme.accent
-                        )
-                    }
-
-                    if let q = r?.rotatingQ, let a = r?.rotatingA {
-                        reflectionCard(title: q, icon: "questionmark.circle.fill", text: a, color: Color(hex: "8B5CF6"))
-                    }
+                    legacyReflections
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
@@ -96,7 +69,7 @@ struct TodayEntryDetailSheet: View {
                     .foregroundColor(ColorTheme.accent)
                     .textCase(.uppercase)
 
-                Text("Performance Score")
+                Text("Day Score")
                     .font(.system(size: 18, weight: .bold).width(.condensed))
                     .foregroundColor(ColorTheme.primaryText(colorScheme))
 
@@ -158,78 +131,139 @@ struct TodayEntryDetailSheet: View {
             case "rest_day":
                 restSection(r)
             default:
-                numericFallback
+                EmptyView()
             }
-        } else {
-            numericFallback
         }
     }
 
     private func trainingSection(_ r: EntryResponses) -> some View {
         VStack(spacing: 10) {
-            HStack(spacing: 10) {
-                labelCard(title: "FOCUS", label: r.focusLabel ?? "\(entry.focusRating)/10", color: Color(hex: "3B82F6"))
-                labelCard(title: "EFFORT", label: r.effortLabel ?? "\(entry.effortRating)/10", color: Color(hex: "F97316"))
-            }
-
             if let worked = r.workedOn, !worked.isEmpty {
                 chipSection(title: "WORKED ON", chips: worked, color: ColorTheme.accent)
+            }
+            if let skill = r.skillImproved, !skill.isEmpty {
+                reflectionCard(title: "Skill Improved", icon: "arrow.up.circle.fill", text: skill, color: Color(hex: "22C55E"))
+            }
+            if let drill = r.hardestDrill, !drill.isEmpty {
+                reflectionCard(title: "Hardest Drill", icon: "flame.fill", text: drill, color: Color(hex: "F97316"))
+            }
+            if let mistake = r.commonMistake, !mistake.isEmpty {
+                reflectionCard(title: "Common Mistake", icon: "exclamationmark.triangle.fill", text: mistake, color: Color(hex: "EF4444"))
+            }
+            if let focus = r.tomorrowFocus, !focus.isEmpty {
+                reflectionCard(title: "Tomorrow's Focus", icon: "scope", text: focus, color: Color(hex: "3B82F6"))
             }
         }
     }
 
     private func gameSection(_ r: EntryResponses) -> some View {
         VStack(spacing: 10) {
-            HStack(spacing: 10) {
-                labelCard(title: "PRE-GAME", label: r.preGameFeeling ?? "\(entry.confidenceRating)/10", color: Color(hex: "8B5CF6"))
-                labelCard(title: "PERFORMANCE", label: r.overallPerformance ?? "\(entry.focusRating)/10", color: Color(hex: "22C55E"))
+            if let stats = r.gameStats, !stats.isEmpty {
+                gameStatsGrid(stats)
             }
-
-            if let strongest = r.strongestAreas, !strongest.isEmpty {
-                chipSection(title: "STRONGEST", chips: strongest, color: Color(hex: "22C55E"))
+            if let best = r.bestMoment, !best.isEmpty {
+                reflectionCard(title: "Best Moment", icon: "star.fill", text: best, color: Color(hex: "F59E0B"))
+            }
+            if let mistake = r.biggestMistake, !mistake.isEmpty {
+                reflectionCard(title: "Biggest Mistake", icon: "exclamationmark.triangle.fill", text: mistake, color: Color(hex: "EF4444"))
+            }
+            if let improve = r.improveNextGame, !improve.isEmpty {
+                reflectionCard(title: "Improve Next Game", icon: "arrow.up.right", text: improve, color: Color(hex: "3B82F6"))
             }
         }
     }
 
     private func restSection(_ r: EntryResponses) -> some View {
         VStack(spacing: 10) {
-            HStack(spacing: 10) {
-                labelCard(title: "RECOVERY", label: r.recoveryQuality ?? "\(entry.focusRating)/10", color: Color(hex: "3B82F6"))
-                labelCard(title: "DISCIPLINE", label: r.discipline ?? "\(entry.effortRating)/10", color: Color(hex: "22C55E"))
+            if let activities = r.recoveryActivities, !activities.isEmpty {
+                chipSection(title: "RECOVERY", chips: activities, color: ColorTheme.accent)
             }
-
-            if let activities = r.restActivities, !activities.isEmpty {
-                chipSection(title: "ACTIVITIES", chips: activities, color: ColorTheme.accent)
+            if let study = r.sportStudy, !study.isEmpty {
+                reflectionCard(title: "Sport Study", icon: "book.fill", text: study, color: Color(hex: "8B5CF6"))
+            }
+            if let focus = r.restTomorrowFocus, !focus.isEmpty {
+                reflectionCard(title: "Tomorrow's Focus", icon: "scope", text: focus, color: Color(hex: "3B82F6"))
             }
         }
     }
 
-    private var numericFallback: some View {
-        HStack(spacing: 10) {
-            numericCard(label: "Focus", value: entry.focusRating, color: Color(hex: "3B82F6"))
-            numericCard(label: "Effort", value: entry.effortRating, color: Color(hex: "F97316"))
-            numericCard(label: "Confidence", value: entry.confidenceRating, color: Color(hex: "8B5CF6"))
+    // MARK: - Universal Reflections
+
+    @ViewBuilder
+    private var universalReflections: some View {
+        if let dw = r?.didWell ?? entry.didWell, !dw.isEmpty {
+            reflectionCard(title: "What went well", icon: "hand.thumbsup.fill", text: dw, color: Color(hex: "22C55E"))
+        }
+        if let imp = r?.improveNext ?? entry.improveNext, !imp.isEmpty {
+            reflectionCard(title: "What to improve", icon: "arrow.up.right", text: imp, color: Color(hex: "F97316"))
+        }
+        if let proud = r?.proudMoment, !proud.isEmpty {
+            reflectionCard(title: "Proudest moment", icon: "trophy.fill", text: proud, color: Color(hex: "F59E0B"))
         }
     }
 
-    // MARK: - Label Card
+    @ViewBuilder
+    private var legacyReflections: some View {
+        if let reflection = r?.recoveryReflection, !reflection.isEmpty {
+            reflectionCard(title: "Recovery reflection", icon: "heart.circle.fill", text: reflection, color: ColorTheme.accent)
+        }
+        if let q = r?.rotatingQ, let a = r?.rotatingA {
+            reflectionCard(title: q, icon: "questionmark.circle.fill", text: a, color: Color(hex: "8B5CF6"))
+        }
+    }
 
-    private func labelCard(title: String, label: String, color: Color) -> some View {
-        VStack(spacing: 6) {
-            Text(title)
+    // MARK: - Game Stats Grid
+
+    private func gameStatsGrid(_ stats: [String: Int]) -> some View {
+        let sorted = stats.sorted { $0.key < $1.key }
+        return VStack(alignment: .leading, spacing: 10) {
+            Text("GAME STATS")
                 .font(.system(size: 10, weight: .heavy).width(.condensed))
                 .foregroundColor(ColorTheme.secondaryText(colorScheme))
 
-            Text(label)
-                .font(.system(size: 15, weight: .bold).width(.condensed))
-                .foregroundColor(color)
-                .multilineTextAlignment(.center)
+            LazyVGrid(columns: [
+                GridItem(.flexible(), spacing: 10),
+                GridItem(.flexible(), spacing: 10),
+                GridItem(.flexible(), spacing: 10)
+            ], spacing: 10) {
+                ForEach(sorted, id: \.key) { key, value in
+                    VStack(spacing: 4) {
+                        Text("\(value)")
+                            .font(.system(size: 22, weight: .heavy, design: .rounded))
+                            .foregroundColor(ColorTheme.primaryText(colorScheme))
+                        Text(formatStatKey(key))
+                            .font(.system(size: 10, weight: .bold).width(.condensed))
+                            .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(ColorTheme.elevatedBackground(colorScheme))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                }
+            }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
+        .padding(16)
         .background(ColorTheme.cardBackground(colorScheme))
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
+    }
+
+    private func formatStatKey(_ key: String) -> String {
+        let map: [String: String] = [
+            "goals": "Goals", "assists": "Assists", "shotsOnTarget": "Shots on Target",
+            "keyPasses": "Key Passes", "tackles": "Tackles",
+            "points": "Points", "rebounds": "Rebounds", "steals": "Steals", "turnovers": "Turnovers",
+            "setsWon": "Sets Won", "setsLost": "Sets Lost", "aces": "Aces",
+            "doubleFaults": "Double Faults", "winners": "Winners", "unforcedErrors": "Unforced Errors",
+            "touchdowns": "Touchdowns", "yardsGained": "Yards", "passCompletions": "Pass Comp.",
+            "receptions": "Receptions", "sacks": "Sacks", "interceptions": "Interceptions",
+            "runsScored": "Runs", "ballsFaced": "Balls Faced", "wicketsTaken": "Wickets", "catches": "Catches",
+            "roundsFought": "Rounds", "cleanPunches": "Clean Punches",
+            "knockdowns": "Knockdowns", "warnings": "Warnings"
+        ]
+        return map[key] ?? key.replacingOccurrences(of: "([A-Z])", with: " $1", options: .regularExpression).capitalized
     }
 
     // MARK: - Chip Section
@@ -257,33 +291,6 @@ struct TodayEntryDetailSheet: View {
         .background(ColorTheme.cardBackground(colorScheme))
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
-    }
-
-    // MARK: - Numeric Fallback Card
-
-    private func numericCard(label: String, value: Int, color: Color) -> some View {
-        VStack(spacing: 6) {
-            Text("\(value)")
-                .font(.system(size: 24, weight: .heavy, design: .rounded))
-                .foregroundColor(ratingColor(value))
-            Text(label)
-                .font(.system(size: 11, weight: .bold).width(.condensed))
-                .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                .textCase(.uppercase)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
-        .background(ColorTheme.cardBackground(colorScheme))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
-    }
-
-    private func ratingColor(_ value: Int) -> Color {
-        switch value {
-        case 8...10: return Color(hex: "22C55E")
-        case 5...7: return ColorTheme.accent
-        default: return Color(hex: "F97316")
-        }
     }
 
     // MARK: - Reflection Card

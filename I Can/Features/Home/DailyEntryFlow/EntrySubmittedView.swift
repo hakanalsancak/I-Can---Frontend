@@ -36,13 +36,18 @@ struct EntrySubmittedView: View {
                         .font(.system(size: 22, weight: .heavy).width(.condensed))
                         .foregroundColor(ColorTheme.primaryText(colorScheme))
 
-                    Text("Performance Score")
+                    Text("Day Score")
                         .font(.system(size: 13, weight: .semibold).width(.condensed))
                         .foregroundColor(ColorTheme.secondaryText(colorScheme))
 
-                    Text("\(response.entry.performanceScore)")
-                        .font(.system(size: 52, weight: .heavy, design: .rounded))
-                        .foregroundColor(ColorTheme.accent)
+                    HStack(alignment: .firstTextBaseline, spacing: 2) {
+                        Text("\(response.entry.performanceScore)")
+                            .font(.system(size: 52, weight: .heavy, design: .rounded))
+                            .foregroundColor(ColorTheme.accent)
+                        Text("/100")
+                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                    }
                 }
                 .opacity(showContent ? 1 : 0)
 

@@ -1,9 +1,32 @@
 import Foundation
 
 struct EntryResponses: Codable {
+    // Training
+    var workedOn: [String]?
+    var skillImproved: String?
+    var hardestDrill: String?
+    var commonMistake: String?
+    var tomorrowFocus: String?
+
+    // Game stats (sport-specific)
+    var gameStats: [String: Int]?
+    var bestMoment: String?
+    var biggestMistake: String?
+    var improveNextGame: String?
+
+    // Rest day
+    var recoveryActivities: [String]?
+    var sportStudy: String?
+    var restTomorrowFocus: String?
+
+    // Universal
+    var didWell: String?
+    var improveNext: String?
+    var proudMoment: String?
+
+    // Legacy fields (backward compatibility with old entries)
     var focusLabel: String?
     var effortLabel: String?
-    var workedOn: [String]?
     var preGameFeeling: String?
     var overallPerformance: String?
     var strongestAreas: [String]?
@@ -82,23 +105,21 @@ struct EntriesResponse: Codable {
 
 struct InsightRequest: Encodable {
     let activityType: String
-    var focus: String?
-    var effort: String?
     var trainingAreas: [String]?
+    var skillImproved: String?
+    var hardestDrill: String?
+    var commonMistake: String?
+    var tomorrowFocus: String?
+    var gameStats: [String: Int]?
+    var bestMoment: String?
+    var biggestMistake: String?
+    var improveNextGame: String?
+    var recoveryActivities: [String]?
+    var sportStudy: String?
+    var restTomorrowFocus: String?
     var reflectionPositive: String?
     var reflectionImprove: String?
-    var dailyQuestion: String?
-    var dailyAnswer: String?
-    var preGameFeeling: String?
-    var overallPerformance: String?
-    var strongestAreas: [String]?
-    var recoveryQuality: String?
-    var restActivities: [String]?
-    var discipline: String?
-    var recoveryReflection: String?
-    var otherActivities: [String]?
-    var otherFeeling: String?
-    var otherDescription: String?
+    var proudMoment: String?
 }
 
 struct InsightResponse: Codable {

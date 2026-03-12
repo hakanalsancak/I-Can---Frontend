@@ -1,56 +1,95 @@
 import SwiftUI
 
-struct UniversalReflectionsView: View {
-    @Binding var didWell: String
-    @Binding var improveNext: String
-    @Binding var proudMoment: String
-    let onSubmit: () -> Void
+struct GameReflectionsView: View {
+    let sport: String
+    @Binding var bestMoment: String
+    @Binding var biggestMistake: String
+    @Binding var improveNextGame: String
+    let onNext: () -> Void
     let onBack: () -> Void
-    var isSubmitting: Bool = false
-    var errorMessage: String? = nil
     @Environment(\.colorScheme) private var colorScheme
+
+    private var prompts: (best: String, mistake: String, improve: String) {
+        switch sport {
+        case "soccer":
+            return (
+                "Best moment of the match",
+                "Biggest mistake",
+                "What will you improve next game"
+            )
+        case "basketball":
+            return (
+                "Best play you made",
+                "What shot or play did you miss",
+                "What will you improve next game"
+            )
+        case "tennis":
+            return (
+                "Best point played",
+                "What part of your game broke down",
+                "What will you improve next match"
+            )
+        case "football":
+            return (
+                "Best play",
+                "Biggest mistake",
+                "Improvement for next game"
+            )
+        case "cricket":
+            return (
+                "Best moment",
+                "Toughest moment",
+                "What to improve next match"
+            )
+        case "boxing":
+            return (
+                "Best combination landed",
+                "Where defense failed",
+                "What to improve next fight"
+            )
+        default:
+            return (
+                "Best moment",
+                "Biggest mistake",
+                "What to improve next time"
+            )
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 24) {
                     VStack(spacing: 6) {
-                        Text("Reflect")
+                        Text("Match Reflections")
                             .font(.system(size: 26, weight: .heavy).width(.condensed))
                             .foregroundColor(ColorTheme.primaryText(colorScheme))
-                        Text("Final thoughts on your day")
-                            .font(.system(size: 15, weight: .medium).width(.condensed))
+                        Text("Replay the key moments")
+                            .font(.system(size: 14, weight: .medium).width(.condensed))
                             .foregroundColor(ColorTheme.secondaryText(colorScheme))
                     }
                     .padding(.top, 32)
 
                     reflectionField(
-                        label: "What did you do well today?",
-                        icon: "hand.thumbsup",
-                        placeholder: "e.g. Stayed composed under pressure...",
-                        text: $didWell
-                    )
-
-                    reflectionField(
-                        label: "What will you improve next time?",
-                        icon: "arrow.up.right",
-                        placeholder: "e.g. Better communication with teammates...",
-                        text: $improveNext
-                    )
-
-                    reflectionField(
-                        label: "What moment are you most proud of today?",
+                        label: prompts.best,
                         icon: "star.fill",
-                        placeholder: "e.g. Scored from a free kick in the last minute...",
-                        text: $proudMoment
+                        placeholder: "Describe it briefly...",
+                        text: $bestMoment
                     )
 
-                    if let errorMessage {
-                        Text(errorMessage)
-                            .font(.system(size: 13, weight: .medium).width(.condensed))
-                            .foregroundColor(.red)
-                            .padding(.horizontal, 24)
-                    }
+                    reflectionField(
+                        label: prompts.mistake,
+                        icon: "exclamationmark.triangle",
+                        placeholder: "What went wrong...",
+                        text: $biggestMistake
+                    )
+
+                    reflectionField(
+                        label: prompts.improve,
+                        icon: "arrow.up.right",
+                        placeholder: "One thing to work on...",
+                        text: $improveNextGame
+                    )
                 }
                 .padding(.bottom, 20)
             }
@@ -70,12 +109,9 @@ struct UniversalReflectionsView: View {
                 }
                 .frame(width: 100)
 
-                PrimaryButton(
-                    title: "Submit",
-                    isLoading: isSubmitting
-                ) {
+                PrimaryButton(title: "Continue") {
                     HapticManager.impact(.medium)
-                    onSubmit()
+                    withAnimation { onNext() }
                 }
             }
             .padding(.horizontal, 24)
@@ -91,7 +127,7 @@ struct UniversalReflectionsView: View {
 
             TextField(placeholder, text: text, axis: .vertical)
                 .font(.system(size: 15, weight: .regular).width(.condensed))
-                .lineLimit(2...5)
+                .lineLimit(2...4)
                 .padding(14)
                 .background(ColorTheme.cardBackground(colorScheme))
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))

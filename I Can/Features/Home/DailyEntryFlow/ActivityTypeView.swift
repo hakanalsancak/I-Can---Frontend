@@ -7,9 +7,8 @@ struct ActivityTypeView: View {
 
     private let types: [(id: String, label: String, icon: String, subtitle: String)] = [
         ("training", "Training", "figure.run", "Practice, drills, conditioning"),
-        ("game", "Game", "trophy", "Match, competition, scrimmage"),
+        ("game", "Game / Match", "trophy", "Match, competition, scrimmage"),
         ("rest_day", "Rest Day", "moon.stars", "Recovery, stretching, off day"),
-        ("other", "Something Else", "ellipsis.circle", "Mixed day, multiple activities, etc."),
     ]
 
     var body: some View {

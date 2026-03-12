@@ -515,34 +515,43 @@ struct HomeView: View {
             switch entry.activityType {
             case "training":
                 VStack(spacing: 10) {
-                    HStack(spacing: 10) {
-                        heroMetricPill(label: "Focus", value: r.focusLabel ?? "\(entry.focusRating)/10", color: Color(hex: "3B82F6"))
-                        heroMetricPill(label: "Effort", value: r.effortLabel ?? "\(entry.effortRating)/10", color: Color(hex: "F97316"))
-                    }
                     if let worked = r.workedOn, !worked.isEmpty {
                         heroChipRow(chips: worked)
+                    }
+                    if let skill = r.skillImproved, !skill.isEmpty {
+                        heroMetricPill(label: "Improved", value: skill, color: Color(hex: "22C55E"))
+                    } else if let focus = r.focusLabel {
+                        heroMetricPill(label: "Focus", value: focus, color: Color(hex: "3B82F6"))
                     }
                 }
             case "game":
                 VStack(spacing: 10) {
-                    HStack(spacing: 10) {
-                        heroMetricPill(label: "Pre-game", value: r.preGameFeeling ?? "", color: Color(hex: "8B5CF6"))
-                        heroMetricPill(label: "Performance", value: r.overallPerformance ?? "", color: Color(hex: "22C55E"))
-                    }
-                    if let strongest = r.strongestAreas, !strongest.isEmpty {
+                    if let stats = r.gameStats, !stats.isEmpty {
+                        let topStats = stats.filter { $0.value > 0 }.prefix(3)
+                        if !topStats.isEmpty {
+                            HStack(spacing: 8) {
+                                ForEach(Array(topStats), id: \.key) { key, value in
+                                    heroMetricPill(
+                                        label: key.replacingOccurrences(of: "([A-Z])", with: " $1", options: .regularExpression).capitalized.trimmingCharacters(in: .whitespaces),
+                                        value: "\(value)",
+                                        color: Color(hex: "22C55E")
+                                    )
+                                }
+                            }
+                        }
+                    } else if let strongest = r.strongestAreas, !strongest.isEmpty {
                         heroChipRow(chips: strongest)
                     }
                 }
             case "rest_day":
-                HStack(spacing: 10) {
-                    heroMetricPill(label: "Recovery", value: r.recoveryQuality ?? "", color: Color(hex: "3B82F6"))
-                    heroMetricPill(label: "Discipline", value: r.discipline ?? "", color: Color(hex: "22C55E"))
-                }
-            case "other":
                 VStack(spacing: 10) {
-                    heroMetricPill(label: "Feeling", value: r.otherFeeling ?? "", color: Color(hex: "8B5CF6"))
-                    if let activities = r.otherActivities, !activities.isEmpty {
+                    if let activities = r.recoveryActivities, !activities.isEmpty {
                         heroChipRow(chips: activities)
+                    } else if let activities = r.restActivities, !activities.isEmpty {
+                        heroChipRow(chips: activities)
+                    }
+                    if let study = r.sportStudy, !study.isEmpty, study != "No" {
+                        heroMetricPill(label: "Sport Study", value: study, color: Color(hex: "3B82F6"))
                     }
                 }
             default:

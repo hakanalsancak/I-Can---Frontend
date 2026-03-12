@@ -2,10 +2,13 @@ import SwiftUI
 
 enum EntryStep: Hashable {
     case activityType
-    case singleChoice(id: String)
     case multiSelect(id: String)
-    case reflections
-    case optionalQuestion
+    case shortText(id: String)
+    case gameStats
+    case gameReflections
+    case singleChoice(id: String)
+    case restReflection
+    case universalReflections
     case submitting
 }
 
@@ -14,27 +17,28 @@ final class DailyEntryViewModel {
     var currentStepIndex = 0
     var activityType: String = ""
 
-    var focusLabel: String = ""
-    var effortLabel: String = ""
+    // Training
     var workedOn: Set<String> = []
+    var skillImproved: String = ""
+    var hardestDrill: String = ""
+    var commonMistake: String = ""
+    var tomorrowFocus: String = ""
 
-    var preGameFeeling: String = ""
-    var overallPerformance: String = ""
-    var strongestAreas: Set<String> = []
+    // Game stats
+    var gameStats: [String: Int] = [:]
+    var bestMoment: String = ""
+    var biggestMistake: String = ""
+    var improveNextGame: String = ""
 
-    var recoveryQuality: String = ""
-    var restActivities: Set<String> = []
-    var disciplineLevel: String = ""
-    var recoveryReflection: String = ""
+    // Rest day
+    var recoveryActivities: Set<String> = []
+    var sportStudy: String = ""
+    var restTomorrowFocus: String = ""
 
-    var otherActivities: Set<String> = []
-    var otherFeeling: String = ""
-    var otherDescription: String = ""
-
+    // Universal
     var didWell: String = ""
     var improveNext: String = ""
-
-    var rotatingAnswer: String = ""
+    var proudMoment: String = ""
 
     var isSubmitting = false
     var errorMessage: String?
@@ -47,31 +51,25 @@ final class DailyEntryViewModel {
         switch activityType {
         case "training":
             s += [
-                .singleChoice(id: "focus"),
-                .singleChoice(id: "effort"),
                 .multiSelect(id: "workedOn"),
-                .reflections,
-                .optionalQuestion,
+                .shortText(id: "skillImproved"),
+                .shortText(id: "hardestDrill"),
+                .shortText(id: "commonMistake"),
+                .shortText(id: "tomorrowFocus"),
+                .universalReflections,
             ]
         case "game":
             s += [
-                .singleChoice(id: "preGame"),
-                .singleChoice(id: "performance"),
-                .multiSelect(id: "strongest"),
-                .reflections,
+                .gameStats,
+                .gameReflections,
+                .universalReflections,
             ]
         case "rest_day":
             s += [
-                .singleChoice(id: "recovery"),
-                .multiSelect(id: "restActivities"),
-                .singleChoice(id: "discipline"),
-                .reflections,
-            ]
-        case "other":
-            s += [
-                .multiSelect(id: "otherActivities"),
-                .singleChoice(id: "otherFeeling"),
-                .reflections,
+                .multiSelect(id: "recoveryActivities"),
+                .singleChoice(id: "sportStudy"),
+                .restReflection,
+                .universalReflections,
             ]
         default:
             break
@@ -93,76 +91,6 @@ final class DailyEntryViewModel {
         return Double(currentStepIndex) / Double(totalSteps - 1)
     }
 
-    // MARK: - Numeric mappings
-
-    private var focusRating: Int {
-        switch activityType {
-        case "training":
-            return Self.focusMap[focusLabel] ?? 5
-        case "game":
-            return Self.performanceMap[overallPerformance] ?? 5
-        case "rest_day":
-            return Self.recoveryMap[recoveryQuality] ?? 5
-        case "other":
-            return Self.otherFeelingMap[otherFeeling] ?? 5
-        default: return 5
-        }
-    }
-
-    private var effortRating: Int {
-        switch activityType {
-        case "training":
-            return Self.effortMap[effortLabel] ?? 5
-        case "game":
-            return Self.performanceMap[overallPerformance] ?? 5
-        case "rest_day":
-            return Self.disciplineMap[disciplineLevel] ?? 5
-        case "other":
-            return Self.otherFeelingMap[otherFeeling] ?? 5
-        default: return 5
-        }
-    }
-
-    private var confidenceRating: Int {
-        switch activityType {
-        case "training":
-            return Int(round(Double(focusRating + effortRating) / 2.0))
-        case "game":
-            return Self.preGameMap[preGameFeeling] ?? 5
-        case "rest_day":
-            return Int(round(Double(focusRating + effortRating) / 2.0))
-        case "other":
-            return Self.otherFeelingMap[otherFeeling] ?? 5
-        default: return 5
-        }
-    }
-
-    static let focusMap: [String: Int] = [
-        "Very focused": 9, "Mostly focused": 7,
-        "Distracted at times": 4, "Hard to focus": 2,
-    ]
-    static let effortMap: [String: Int] = [
-        "Maximum effort": 10, "Good effort": 7,
-        "Average effort": 5, "Low effort": 2,
-    ]
-    static let preGameMap: [String: Int] = [
-        "Confident": 9, "Ready": 7, "Nervous": 4, "Unprepared": 2,
-    ]
-    static let performanceMap: [String: Int] = [
-        "Excellent": 9, "Good": 7, "Average": 5, "Poor": 2,
-    ]
-    static let recoveryMap: [String: Int] = [
-        "Excellent": 9, "Good": 7, "Average": 5, "Poor": 2,
-    ]
-    static let disciplineMap: [String: Int] = [
-        "Yes": 9, "Mostly": 6, "Not really": 3,
-    ]
-    static let otherFeelingMap: [String: Int] = [
-        "Great": 9, "Good": 7, "Okay": 5, "Not great": 3,
-    ]
-
-    // MARK: - Navigation
-
     func nextStep() {
         guard currentStepIndex < steps.count - 1 else { return }
         currentStepIndex += 1
@@ -173,29 +101,107 @@ final class DailyEntryViewModel {
         currentStepIndex -= 1
     }
 
+    // MARK: - Rating Computation
+
+    private func computeRatings() -> (focus: Int, effort: Int, confidence: Int) {
+        let sport = AuthService.shared.currentUser?.sport ?? "soccer"
+
+        switch activityType {
+        case "training":
+            let areaCount = workedOn.count
+            let textFields = [skillImproved, hardestDrill, commonMistake, tomorrowFocus]
+            let filledTexts = textFields.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }.count
+            let reflectionsFilled = [didWell, improveNext, proudMoment].filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }.count
+
+            let focus = min(4 + areaCount + filledTexts / 2, 9)
+            let effort = min(3 + areaCount + filledTexts, 9)
+            let confidence = min(4 + reflectionsFilled * 2 + (filledTexts > 2 ? 1 : 0), 8)
+            return (max(focus, 3), max(effort, 3), max(confidence, 3))
+
+        case "game":
+            let positiveKeys: Set<String> = ["goals", "assists", "points", "touchdowns",
+                "runsScored", "setsWon", "aces", "winners", "cleanPunches",
+                "steals", "rebounds", "tackles", "sacks", "interceptions",
+                "wicketsTaken", "catches", "receptions", "passCompletions",
+                "shotsOnTarget", "keyPasses", "roundsFought", "yardsGained"]
+            let negativeKeys: Set<String> = ["turnovers", "doubleFaults", "unforcedErrors",
+                "warnings", "setsLost", "knockdowns"]
+
+            let positiveTotal = gameStats.filter { positiveKeys.contains($0.key) && $0.value > 0 }.values.reduce(0, +)
+            let negativeTotal = gameStats.filter { negativeKeys.contains($0.key) && $0.value > 0 }.values.reduce(0, +)
+            let statCount = gameStats.filter { $0.value > 0 }.count
+
+            let rawStat = Double(positiveTotal) - Double(negativeTotal) * 1.5
+            let normalizedStat: Int
+            switch sport {
+            case "soccer":
+                normalizedStat = Int((rawStat / 6.0) * 4.0)
+            case "basketball":
+                normalizedStat = Int((rawStat / 25.0) * 4.0)
+            case "tennis":
+                normalizedStat = Int((rawStat / 8.0) * 4.0)
+            case "boxing":
+                normalizedStat = Int((rawStat / 10.0) * 4.0)
+            case "cricket":
+                normalizedStat = Int((rawStat / 30.0) * 4.0)
+            case "football":
+                normalizedStat = Int((rawStat / 10.0) * 4.0)
+            default:
+                normalizedStat = Int((rawStat / 8.0) * 4.0)
+            }
+
+            let base = statCount > 0 ? 5 : 4
+            let focus = max(min(base + normalizedStat, 9), 2)
+
+            let reflectionBonus = [bestMoment, biggestMistake, improveNextGame]
+                .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }.count
+            let effort = max(min(base + normalizedStat + (reflectionBonus > 1 ? 1 : 0), 9), 2)
+
+            let universalBonus = [didWell, improveNext, proudMoment]
+                .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }.count
+            let confidence = max(min(base + normalizedStat + (universalBonus > 1 ? 1 : 0), 9), 2)
+
+            return (focus, effort, confidence)
+
+        case "rest_day":
+            let activityCount = recoveryActivities.count
+            let studied = sportStudy == "Watched match film" || sportStudy == "Studied tactics"
+            let hasFocus = !restTomorrowFocus.trimmingCharacters(in: .whitespaces).isEmpty
+            let reflections = [didWell, improveNext, proudMoment]
+                .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }.count
+
+            let focus = max(min(4 + activityCount + (studied ? 1 : 0), 8), 4)
+            let effort = max(min(4 + activityCount + (hasFocus ? 1 : 0), 8), 4)
+            let confidence = max(min(4 + reflections + (studied ? 1 : 0), 8), 4)
+            return (focus, effort, confidence)
+
+        default:
+            return (5, 5, 5)
+        }
+    }
+
     // MARK: - Init from existing entry
 
     init(existingEntry: DailyEntry? = nil) {
         guard let entry = existingEntry else { return }
         self.activityType = entry.activityType
-        self.didWell = entry.didWell ?? ""
-        self.improveNext = entry.improveNext ?? ""
+        self.didWell = entry.responses?.didWell ?? entry.didWell ?? ""
+        self.improveNext = entry.responses?.improveNext ?? entry.improveNext ?? ""
+        self.proudMoment = entry.responses?.proudMoment ?? ""
 
         if let r = entry.responses {
-            self.focusLabel = r.focusLabel ?? ""
-            self.effortLabel = r.effortLabel ?? ""
             self.workedOn = Set(r.workedOn ?? [])
-            self.preGameFeeling = r.preGameFeeling ?? ""
-            self.overallPerformance = r.overallPerformance ?? ""
-            self.strongestAreas = Set(r.strongestAreas ?? [])
-            self.recoveryQuality = r.recoveryQuality ?? ""
-            self.restActivities = Set(r.restActivities ?? [])
-            self.disciplineLevel = r.discipline ?? ""
-            self.recoveryReflection = r.recoveryReflection ?? ""
-            self.rotatingAnswer = r.rotatingA ?? ""
-            self.otherActivities = Set(r.otherActivities ?? [])
-            self.otherFeeling = r.otherFeeling ?? ""
-            self.otherDescription = r.otherDescription ?? ""
+            self.skillImproved = r.skillImproved ?? ""
+            self.hardestDrill = r.hardestDrill ?? ""
+            self.commonMistake = r.commonMistake ?? ""
+            self.tomorrowFocus = r.tomorrowFocus ?? ""
+            self.gameStats = r.gameStats ?? [:]
+            self.bestMoment = r.bestMoment ?? ""
+            self.biggestMistake = r.biggestMistake ?? ""
+            self.improveNextGame = r.improveNextGame ?? ""
+            self.recoveryActivities = Set(r.recoveryActivities ?? r.restActivities ?? [])
+            self.sportStudy = r.sportStudy ?? ""
+            self.restTomorrowFocus = r.restTomorrowFocus ?? ""
         }
     }
 
@@ -206,41 +212,36 @@ final class DailyEntryViewModel {
         errorMessage = nil
 
         var responses = EntryResponses()
+        responses.didWell = didWell.isEmpty ? nil : didWell
+        responses.improveNext = improveNext.isEmpty ? nil : improveNext
+        responses.proudMoment = proudMoment.isEmpty ? nil : proudMoment
+
         switch activityType {
         case "training":
-            responses.focusLabel = focusLabel
-            responses.effortLabel = effortLabel
             responses.workedOn = Array(workedOn)
-            if !rotatingAnswer.isEmpty {
-                responses.rotatingQ = "Did you follow your training plan today?"
-                responses.rotatingA = rotatingAnswer
-            }
+            responses.skillImproved = skillImproved.isEmpty ? nil : skillImproved
+            responses.hardestDrill = hardestDrill.isEmpty ? nil : hardestDrill
+            responses.commonMistake = commonMistake.isEmpty ? nil : commonMistake
+            responses.tomorrowFocus = tomorrowFocus.isEmpty ? nil : tomorrowFocus
         case "game":
-            responses.preGameFeeling = preGameFeeling
-            responses.overallPerformance = overallPerformance
-            responses.strongestAreas = Array(strongestAreas)
+            responses.gameStats = gameStats.isEmpty ? nil : gameStats
+            responses.bestMoment = bestMoment.isEmpty ? nil : bestMoment
+            responses.biggestMistake = biggestMistake.isEmpty ? nil : biggestMistake
+            responses.improveNextGame = improveNextGame.isEmpty ? nil : improveNextGame
         case "rest_day":
-            responses.recoveryQuality = recoveryQuality
-            responses.restActivities = Array(restActivities)
-            responses.discipline = disciplineLevel
-            if !recoveryReflection.isEmpty {
-                responses.recoveryReflection = recoveryReflection
-            }
-        case "other":
-            responses.otherActivities = Array(otherActivities)
-            responses.otherFeeling = otherFeeling
-            if !otherDescription.isEmpty {
-                responses.otherDescription = otherDescription
-            }
+            responses.recoveryActivities = Array(recoveryActivities)
+            responses.sportStudy = sportStudy.isEmpty ? nil : sportStudy
+            responses.restTomorrowFocus = restTomorrowFocus.isEmpty ? nil : restTomorrowFocus
         default: break
         }
 
+        let ratings = computeRatings()
         let request = EntrySubmitRequest(
             entryDate: Date().apiDateString,
             activityType: activityType,
-            focusRating: focusRating,
-            effortRating: effortRating,
-            confidenceRating: confidenceRating,
+            focusRating: ratings.focus,
+            effortRating: ratings.effort,
+            confidenceRating: ratings.confidence,
             didWell: didWell.isEmpty ? nil : didWell,
             improveNext: improveNext.isEmpty ? nil : improveNext,
             rotatingQuestionId: nil,
@@ -268,47 +269,36 @@ final class DailyEntryViewModel {
         case "training": displayType = "Training"
         case "game": displayType = "Game"
         case "rest_day": displayType = "Rest Day"
-        case "other": displayType = "Mixed / Other"
         default: displayType = activityType.capitalized
         }
         var request = InsightRequest(activityType: displayType)
 
         switch activityType {
         case "training":
-            request.focus = focusLabel
-            request.effort = effortLabel
             request.trainingAreas = Array(workedOn)
-            request.reflectionPositive = didWell.isEmpty ? nil : didWell
-            request.reflectionImprove = improveNext.isEmpty ? nil : improveNext
-            if !rotatingAnswer.isEmpty {
-                request.dailyQuestion = "Did you follow your training plan today?"
-                request.dailyAnswer = rotatingAnswer
-            }
+            request.skillImproved = skillImproved.isEmpty ? nil : skillImproved
+            request.hardestDrill = hardestDrill.isEmpty ? nil : hardestDrill
+            request.commonMistake = commonMistake.isEmpty ? nil : commonMistake
+            request.tomorrowFocus = tomorrowFocus.isEmpty ? nil : tomorrowFocus
         case "game":
-            request.preGameFeeling = preGameFeeling
-            request.overallPerformance = overallPerformance
-            request.strongestAreas = Array(strongestAreas)
-            request.reflectionPositive = didWell.isEmpty ? nil : didWell
-            request.reflectionImprove = improveNext.isEmpty ? nil : improveNext
+            request.gameStats = gameStats.isEmpty ? nil : gameStats
+            request.bestMoment = bestMoment.isEmpty ? nil : bestMoment
+            request.biggestMistake = biggestMistake.isEmpty ? nil : biggestMistake
+            request.improveNextGame = improveNextGame.isEmpty ? nil : improveNextGame
         case "rest_day":
-            request.recoveryQuality = recoveryQuality
-            request.restActivities = Array(restActivities)
-            request.discipline = disciplineLevel
-            request.recoveryReflection = recoveryReflection.isEmpty ? nil : recoveryReflection
-        case "other":
-            request.otherActivities = Array(otherActivities)
-            request.otherFeeling = otherFeeling
-            request.otherDescription = otherDescription.isEmpty ? nil : otherDescription
-            request.reflectionPositive = didWell.isEmpty ? nil : didWell
-            request.reflectionImprove = improveNext.isEmpty ? nil : improveNext
+            request.recoveryActivities = Array(recoveryActivities)
+            request.sportStudy = sportStudy.isEmpty ? nil : sportStudy
+            request.restTomorrowFocus = restTomorrowFocus.isEmpty ? nil : restTomorrowFocus
         default: break
         }
 
+        request.reflectionPositive = didWell.isEmpty ? nil : didWell
+        request.reflectionImprove = improveNext.isEmpty ? nil : improveNext
+        request.proudMoment = proudMoment.isEmpty ? nil : proudMoment
+
         do {
             let insight = try await EntryService.shared.generateInsight(request)
-            if !insight.isEmpty {
-                coachInsight = insight
-            }
+            if !insight.isEmpty { coachInsight = insight }
         } catch {}
         isLoadingInsight = false
     }
@@ -325,6 +315,10 @@ struct DailyEntryFlowView: View {
     init(existingEntry: DailyEntry? = nil, onComplete: @escaping (EntrySubmitResponse) -> Void) {
         self._viewModel = State(initialValue: DailyEntryViewModel(existingEntry: existingEntry))
         self.onComplete = onComplete
+    }
+
+    private var userSport: String {
+        AuthService.shared.currentUser?.sport ?? "soccer"
     }
 
     var body: some View {
@@ -367,47 +361,53 @@ struct DailyEntryFlowView: View {
         case .activityType:
             ActivityTypeView(
                 selectedType: $viewModel.activityType,
-                onNext: {
-                    viewModel.currentStepIndex = 1
-                }
+                onNext: { viewModel.currentStepIndex = 1 }
+            )
+
+        case .multiSelect(let id):
+            multiSelectView(for: id)
+
+        case .shortText(let id):
+            shortTextView(for: id)
+
+        case .gameStats:
+            GameStatsView(
+                sport: userSport,
+                stats: $viewModel.gameStats,
+                onNext: { viewModel.nextStep() },
+                onBack: { viewModel.previousStep() }
+            )
+
+        case .gameReflections:
+            GameReflectionsView(
+                sport: userSport,
+                bestMoment: $viewModel.bestMoment,
+                biggestMistake: $viewModel.biggestMistake,
+                improveNextGame: $viewModel.improveNextGame,
+                onNext: { viewModel.nextStep() },
+                onBack: { viewModel.previousStep() }
             )
 
         case .singleChoice(let id):
             singleChoiceView(for: id)
 
-        case .multiSelect(let id):
-            multiSelectView(for: id)
+        case .restReflection:
+            ShortTextStepView(
+                question: "What is your focus for tomorrow?",
+                subtitle: "Set your intention",
+                icon: "target",
+                placeholder: "e.g. Work on first touch, increase sprint speed...",
+                text: $viewModel.restTomorrowFocus,
+                onNext: { viewModel.nextStep() },
+                onBack: { viewModel.previousStep() },
+                isOptional: true
+            )
 
-        case .reflections:
-            if viewModel.activityType == "rest_day" {
-                RestReflectionStepView(
-                    recoveryReflection: $viewModel.recoveryReflection,
-                    onNext: { submitEntry() },
-                    onBack: { viewModel.previousStep() },
-                    isSubmitting: viewModel.isSubmitting,
-                    errorMessage: viewModel.errorMessage
-                )
-            } else {
-                ReflectionsView(
-                    didWell: $viewModel.didWell,
-                    improveNext: $viewModel.improveNext,
-                    onNext: {
-                        if viewModel.activityType == "training" {
-                            viewModel.nextStep()
-                        } else {
-                            submitEntry()
-                        }
-                    },
-                    onBack: { viewModel.previousStep() },
-                    isSubmitStep: viewModel.activityType != "training",
-                    isSubmitting: viewModel.isSubmitting,
-                    errorMessage: viewModel.errorMessage
-                )
-            }
-
-        case .optionalQuestion:
-            OptionalQuestionStepView(
-                answer: $viewModel.rotatingAnswer,
+        case .universalReflections:
+            UniversalReflectionsView(
+                didWell: $viewModel.didWell,
+                improveNext: $viewModel.improveNext,
+                proudMoment: $viewModel.proudMoment,
                 onSubmit: { submitEntry() },
                 onBack: { viewModel.previousStep() },
                 isSubmitting: viewModel.isSubmitting,
@@ -431,258 +431,6 @@ struct DailyEntryFlowView: View {
         }
     }
 
-    // MARK: - Single Choice Router
-
-    @ViewBuilder
-    private func singleChoiceView(for id: String) -> some View {
-        switch id {
-        case "focus":
-            SingleChoiceStepView(
-                question: "How was your focus during training?",
-                subtitle: "Be honest with yourself",
-                options: [
-                    ChoiceOption("Very focused", icon: "scope", subtitle: "Locked in the entire session"),
-                    ChoiceOption("Mostly focused", icon: "eye", subtitle: "Some moments of drift"),
-                    ChoiceOption("Distracted at times", icon: "wind", subtitle: "Mind wandered often"),
-                    ChoiceOption("Hard to focus", icon: "cloud.fog", subtitle: "Struggled to stay present"),
-                ],
-                selection: $viewModel.focusLabel,
-                onNext: { viewModel.nextStep() },
-                onBack: { viewModel.previousStep() }
-            )
-
-        case "effort":
-            SingleChoiceStepView(
-                question: "How hard did you push yourself?",
-                subtitle: "Rate your intensity",
-                options: [
-                    ChoiceOption("Maximum effort", icon: "flame.fill", subtitle: "Gave everything I had"),
-                    ChoiceOption("Good effort", icon: "bolt.fill", subtitle: "Pushed hard, could give more"),
-                    ChoiceOption("Average effort", icon: "minus.circle", subtitle: "Went through the motions"),
-                    ChoiceOption("Low effort", icon: "battery.25percent", subtitle: "Didn't bring my best"),
-                ],
-                selection: $viewModel.effortLabel,
-                onNext: { viewModel.nextStep() },
-                onBack: { viewModel.previousStep() }
-            )
-
-        case "preGame":
-            SingleChoiceStepView(
-                question: "How did you feel before the game?",
-                subtitle: "Your pre-game mindset",
-                options: [
-                    ChoiceOption("Confident", icon: "star.fill", subtitle: "Ready to dominate"),
-                    ChoiceOption("Ready", icon: "checkmark.shield", subtitle: "Prepared and steady"),
-                    ChoiceOption("Nervous", icon: "heart.fill", subtitle: "Butterflies but pushing through"),
-                    ChoiceOption("Unprepared", icon: "exclamationmark.triangle", subtitle: "Didn't feel ready"),
-                ],
-                selection: $viewModel.preGameFeeling,
-                onNext: { viewModel.nextStep() },
-                onBack: { viewModel.previousStep() }
-            )
-
-        case "performance":
-            SingleChoiceStepView(
-                question: "How did you perform overall?",
-                subtitle: "Your honest self-assessment",
-                options: [
-                    ChoiceOption("Excellent", icon: "crown.fill", subtitle: "One of my best performances"),
-                    ChoiceOption("Good", icon: "hand.thumbsup.fill", subtitle: "Solid, happy with it"),
-                    ChoiceOption("Average", icon: "equal.circle", subtitle: "Nothing special, nothing bad"),
-                    ChoiceOption("Poor", icon: "arrow.down.circle", subtitle: "Below my standard"),
-                ],
-                selection: $viewModel.overallPerformance,
-                onNext: { viewModel.nextStep() },
-                onBack: { viewModel.previousStep() }
-            )
-
-        case "recovery":
-            SingleChoiceStepView(
-                question: "How was your recovery today?",
-                subtitle: "Rest is part of the process",
-                options: [
-                    ChoiceOption("Excellent", icon: "battery.100percent", subtitle: "Feeling fully recharged"),
-                    ChoiceOption("Good", icon: "battery.75percent", subtitle: "Solid recovery day"),
-                    ChoiceOption("Average", icon: "battery.50percent", subtitle: "Could have been better"),
-                    ChoiceOption("Poor", icon: "battery.25percent", subtitle: "Didn't recover much"),
-                ],
-                selection: $viewModel.recoveryQuality,
-                onNext: { viewModel.nextStep() },
-                onBack: { viewModel.previousStep() }
-            )
-
-        case "discipline":
-            SingleChoiceStepView(
-                question: "Did you stay disciplined with sleep, nutrition, and recovery?",
-                subtitle: "Champions are built off the field",
-                options: [
-                    ChoiceOption("Yes", icon: "checkmark.seal.fill", subtitle: "Nailed it today"),
-                    ChoiceOption("Mostly", icon: "hand.thumbsup", subtitle: "A few slips but mostly good"),
-                    ChoiceOption("Not really", icon: "xmark.circle", subtitle: "Room for improvement"),
-                ],
-                selection: $viewModel.disciplineLevel,
-                onNext: { viewModel.nextStep() },
-                onBack: { viewModel.previousStep() }
-            )
-
-        case "otherFeeling":
-            SingleChoiceStepView(
-                question: "How do you feel about today overall?",
-                subtitle: "Your honest take on the day",
-                options: [
-                    ChoiceOption("Great", icon: "star.fill", subtitle: "Productive and positive day"),
-                    ChoiceOption("Good", icon: "hand.thumbsup.fill", subtitle: "Solid day, can't complain"),
-                    ChoiceOption("Okay", icon: "equal.circle", subtitle: "Nothing special"),
-                    ChoiceOption("Not great", icon: "arrow.down.circle", subtitle: "Could have been better"),
-                ],
-                selection: $viewModel.otherFeeling,
-                onNext: { viewModel.nextStep() },
-                onBack: { viewModel.previousStep() }
-            )
-
-        default:
-            EmptyView()
-        }
-    }
-
-    // MARK: - Sport Config
-
-    private var userSport: String {
-        AuthService.shared.currentUser?.sport ?? "soccer"
-    }
-
-    private func trainingItems(for sport: String) -> [(String, String)] {
-        switch sport {
-        case "soccer":
-            return [
-                ("Shooting", "scope"),
-                ("Passing", "arrow.right.arrow.left"),
-                ("Dribbling", "figure.run"),
-                ("Defense", "shield.fill"),
-                ("Set pieces", "sportscourt"),
-                ("Conditioning", "flame.fill"),
-            ]
-        case "basketball":
-            return [
-                ("Shooting", "scope"),
-                ("Defense", "shield.fill"),
-                ("Ball handling", "hand.raised.fill"),
-                ("Conditioning", "flame.fill"),
-                ("Plays", "brain.head.profile"),
-                ("Rebounding", "arrow.up.circle"),
-            ]
-        case "tennis":
-            return [
-                ("Serve", "arrow.up.forward"),
-                ("Groundstrokes", "arrow.left.arrow.right"),
-                ("Volleys", "hand.raised.fill"),
-                ("Footwork", "figure.walk"),
-                ("Strategy", "brain.head.profile"),
-                ("Conditioning", "flame.fill"),
-            ]
-        case "football":
-            return [
-                ("Throwing", "arrow.up.forward"),
-                ("Routes", "point.topleft.down.to.point.bottomright.curvepath"),
-                ("Blocking", "shield.fill"),
-                ("Tackling", "figure.american.football"),
-                ("Conditioning", "flame.fill"),
-                ("Film study", "play.rectangle"),
-            ]
-        case "boxing":
-            return [
-                ("Sparring", "figure.boxing"),
-                ("Bag work", "circle.fill"),
-                ("Footwork", "figure.walk"),
-                ("Defense", "shield.fill"),
-                ("Conditioning", "flame.fill"),
-                ("Combinations", "bolt.fill"),
-            ]
-        case "cricket":
-            return [
-                ("Batting", "figure.cricket"),
-                ("Bowling", "arrow.up.forward"),
-                ("Fielding", "hand.raised.fill"),
-                ("Fitness", "flame.fill"),
-                ("Match scenarios", "brain.head.profile"),
-                ("Net practice", "sportscourt"),
-            ]
-        default:
-            return [
-                ("Skills", "sportscourt"),
-                ("Defense", "shield.fill"),
-                ("Conditioning", "flame.fill"),
-                ("Tactics", "brain.head.profile"),
-                ("Recovery", "heart.circle"),
-            ]
-        }
-    }
-
-    private func gameStrengthItems(for sport: String) -> [(String, String)] {
-        switch sport {
-        case "soccer":
-            return [
-                ("Passing", "arrow.right.arrow.left"),
-                ("Shooting", "scope"),
-                ("Defense", "shield.fill"),
-                ("Positioning", "mappin.circle"),
-                ("Stamina", "flame.fill"),
-                ("Leadership", "person.3.fill"),
-            ]
-        case "basketball":
-            return [
-                ("Defense", "shield.fill"),
-                ("Shooting", "scope"),
-                ("Decision making", "brain.head.profile"),
-                ("Energy", "bolt.fill"),
-                ("Leadership", "person.3.fill"),
-            ]
-        case "tennis":
-            return [
-                ("Serve", "arrow.up.forward"),
-                ("Returns", "arrow.left.arrow.right"),
-                ("Net play", "hand.raised.fill"),
-                ("Mental toughness", "brain.head.profile"),
-                ("Consistency", "checkmark.circle"),
-            ]
-        case "football":
-            return [
-                ("Execution", "checkmark.circle"),
-                ("Blocking", "shield.fill"),
-                ("Coverage", "eye"),
-                ("Tackling", "figure.american.football"),
-                ("Awareness", "brain.head.profile"),
-                ("Leadership", "person.3.fill"),
-            ]
-        case "boxing":
-            return [
-                ("Offense", "bolt.fill"),
-                ("Defense", "shield.fill"),
-                ("Footwork", "figure.walk"),
-                ("Ring control", "circle.circle"),
-                ("Power", "flame.fill"),
-                ("Composure", "brain.head.profile"),
-            ]
-        case "cricket":
-            return [
-                ("Batting", "figure.cricket"),
-                ("Bowling", "arrow.up.forward"),
-                ("Fielding", "hand.raised.fill"),
-                ("Running", "figure.run"),
-                ("Concentration", "brain.head.profile"),
-                ("Partnerships", "person.2.fill"),
-            ]
-        default:
-            return [
-                ("Offense", "bolt.fill"),
-                ("Defense", "shield.fill"),
-                ("Decision making", "brain.head.profile"),
-                ("Energy", "flame.fill"),
-                ("Leadership", "person.3.fill"),
-            ]
-        }
-    }
-
     // MARK: - Multi Select Router
 
     @ViewBuilder
@@ -692,58 +440,109 @@ struct DailyEntryFlowView: View {
             MultiSelectStepView(
                 question: "What did you work on today?",
                 subtitle: "Select all that apply",
-                items: trainingItems(for: userSport),
+                items: [
+                    ("Shooting / scoring", "scope"),
+                    ("Passing", "arrow.right.arrow.left"),
+                    ("Defense", "shield.fill"),
+                    ("Fitness / conditioning", "flame.fill"),
+                    ("Tactics", "brain.head.profile"),
+                    ("Technique", "figure.run"),
+                ],
                 selected: $viewModel.workedOn,
                 onNext: { viewModel.nextStep() },
                 onBack: { viewModel.previousStep() }
             )
 
-        case "strongest":
-            MultiSelectStepView(
-                question: "What was strongest today?",
-                subtitle: "Select your standout areas",
-                items: gameStrengthItems(for: userSport),
-                selected: $viewModel.strongestAreas,
-                onNext: { viewModel.nextStep() },
-                onBack: { viewModel.previousStep() }
-            )
-
-        case "restActivities":
+        case "recoveryActivities":
             MultiSelectStepView(
                 question: "What did you do today?",
-                subtitle: "Select all that apply",
+                subtitle: "Select your recovery activities",
                 items: [
                     ("Stretching", "figure.flexibility"),
-                    ("Recovery work", "heart.circle"),
-                    ("Light training", "figure.walk"),
-                    ("Mental training", "brain.head.profile"),
-                    ("Full rest", "bed.double.fill"),
+                    ("Mobility", "figure.walk"),
+                    ("Ice bath", "snowflake"),
+                    ("Massage", "hand.raised.fill"),
+                    ("Rest", "bed.double.fill"),
                 ],
-                selected: $viewModel.restActivities,
+                selected: $viewModel.recoveryActivities,
                 onNext: { viewModel.nextStep() },
                 onBack: { viewModel.previousStep() }
             )
 
-        case "otherActivities":
-            MultiSelectStepView(
-                question: "What did you do today?",
-                subtitle: "Select everything that applies",
-                items: [
-                    ("Training", "figure.run"),
-                    ("Game / Match", "trophy"),
-                    ("Recovery", "heart.circle"),
-                    ("Gym / Weights", "dumbbell.fill"),
-                    ("Cardio", "flame.fill"),
-                    ("Stretching", "figure.flexibility"),
-                    ("Film / Study", "play.rectangle"),
-                    ("Mental work", "brain.head.profile"),
-                    ("Team activity", "person.3.fill"),
-                ],
-                selected: $viewModel.otherActivities,
+        default:
+            EmptyView()
+        }
+    }
+
+    // MARK: - Short Text Router
+
+    @ViewBuilder
+    private func shortTextView(for id: String) -> some View {
+        switch id {
+        case "skillImproved":
+            ShortTextStepView(
+                question: "What skill improved the most today?",
+                subtitle: "Think about what clicked",
+                icon: "arrow.up.right",
+                placeholder: "e.g. My left foot shooting felt sharper...",
+                text: $viewModel.skillImproved,
                 onNext: { viewModel.nextStep() },
                 onBack: { viewModel.previousStep() }
             )
+        case "hardestDrill":
+            ShortTextStepView(
+                question: "What was the hardest drill today?",
+                subtitle: "The one that pushed you",
+                icon: "bolt.fill",
+                placeholder: "e.g. 1v1 defending under pressure...",
+                text: $viewModel.hardestDrill,
+                onNext: { viewModel.nextStep() },
+                onBack: { viewModel.previousStep() }
+            )
+        case "commonMistake":
+            ShortTextStepView(
+                question: "What mistake happened the most today?",
+                subtitle: "Be honest — awareness is growth",
+                icon: "exclamationmark.triangle",
+                placeholder: "e.g. Losing the ball with my first touch...",
+                text: $viewModel.commonMistake,
+                onNext: { viewModel.nextStep() },
+                onBack: { viewModel.previousStep() }
+            )
+        case "tomorrowFocus":
+            ShortTextStepView(
+                question: "What will you focus on tomorrow?",
+                subtitle: "Set your intention",
+                icon: "target",
+                placeholder: "e.g. Keep my head up when receiving the ball...",
+                text: $viewModel.tomorrowFocus,
+                onNext: { viewModel.nextStep() },
+                onBack: { viewModel.previousStep() },
+                isOptional: true
+            )
+        default:
+            EmptyView()
+        }
+    }
 
+    // MARK: - Single Choice Router
+
+    @ViewBuilder
+    private func singleChoiceView(for id: String) -> some View {
+        switch id {
+        case "sportStudy":
+            SingleChoiceStepView(
+                question: "Did you study your sport today?",
+                subtitle: "Mental reps count too",
+                options: [
+                    ChoiceOption("Watched match film", icon: "play.rectangle.fill", subtitle: "Analyzed game footage"),
+                    ChoiceOption("Studied tactics", icon: "brain.head.profile", subtitle: "Reviewed strategy or plays"),
+                    ChoiceOption("No", icon: "xmark.circle", subtitle: "Full rest today"),
+                ],
+                selection: $viewModel.sportStudy,
+                onNext: { viewModel.nextStep() },
+                onBack: { viewModel.previousStep() }
+            )
         default:
             EmptyView()
         }
