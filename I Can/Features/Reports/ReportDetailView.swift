@@ -74,17 +74,17 @@ struct ReportDetailView: View {
                             }
                         }
 
-                        if let goalProgress = content.goalProgress, !goalProgress.isEmpty {
-                            sectionCard(title: "Goal Progress", icon: "flag.fill", accentColor: Color(hex: "EAB308")) {
-                                ForEach(goalProgress.indices, id: \.self) { idx in
-                                    let gp = goalProgress[idx]
+                        if let growthAreas = content.resolvedGrowthAreas, !growthAreas.isEmpty {
+                            sectionCard(title: "Growth Areas", icon: "arrow.up.right", accentColor: Color(hex: "EAB308")) {
+                                ForEach(growthAreas.indices, id: \.self) { idx in
+                                    let gp = growthAreas[idx]
                                     VStack(alignment: .leading, spacing: 6) {
-                                        if let goal = gp.goal {
+                                        if let title = gp.title {
                                             HStack(spacing: 8) {
-                                                Image(systemName: "target")
+                                                Image(systemName: "arrow.up.right")
                                                     .font(.system(size: 12, weight: .bold))
                                                     .foregroundColor(Color(hex: "EAB308"))
-                                                Text(goal)
+                                                Text(title)
                                                     .font(.system(size: 15, weight: .bold).width(.condensed))
                                                     .foregroundColor(ColorTheme.primaryText(colorScheme))
                                             }
@@ -113,7 +113,7 @@ struct ReportDetailView: View {
                                             .padding(.leading, 20)
                                         }
                                     }
-                                    if idx < goalProgress.count - 1 {
+                                    if idx < growthAreas.count - 1 {
                                         Divider().padding(.vertical, 8)
                                     }
                                 }

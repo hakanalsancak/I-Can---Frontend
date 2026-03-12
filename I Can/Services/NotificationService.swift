@@ -27,7 +27,8 @@ final class NotificationService {
 
     func registerDeviceToken(_ token: String) async throws {
         struct TokenRequest: Encodable { let token: String }
-        let _: MessageResponse = try await APIClient.shared.request(
+        struct TokenResponse: Decodable { let success: Bool? }
+        let _: TokenResponse = try await APIClient.shared.request(
             APIEndpoints.Notifications.deviceToken,
             method: "POST",
             body: TokenRequest(token: token)

@@ -1,0 +1,98 @@
+import Foundation
+
+@Observable
+final class FriendsViewModel {
+    var friends: [AthleteProfile] = []
+    var pendingRequests: [FriendRequest] = []
+    var searchResults: [AthleteProfile] = []
+    var searchText: String = ""
+    var isLoading = false
+    var isSearching = false
+    var errorMessage: String?
+
+    private var searchTask: Task<Void, Never>?
+
+    var pendingCount: Int { pendingRequests.count }
+
+    func loadAll() async {
+        isLoading = true
+        async let friendsTask = FriendService.shared.getFriends()
+        async let requestsTask = FriendService.shared.getPendingRequests()
+
+        do {
+            let (f, r) = try await (friendsTask, requestsTask)
+            friends = f
+            pendingRequests = r
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isLoading = false
+    }
+
+    func search(query: String) {
+        searchTask?.cancel()
+        guard query.count >= 2 else {
+            searchResults = []
+            isSearching = false
+            return
+        }
+
+        isSearching = true
+        let current = query
+        searchTask = Task {
+            try? await Task.sleep(for: .milliseconds(400))
+            guard !Task.isCancelled, current == searchText else { return }
+
+            do {
+                let results = try await FriendService.shared.searchUsers(query: current)
+                if !Task.isCancelled {
+                    searchResults = results
+                }
+            } catch {
+                if !Task.isCancelled {
+                    searchResults = []
+                }
+            }
+            isSearching = false
+        }
+    }
+
+    func sendRequest(to userId: String) async {
+        do {
+            _ = try await FriendService.shared.sendFriendRequest(receiverId: userId)
+            if let idx = searchResults.firstIndex(where: { $0.id == userId }) {
+                searchResults[idx].friendStatus = "pending"
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func acceptRequest(_ request: FriendRequest) async {
+        do {
+            _ = try await FriendService.shared.respondToRequest(id: request.id, action: "accept")
+            pendingRequests.removeAll { $0.id == request.id }
+            friends.append(request.sender)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func declineRequest(_ request: FriendRequest) async {
+        do {
+            _ = try await FriendService.shared.respondToRequest(id: request.id, action: "decline")
+            pendingRequests.removeAll { $0.id == request.id }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func removeFriend(_ friend: AthleteProfile) async {
+        do {
+            try await FriendService.shared.removeFriend(id: friend.id)
+            friends.removeAll { $0.id == friend.id }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+}

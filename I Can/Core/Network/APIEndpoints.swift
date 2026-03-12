@@ -23,9 +23,16 @@ enum APIEndpoints {
         static func byDate(_ date: String) -> String { "/api/entries/\(date)" }
     }
 
-    enum Goals {
-        static let base = "/api/goals"
-        static func byId(_ id: String) -> String { "/api/goals/\(id)" }
+    enum Friends {
+        static let base = "/api/friends"
+        static let search = "/api/friends/search"
+        static let checkUsername = "/api/friends/check-username"
+        static let requests = "/api/friends/requests"
+        static let sendRequest = "/api/friends/request"
+        static func respondRequest(_ id: String) -> String { "/api/friends/request/\(id)" }
+        static func cancelRequest(_ id: String) -> String { "/api/friends/request/\(id)" }
+        static func profile(_ id: String) -> String { "/api/friends/profile/\(id)" }
+        static func remove(_ id: String) -> String { "/api/friends/\(id)" }
     }
 
     enum Reports {

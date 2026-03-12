@@ -19,7 +19,7 @@ struct SubscriptionView: View {
         ("chart.bar.fill", "Weekly AI Reports", "Get coaching insights every week"),
         ("chart.line.uptrend.xyaxis", "Monthly Analysis", "Deep-dive into monthly progress"),
         ("star.fill", "Yearly Review", "Comprehensive annual review"),
-        ("target", "Goal Coaching", "AI feedback tied to your goals"),
+        ("person.2.fill", "Friends & Community", "Connect with fellow athletes"),
         ("lightbulb.fill", "Advanced Insights", "Mental patterns & trends"),
     ]
 

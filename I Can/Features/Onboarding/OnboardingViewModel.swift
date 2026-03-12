@@ -6,9 +6,16 @@ import GoogleSignIn
 
 enum OnboardingStep: Int, CaseIterable {
     case welcome
-    case sportSelection
     case nameEntry
     case ageSelection
+    case genderSelection
+    case nationalitySelection
+    case sportSelection
+    case teamEntry
+    case competitionLevel
+    case positionSelection
+    case primaryGoal
+    case usernameEntry
     case mantraCreation
     case notificationFrequency
     case accountCreation
@@ -21,6 +28,13 @@ final class OnboardingViewModel {
     var selectedSport: String = ""
     var athleteName: String = ""
     var selectedAge: Int = 18
+    var selectedGender: String = ""
+    var selectedCountry: String = ""
+    var team: String = ""
+    var selectedCompetitionLevel: String = ""
+    var selectedPosition: String = ""
+    var selectedPrimaryGoal: String = ""
+    var username: String = ""
     var mantra: String = ""
     var notificationFrequency: Int = 1
     var email: String = ""
@@ -175,14 +189,20 @@ final class OnboardingViewModel {
 
     private func completeOnboarding() async throws {
         if !selectedSport.isEmpty {
-            let deviceCountry = Locale.current.region?.identifier
+            let country = selectedCountry.isEmpty ? Locale.current.region?.identifier : selectedCountry
             try await AuthService.shared.completeOnboarding(
                 sport: selectedSport,
                 mantra: mantra.isEmpty ? nil : mantra,
                 notificationFrequency: notificationFrequency,
                 fullName: athleteName.isEmpty ? nil : athleteName,
                 age: selectedAge,
-                country: deviceCountry
+                country: country,
+                gender: selectedGender.isEmpty ? nil : selectedGender,
+                team: team.trimmingCharacters(in: .whitespaces).isEmpty ? nil : team.trimmingCharacters(in: .whitespaces),
+                competitionLevel: selectedCompetitionLevel.isEmpty ? nil : selectedCompetitionLevel,
+                position: selectedPosition.isEmpty ? nil : selectedPosition,
+                primaryGoal: selectedPrimaryGoal.isEmpty ? nil : selectedPrimaryGoal,
+                username: username.trimmingCharacters(in: .whitespaces).isEmpty ? nil : username.trimmingCharacters(in: .whitespaces).lowercased()
             )
         }
     }

@@ -1,0 +1,34 @@
+import Foundation
+
+struct AthleteProfile: Codable, Identifiable {
+    let id: String
+    let username: String?
+    let fullName: String?
+    let sport: String?
+    let team: String?
+    let position: String?
+    let country: String?
+    let competitionLevel: String?
+    let mantra: String?
+    let currentStreak: Int
+    let longestStreak: Int?
+    var friendStatus: String?
+    var isFriend: Bool?
+}
+
+struct FriendRequest: Codable, Identifiable {
+    let id: String
+    let senderId: String
+    let createdAt: String?
+    let sender: AthleteProfile
+}
+
+struct FriendActionResponse: Codable {
+    let success: Bool
+    let action: String?
+}
+
+struct UsernameCheck: Codable {
+    let available: Bool
+    let error: String?
+}

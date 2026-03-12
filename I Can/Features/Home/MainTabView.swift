@@ -27,10 +27,10 @@ struct MainTabView: View {
                 }
                 .tag(2)
 
-            GoalsView()
+            FriendsView()
                 .tabItem {
-                    Image(systemName: "target")
-                    Text("Goals")
+                    Image(systemName: selectedTab == 3 ? "person.2.fill" : "person.2")
+                    Text("Friends")
                 }
                 .tag(3)
 

@@ -457,7 +457,7 @@ struct ReportsView: View {
                 icon: "target",
                 iconColors: ["22C55E", "16A34A"],
                 title: "Goal-Based Coaching",
-                description: "AI connects your daily entries to your goals and provides actionable recommendations."
+                description: "AI analyzes your daily entries and provides actionable coaching recommendations."
             )
 
             featureCard(

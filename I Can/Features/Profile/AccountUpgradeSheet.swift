@@ -22,6 +22,14 @@ struct AccountUpgradeSheet: View {
             vm.mantra = user.mantra ?? ""
             vm.notificationFrequency = user.notificationFrequency
             vm.fullName = user.fullName ?? ""
+            vm.selectedGender = user.gender ?? ""
+            vm.selectedCountry = user.country ?? ""
+            vm.team = user.team ?? ""
+            vm.selectedCompetitionLevel = user.competitionLevel ?? ""
+            vm.selectedPosition = user.position ?? ""
+            vm.selectedPrimaryGoal = user.primaryGoal ?? ""
+            vm.username = user.username ?? ""
+            if let age = user.age { vm.selectedAge = age }
         }
         _viewModel = State(initialValue: vm)
     }

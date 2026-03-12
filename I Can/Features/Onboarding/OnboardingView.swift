@@ -22,13 +22,6 @@ struct OnboardingView: View {
                     } else { switch viewModel.currentStep {
                     case .welcome:
                         welcomeView
-                    case .sportSelection:
-                        SportSelectionView(
-                            selectedSport: $viewModel.selectedSport,
-                            sports: viewModel.sports,
-                            onNext: { viewModel.nextStep() },
-                            onBack: { viewModel.previousStep() }
-                        )
                     case .nameEntry:
                         NameEntryView(
                             name: $viewModel.athleteName,
@@ -38,6 +31,57 @@ struct OnboardingView: View {
                     case .ageSelection:
                         AgeSelectionView(
                             age: $viewModel.selectedAge,
+                            onNext: { viewModel.nextStep() },
+                            onBack: { viewModel.previousStep() }
+                        )
+                    case .genderSelection:
+                        GenderSelectionView(
+                            gender: $viewModel.selectedGender,
+                            onNext: { viewModel.nextStep() },
+                            onBack: { viewModel.previousStep() }
+                        )
+                    case .nationalitySelection:
+                        NationalitySelectionView(
+                            country: $viewModel.selectedCountry,
+                            onNext: { viewModel.nextStep() },
+                            onBack: { viewModel.previousStep() }
+                        )
+                    case .sportSelection:
+                        SportSelectionView(
+                            selectedSport: $viewModel.selectedSport,
+                            sports: viewModel.sports,
+                            onNext: { viewModel.nextStep() },
+                            onBack: { viewModel.previousStep() }
+                        )
+                    case .teamEntry:
+                        TeamEntryView(
+                            team: $viewModel.team,
+                            onNext: { viewModel.nextStep() },
+                            onBack: { viewModel.previousStep() },
+                            onSkip: { viewModel.nextStep() }
+                        )
+                    case .competitionLevel:
+                        CompetitionLevelView(
+                            level: $viewModel.selectedCompetitionLevel,
+                            onNext: { viewModel.nextStep() },
+                            onBack: { viewModel.previousStep() }
+                        )
+                    case .positionSelection:
+                        PositionSelectionView(
+                            position: $viewModel.selectedPosition,
+                            sport: viewModel.selectedSport,
+                            onNext: { viewModel.nextStep() },
+                            onBack: { viewModel.previousStep() }
+                        )
+                    case .primaryGoal:
+                        PrimaryGoalView(
+                            goal: $viewModel.selectedPrimaryGoal,
+                            onNext: { viewModel.nextStep() },
+                            onBack: { viewModel.previousStep() }
+                        )
+                    case .usernameEntry:
+                        UsernameEntryView(
+                            username: $viewModel.username,
                             onNext: { viewModel.nextStep() },
                             onBack: { viewModel.previousStep() }
                         )
@@ -71,8 +115,9 @@ struct OnboardingView: View {
     }
 
     private var progressBar: some View {
-        HStack(spacing: 6) {
-            ForEach(OnboardingStep.allCases, id: \.rawValue) { step in
+        let steps = OnboardingStep.allCases.filter { $0 != .welcome }
+        return HStack(spacing: 4) {
+            ForEach(steps, id: \.rawValue) { step in
                 RoundedRectangle(cornerRadius: 2)
                     .fill(step.rawValue <= viewModel.currentStep.rawValue
                           ? ColorTheme.accent

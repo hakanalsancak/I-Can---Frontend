@@ -146,6 +146,12 @@ struct ProfileView: View {
                         .foregroundColor(ColorTheme.primaryText(colorScheme))
                 }
 
+                if let username = viewModel.user?.username, !username.isEmpty {
+                    Text("@\(username)")
+                        .font(.system(size: 14, weight: .semibold).width(.condensed))
+                        .foregroundColor(ColorTheme.accent)
+                }
+
                 if let email = viewModel.user?.email {
                     Text(email)
                         .font(.system(size: 13, weight: .medium).width(.condensed))

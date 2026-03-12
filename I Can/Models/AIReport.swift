@@ -67,15 +67,23 @@ struct ReportContent: Codable {
     let mentalPatterns: String?
     let physicalPatterns: String?
     let consistencyAnalysis: String?
-    let goalProgress: [GoalProgressItem]?
+    let growthAreas: [GrowthAreaItem]?
+    let goalProgress: [GrowthAreaItem]?
     let actionableTips: [String]?
     let motivationalMessage: String?
+
+    var resolvedGrowthAreas: [GrowthAreaItem]? {
+        growthAreas ?? goalProgress
+    }
 }
 
-struct GoalProgressItem: Codable {
+struct GrowthAreaItem: Codable {
+    let area: String?
     let goal: String?
     let analysis: String?
     let recommendation: String?
+
+    var title: String? { area ?? goal }
 }
 
 struct ReportsResponse: Codable {

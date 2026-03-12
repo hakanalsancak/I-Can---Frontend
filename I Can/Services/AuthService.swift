@@ -52,8 +52,19 @@ final class AuthService {
         isAuthenticated = true
     }
 
-    func completeOnboarding(sport: String, mantra: String?, notificationFrequency: Int, fullName: String?, age: Int?, country: String? = nil) async throws {
-        let request = OnboardingRequest(sport: sport, mantra: mantra, notificationFrequency: notificationFrequency, fullName: fullName, age: age, country: country)
+    func completeOnboarding(
+        sport: String, mantra: String?, notificationFrequency: Int,
+        fullName: String?, age: Int?, country: String? = nil,
+        gender: String? = nil, team: String? = nil,
+        competitionLevel: String? = nil, position: String? = nil,
+        primaryGoal: String? = nil, username: String? = nil
+    ) async throws {
+        let request = OnboardingRequest(
+            sport: sport, mantra: mantra, notificationFrequency: notificationFrequency,
+            fullName: fullName, age: age, country: country,
+            gender: gender, team: team, competitionLevel: competitionLevel,
+            position: position, primaryGoal: primaryGoal, username: username
+        )
         let user: User = try await APIClient.shared.request(
             APIEndpoints.Auth.onboarding, method: "PUT", body: request
         )

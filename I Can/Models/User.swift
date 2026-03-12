@@ -3,12 +3,18 @@ import Foundation
 struct User: Codable, Identifiable {
     let id: String
     let email: String?
+    var username: String?
     let fullName: String?
     var age: Int?
+    var gender: String?
     var country: String?
     var sport: String
     var mantra: String?
     var notificationFrequency: Int
+    var team: String?
+    var competitionLevel: String?
+    var position: String?
+    var primaryGoal: String?
     var onboardingCompleted: Bool
     var createdAt: String?
 
@@ -56,4 +62,10 @@ struct OnboardingRequest: Encodable {
     let fullName: String?
     let age: Int?
     let country: String?
+    let gender: String?
+    let team: String?
+    let competitionLevel: String?
+    let position: String?
+    let primaryGoal: String?
+    let username: String?
 }
