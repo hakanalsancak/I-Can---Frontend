@@ -8,11 +8,8 @@ struct SubscriptionView: View {
     @State private var isLoading = true
     @State private var isPurchasing = false
     @State private var errorMessage: String?
+    @State private var isGuest = AuthService.shared.currentUser?.isGuest ?? false
     @State private var showAccountUpgrade = false
-
-    private var isGuest: Bool {
-        AuthService.shared.currentUser?.isGuest ?? false
-    }
 
     private let features = [
         ("sparkles", "Daily Coach Insights", "AI coaching after every log"),
@@ -27,6 +24,25 @@ struct SubscriptionView: View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 28) {
+                    if isGuest {
+                        HStack(spacing: 10) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(Color(hex: "F59E0B"))
+                            Text("Sign in with Apple or Google to subscribe")
+                                .font(.system(size: 13, weight: .semibold).width(.condensed))
+                                .foregroundColor(ColorTheme.primaryText(colorScheme))
+                        }
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(hex: "F59E0B").opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .strokeBorder(Color(hex: "F59E0B").opacity(0.25), lineWidth: 1)
+                        )
+                        .padding(.horizontal, 20)
+                    }
+
                     headerSection
 
                     VStack(spacing: 8) {
@@ -82,21 +98,6 @@ struct SubscriptionView: View {
 
     private var trialSection: some View {
         VStack(spacing: 14) {
-            if isGuest {
-                HStack(spacing: 10) {
-                    Image(systemName: "person.crop.circle.badge.exclamationmark")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(Color(hex: "F59E0B"))
-                    Text("Create an account or sign in to subscribe. This ensures you can restore your purchase on any device.")
-                        .font(.system(size: 13, weight: .medium).width(.condensed))
-                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                }
-                .padding(12)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(hex: "F59E0B").opacity(0.12))
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            }
-
             HStack(spacing: 6) {
                 Image(systemName: "sparkles")
                     .font(.system(size: 14, weight: .bold))

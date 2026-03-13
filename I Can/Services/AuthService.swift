@@ -19,16 +19,6 @@ final class AuthService {
         isAuthenticated = true
     }
 
-    func login(email: String, password: String) async throws {
-        let request = LoginRequest(email: email, password: password)
-        let response: AuthResponse = try await APIClient.shared.request(
-            APIEndpoints.Auth.login, method: "POST", body: request, authenticated: false
-        )
-        TokenManager.shared.saveTokens(access: response.accessToken, refresh: response.refreshToken)
-        currentUser = response.user
-        isAuthenticated = true
-    }
-
     func signInWithApple(identityToken: String, fullName: PersonNameComponents?) async throws {
         let name = fullName.map {
             AppleSignInRequest.FullName(givenName: $0.givenName, familyName: $0.familyName)

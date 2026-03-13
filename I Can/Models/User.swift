@@ -24,21 +24,16 @@ struct User: Codable, Identifiable {
     }
 }
 
-struct AuthResponse: Codable {
-    let user: User
-    let accessToken: String
-    let refreshToken: String
-}
-
-struct LoginRequest: Encodable {
-    let email: String
-    let password: String
-}
-
 struct RegisterRequest: Encodable {
     let email: String
     let password: String
     let fullName: String?
+}
+
+struct AuthResponse: Codable {
+    let user: User
+    let accessToken: String
+    let refreshToken: String
 }
 
 struct AppleSignInRequest: Encodable {

@@ -18,7 +18,7 @@ struct LoginView: View {
                 }
                 .padding(.top, 32)
 
-                VStack(spacing: 10) {
+                VStack(spacing: 12) {
                     SignInWithAppleButton(.signIn) { request in
                         request.requestedScopes = [.fullName, .email]
                     } onCompletion: { result in
@@ -58,20 +58,10 @@ struct LoginView: View {
                 }
                 .padding(.horizontal, 24)
 
-                dividerRow
-
-                VStack(spacing: 10) {
-                    TextField("Email", text: $viewModel.loginEmail)
-                        .textContentType(.emailAddress)
-                        .keyboardType(.emailAddress)
-                        .autocapitalization(.none)
-                        .textFieldStyle(ICanTextFieldStyle())
-
-                    SecureField("Password", text: $viewModel.loginPassword)
-                        .textContentType(.password)
-                        .textFieldStyle(ICanTextFieldStyle())
+                if viewModel.isLoading {
+                    ProgressView()
+                        .tint(ColorTheme.accent)
                 }
-                .padding(.horizontal, 24)
 
                 if let error = viewModel.errorMessage {
                     Text(error)
@@ -80,44 +70,18 @@ struct LoginView: View {
                         .padding(.horizontal, 24)
                 }
 
-                VStack(spacing: 16) {
-                    PrimaryButton(
-                        title: "Sign In",
-                        isLoading: viewModel.isLoading,
-                        isDisabled: viewModel.loginEmail.isEmpty || viewModel.loginPassword.isEmpty
-                    ) {
-                        Task { await viewModel.loginWithEmail() }
+                Button {
+                    withAnimation {
+                        viewModel.errorMessage = nil
+                        viewModel.showLogin = false
                     }
-
-                    Button {
-                        withAnimation {
-                            viewModel.errorMessage = nil
-                            viewModel.showLogin = false
-                        }
-                    } label: {
-                        Text("Don't have an account? Sign up")
-                            .font(.system(size: 13, weight: .semibold).width(.condensed))
-                            .foregroundColor(ColorTheme.accent)
-                    }
+                } label: {
+                    Text("Don't have an account? Sign up")
+                        .font(.system(size: 13, weight: .semibold).width(.condensed))
+                        .foregroundColor(ColorTheme.accent)
                 }
-                .padding(.horizontal, 24)
                 .padding(.bottom, 48)
             }
         }
-    }
-
-    private var dividerRow: some View {
-        HStack(spacing: 16) {
-            Rectangle()
-                .fill(ColorTheme.separator(colorScheme))
-                .frame(height: 1)
-            Text("or")
-                .font(Typography.caption)
-                .foregroundColor(ColorTheme.tertiaryText(colorScheme))
-            Rectangle()
-                .fill(ColorTheme.separator(colorScheme))
-                .frame(height: 1)
-        }
-        .padding(.horizontal, 24)
     }
 }

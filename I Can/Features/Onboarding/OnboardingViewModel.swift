@@ -37,14 +37,9 @@ final class OnboardingViewModel {
     var username: String = ""
     var mantra: String = ""
     var notificationFrequency: Int = 1
-    var email: String = ""
-    var password: String = ""
-    var fullName: String = ""
     var isLoading = false
     var errorMessage: String?
     var showLogin = false
-    var loginEmail = ""
-    var loginPassword = ""
 
     let sports = [
         ("soccer", "Soccer", "sportscourt"),
@@ -72,43 +67,6 @@ final class OnboardingViewModel {
     func previousStep() {
         guard let prev = OnboardingStep(rawValue: currentStep.rawValue - 1) else { return }
         currentStep = prev
-    }
-
-    func loginWithEmail() async {
-        guard !loginEmail.isEmpty, !loginPassword.isEmpty else {
-            errorMessage = "Please fill in email and password"
-            return
-        }
-
-        isLoading = true
-        errorMessage = nil
-        do {
-            try await AuthService.shared.login(email: loginEmail, password: loginPassword)
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-        isLoading = false
-    }
-
-    func registerWithEmail() async {
-        guard !email.isEmpty, !password.isEmpty else {
-            errorMessage = "Please fill in email and password"
-            return
-        }
-
-        isLoading = true
-        errorMessage = nil
-        do {
-            let nameToUse = athleteName.isEmpty ? (fullName.isEmpty ? nil : fullName) : athleteName
-            try await AuthService.shared.register(
-                email: email, password: password, fullName: nameToUse
-            )
-            AnalyticsManager.log("user_signed_up", parameters: ["method": "email"])
-            try await completeOnboarding()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-        isLoading = false
     }
 
     func signInWithApple(authorization: ASAuthorization) async {
@@ -185,8 +143,7 @@ final class OnboardingViewModel {
             AnalyticsManager.log("user_signed_up", parameters: ["method": "guest"])
             try await completeOnboarding()
         } catch {
-            errorMessage = "Could not connect to server. Make sure the backend is running on localhost:3000."
-            print("Skip account error: \(error)")
+            errorMessage = "Could not connect to server. Please try again."
         }
         isLoading = false
     }

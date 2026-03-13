@@ -9,7 +9,6 @@ enum APIEndpoints {
 
     enum Auth {
         static let register = "/api/auth/register"
-        static let login = "/api/auth/login"
         static let apple = "/api/auth/apple"
         static let google = "/api/auth/google"
         static let refresh = "/api/auth/refresh"
