@@ -16,39 +16,39 @@ enum ColorTheme {
     )
 
     static func background(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color(hex: "0A1628") : Color(hex: "F5F7FA")
+        scheme == .dark ? Color(hex: "0A1628") : Color(hex: "EEF0F4")
     }
 
     static func cardBackground(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color(hex: "152035") : Color(hex: "F8F9FB")
+        scheme == .dark ? Color(hex: "152035") : Color(hex: "FFFFFF")
     }
 
     static func elevatedBackground(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color(hex: "1A2842") : Color(hex: "F3F4F6")
+        scheme == .dark ? Color(hex: "1A2842") : Color(hex: "E8EAF0")
     }
 
     static func primaryText(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color(hex: "F1F5F9") : Color(hex: "0F172A")
+        scheme == .dark ? Color(hex: "F1F5F9") : Color(hex: "1A1D26")
     }
 
     static func secondaryText(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color(hex: "94A3B8") : Color(hex: "64748B")
+        scheme == .dark ? Color(hex: "94A3B8") : Color(hex: "4A5568")
     }
 
     static func tertiaryText(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color(hex: "475569") : Color(hex: "CBD5E1")
+        scheme == .dark ? Color(hex: "475569") : Color(hex: "9CA3AF")
     }
 
     static func separator(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.06)
+        scheme == .dark ? Color.white.opacity(0.06) : Color(hex: "D1D5DB")
     }
 
     static func cardShadow(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? .clear : Color(hex: "0F172A").opacity(0.06)
+        scheme == .dark ? .clear : Color(hex: "0F172A").opacity(0.1)
     }
 
     static func subtleAccent(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? accent.opacity(0.15) : accent.opacity(0.08)
+        scheme == .dark ? accent.opacity(0.15) : accent.opacity(0.12)
     }
 }
 

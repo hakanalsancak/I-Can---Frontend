@@ -1,4 +1,5 @@
 import SwiftUI
+import Firebase
 
 @main
 struct I_CanApp: App {
@@ -8,6 +9,10 @@ struct I_CanApp: App {
 
     @State private var appearanceManager = AppearanceManager.shared
 
+    init() {
+        FirebaseApp.configure()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -15,6 +20,9 @@ struct I_CanApp: App {
                 .task {
                     try? await SubscriptionService.shared.checkStatus()
                     await SubscriptionService.shared.listenForTransactions()
+                }
+                .onAppear {
+                    AnalyticsManager.log("app_opened")
                 }
         }
     }

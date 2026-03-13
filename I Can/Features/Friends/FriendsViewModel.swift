@@ -43,6 +43,7 @@ final class FriendsViewModel {
             try? await Task.sleep(for: .milliseconds(400))
             guard !Task.isCancelled, current == searchText else { return }
 
+            AnalyticsManager.log("friend_search", parameters: ["query": current])
             do {
                 let results = try await FriendService.shared.searchUsers(query: current)
                 if !Task.isCancelled {
@@ -60,6 +61,7 @@ final class FriendsViewModel {
     func sendRequest(to userId: String) async {
         do {
             _ = try await FriendService.shared.sendFriendRequest(receiverId: userId)
+            AnalyticsManager.log("friend_added", parameters: ["target_user_id": userId])
             if let idx = searchResults.firstIndex(where: { $0.id == userId }) {
                 searchResults[idx].friendStatus = "pending"
             }

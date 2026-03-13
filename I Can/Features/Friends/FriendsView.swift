@@ -9,8 +9,8 @@ struct FriendsView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                ColorTheme.background(colorScheme).ignoresSafeArea()
+            VStack(spacing: 0) {
+                PageHeader("Friends")
 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 24) {
@@ -26,16 +26,19 @@ struct FriendsView: View {
                             friendsListSection
                         }
                     }
-                    .padding(.top, 8)
+                    .padding(.top, 16)
                     .padding(.bottom, 100)
                 }
             }
-            .navigationTitle("Friends")
-            .navigationBarTitleDisplayMode(.large)
-            .task { await viewModel.loadAll() }
+            .background(ColorTheme.background(colorScheme).ignoresSafeArea())
+            .navigationBarHidden(true)
+            .onAppear { Task { await viewModel.loadAll() } }
             .refreshable { await viewModel.loadAll() }
             .sheet(item: $selectedProfile) { profile in
                 AthleteProfileSheet(athleteId: profile.id)
+                    .onAppear {
+                        AnalyticsManager.log("profile_viewed", parameters: ["athlete_id": profile.id])
+                    }
             }
         }
     }

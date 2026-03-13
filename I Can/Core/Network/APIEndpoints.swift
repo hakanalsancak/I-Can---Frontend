@@ -46,6 +46,10 @@ enum APIEndpoints {
         static let base = "/api/chat"
     }
 
+    enum Feedback {
+        static let base = "/api/feedback"
+    }
+
     enum Streaks {
         static let base = "/api/streaks"
     }

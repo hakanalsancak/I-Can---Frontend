@@ -50,6 +50,7 @@ final class ReportsViewModel {
     func loadReportDetail(_ report: AIReport) async {
         do {
             selectedReport = try await ReportService.shared.getReport(id: report.id)
+            AnalyticsManager.log("\(report.reportType)_report_viewed", parameters: ["report_id": report.id])
         } catch let error as APIError {
             if case .premiumRequired = error {
                 showPaywall = true

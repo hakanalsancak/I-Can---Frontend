@@ -315,6 +315,9 @@ struct DailyEntryFlowView: View {
     init(existingEntry: DailyEntry? = nil, onComplete: @escaping (EntrySubmitResponse) -> Void) {
         self._viewModel = State(initialValue: DailyEntryViewModel(existingEntry: existingEntry))
         self.onComplete = onComplete
+        if existingEntry == nil {
+            AnalyticsManager.log("daily_log_started")
+        }
     }
 
     private var userSport: String {
@@ -624,6 +627,16 @@ struct DailyEntryFlowView: View {
                     viewModel.currentStepIndex = viewModel.steps.count - 1
                 }
                 HapticManager.notification(.success)
+
+                let type = viewModel.activityType
+                AnalyticsManager.log("daily_log_completed", parameters: ["type": type])
+                switch type {
+                case "training": AnalyticsManager.log("training_logged")
+                case "game": AnalyticsManager.log("game_logged")
+                case "rest_day": AnalyticsManager.log("rest_day_logged")
+                default: break
+                }
+
                 await viewModel.fetchInsight()
             }
         }

@@ -4,6 +4,7 @@ struct ProfileView: View {
     @State private var viewModel = ProfileViewModel()
     @State private var subscriptionShimmer: CGFloat = -1
     @State private var showAccountUpgrade = false
+    @State private var showFeedback = false
     @State private var headerAppeared = false
     @State private var cardsAppeared = false
     @Environment(\.colorScheme) private var colorScheme
@@ -49,6 +50,9 @@ struct ProfileView: View {
 
                         premiumCard
                             .opacity(cardsAppeared ? 1 : 0)
+
+                        feedbackCard
+                            .opacity(cardsAppeared ? 1 : 0)
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 20)
@@ -88,6 +92,9 @@ struct ProfileView: View {
             }
             .sheet(isPresented: $viewModel.showEditProfile) {
                 EditProfileSheet(viewModel: viewModel)
+            }
+            .sheet(isPresented: $showFeedback) {
+                FeedbackView()
             }
         }
     }
@@ -627,6 +634,50 @@ struct ProfileView: View {
                 subscriptionShimmer = 2
             }
         }
+    }
+
+    // MARK: - Feedback Card
+
+    private var feedbackCard: some View {
+        Button {
+            HapticManager.selection()
+            showFeedback = true
+        } label: {
+            HStack(spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color(hex: "F59E0B").opacity(0.15))
+                        .frame(width: 42, height: 42)
+                    Image(systemName: "lightbulb.fill")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(Color(hex: "F59E0B"))
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Feedback & Suggestions")
+                        .font(.system(size: 15, weight: .bold).width(.condensed))
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    Text("Help us improve I Can")
+                        .font(.system(size: 12, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+            }
+            .padding(16)
+            .background(ColorTheme.cardBackground(colorScheme))
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(ColorTheme.separator(colorScheme), lineWidth: 1)
+            )
+            .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
+        }
+        .buttonStyle(.plain)
     }
 
 }

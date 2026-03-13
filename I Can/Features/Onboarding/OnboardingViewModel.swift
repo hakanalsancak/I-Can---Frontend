@@ -103,6 +103,7 @@ final class OnboardingViewModel {
             try await AuthService.shared.register(
                 email: email, password: password, fullName: nameToUse
             )
+            AnalyticsManager.log("user_signed_up", parameters: ["method": "email"])
             try await completeOnboarding()
         } catch {
             errorMessage = error.localizedDescription
@@ -124,6 +125,7 @@ final class OnboardingViewModel {
             try await AuthService.shared.signInWithApple(
                 identityToken: token, fullName: credential.fullName
             )
+            AnalyticsManager.log("user_signed_up", parameters: ["method": "apple"])
             if !skipCompleteOnboardingAfterSocialAuth {
                 try await completeOnboarding()
             }
@@ -154,6 +156,7 @@ final class OnboardingViewModel {
             }
 
             try await AuthService.shared.signInWithGoogle(idToken: idToken)
+            AnalyticsManager.log("user_signed_up", parameters: ["method": "google"])
             if !skipCompleteOnboardingAfterSocialAuth {
                 try await completeOnboarding()
             }
@@ -179,6 +182,7 @@ final class OnboardingViewModel {
                 password: UUID().uuidString,
                 fullName: athleteName.isEmpty ? nil : athleteName
             )
+            AnalyticsManager.log("user_signed_up", parameters: ["method": "guest"])
             try await completeOnboarding()
         } catch {
             errorMessage = "Could not connect to server. Make sure the backend is running on localhost:3000."
@@ -189,6 +193,10 @@ final class OnboardingViewModel {
 
     private func completeOnboarding() async throws {
         if !selectedSport.isEmpty {
+            AnalyticsManager.log("sport_selected", parameters: ["sport": selectedSport])
+            if !mantra.isEmpty {
+                AnalyticsManager.log("mantra_created")
+            }
             let country = selectedCountry.isEmpty ? Locale.current.region?.identifier : selectedCountry
             try await AuthService.shared.completeOnboarding(
                 sport: selectedSport,
