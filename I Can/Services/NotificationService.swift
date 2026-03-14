@@ -67,7 +67,9 @@ final class NotificationService {
             trigger: trigger
         )
 
-        center.add(request)
+        center.add(request) { error in
+            assert(error == nil, "Failed to schedule streak reminder: \(error!.localizedDescription)")
+        }
     }
 
     /// Cancels today's streak reminder (called after the user logs their entry).

@@ -114,6 +114,17 @@ final class AuthService {
     }
 
     func signOut() {
+        // Best-effort: revoke refresh token on the server so it can't be reused after logout
+        if let refreshToken = TokenManager.shared.refreshToken {
+            Task {
+                struct LogoutBody: Encodable { let refreshToken: String }
+                let _: [String: Bool] = (try? await APIClient.shared.request(
+                    APIEndpoints.Auth.logout,
+                    method: "POST",
+                    body: LogoutBody(refreshToken: refreshToken)
+                )) ?? [:]
+            }
+        }
         TokenManager.shared.clearTokens()
         currentUser = nil
         isAuthenticated = false

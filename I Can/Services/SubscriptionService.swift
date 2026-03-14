@@ -20,11 +20,12 @@ final class SubscriptionService {
         isPremium = status.isPremium
     }
 
-    func verifyReceipt(transactionId: String, productId: String, originalTransactionId: String?) async throws {
+    func verifyReceipt(transactionId: String, productId: String, originalTransactionId: String?, jwsRepresentation: String) async throws {
         let request = VerifyReceiptRequest(
             transactionId: transactionId,
             productId: productId,
-            originalTransactionId: originalTransactionId
+            originalTransactionId: originalTransactionId,
+            jwsRepresentation: jwsRepresentation
         )
         let status: SubscriptionStatus = try await APIClient.shared.request(
             APIEndpoints.Subscriptions.verify, method: "POST", body: request
@@ -41,14 +42,15 @@ final class SubscriptionService {
         let result = try await product.purchase()
         switch result {
         case .success(let verification):
+            let jwsRepresentation = verification.jwsRepresentation
             let transaction = try checkVerified(verification)
             do {
                 try await verifyReceipt(
                     transactionId: String(transaction.id),
                     productId: transaction.productID,
-                    originalTransactionId: String(transaction.originalID)
+                    originalTransactionId: String(transaction.originalID),
+                    jwsRepresentation: jwsRepresentation
                 )
-                isPremium = true
             } catch {
                 await transaction.finish()
                 throw error
@@ -66,14 +68,15 @@ final class SubscriptionService {
 
     func listenForTransactions() async {
         for await result in Transaction.updates {
+            let jwsRepresentation = result.jwsRepresentation
             if let transaction = try? checkVerified(result) {
                 do {
                     try await verifyReceipt(
                         transactionId: String(transaction.id),
                         productId: transaction.productID,
-                        originalTransactionId: String(transaction.originalID)
+                        originalTransactionId: String(transaction.originalID),
+                        jwsRepresentation: jwsRepresentation
                     )
-                    isPremium = true
                 } catch {
                     // Backend rejected (e.g. guest account) — do not grant premium
                 }

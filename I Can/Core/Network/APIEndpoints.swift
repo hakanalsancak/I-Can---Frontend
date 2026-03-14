@@ -2,9 +2,9 @@ import Foundation
 
 enum APIEndpoints {
     #if DEBUG
-    static let baseURL = "http://localhost:3000"
+    static let baseURL = "https://i-can-backend.onrender.com"
     #else
-    static let baseURL = "https://your-app.onrender.com"
+    static let baseURL = "https://i-can-backend.onrender.com"
     #endif
 
     enum Auth {
@@ -14,6 +14,7 @@ enum APIEndpoints {
         static let refresh = "/api/auth/refresh"
         static let onboarding = "/api/auth/onboarding"
         static let profile = "/api/auth/profile"
+        static let logout = "/api/auth/logout"
         static let deleteAccount = "/api/auth/account"
     }
 

@@ -46,15 +46,14 @@ final class FriendsViewModel {
             AnalyticsManager.log("friend_search", parameters: ["query": current])
             do {
                 let results = try await FriendService.shared.searchUsers(query: current)
-                if !Task.isCancelled {
-                    searchResults = results
-                }
+                guard !Task.isCancelled else { return }
+                searchResults = results
+                isSearching = false
             } catch {
-                if !Task.isCancelled {
-                    searchResults = []
-                }
+                guard !Task.isCancelled else { return }
+                searchResults = []
+                isSearching = false
             }
-            isSearching = false
         }
     }
 

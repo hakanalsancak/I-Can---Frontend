@@ -95,26 +95,30 @@ final class ProfileViewModel {
     // MARK: - Local Photo Storage
 
     func loadProfilePhoto() {
-        guard let userId = user?.id else { return }
-        let url = Self.photoURL(for: userId)
-        guard let data = try? Data(contentsOf: url),
+        guard let userId = user?.id,
+              let url = Self.photoURL(for: userId),
+              let data = try? Data(contentsOf: url),
               let image = UIImage(data: data) else { return }
         profileImage = image
     }
 
     func saveProfilePhoto(_ image: UIImage) {
         guard let userId = user?.id,
+              let url = Self.photoURL(for: userId),
               let data = image.jpegData(compressionQuality: 0.8) else { return }
-        try? data.write(to: Self.photoURL(for: userId))
+        try? data.write(to: url, options: .completeFileProtection)
     }
 
     func deleteProfilePhoto() {
-        guard let userId = user?.id else { return }
-        try? FileManager.default.removeItem(at: Self.photoURL(for: userId))
+        guard let userId = user?.id,
+              let url = Self.photoURL(for: userId) else { return }
+        try? FileManager.default.removeItem(at: url)
     }
 
-    private static func photoURL(for userId: String) -> URL {
-        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    private static func photoURL(for userId: String) -> URL? {
+        guard let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            return nil
+        }
         return dir.appendingPathComponent("profile_photo_\(userId).jpg")
     }
 

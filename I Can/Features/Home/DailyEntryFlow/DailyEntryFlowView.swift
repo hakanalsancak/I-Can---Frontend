@@ -624,7 +624,7 @@ struct DailyEntryFlowView: View {
         Task {
             if let _ = await viewModel.submit() {
                 withAnimation {
-                    viewModel.currentStepIndex = viewModel.steps.count - 1
+                    viewModel.currentStepIndex = max(viewModel.steps.count - 1, 0)
                 }
                 HapticManager.notification(.success)
 

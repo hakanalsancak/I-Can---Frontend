@@ -1,4 +1,60 @@
 import Foundation
+import CryptoKit
+
+// MARK: - Certificate Pinning Delegate
+
+private final class PinningDelegate: NSObject, URLSessionDelegate, Sendable {
+    // SHA-256 fingerprint of the server's leaf certificate (base64-encoded).
+    // Update this when you rotate your TLS certificate.
+    // To obtain: openssl s_client -connect your-app.onrender.com:443 </dev/null 2>/dev/null \
+    //   | openssl x509 -noout -pubkey | openssl pkey -pubin -outform der \
+    //   | openssl dgst -sha256 -binary | base64
+    private static let pinnedPublicKeyHash: String? = nil // Set to your actual hash in production
+
+    func urlSession(
+        _ session: URLSession,
+        didReceive challenge: URLAuthenticationChallenge,
+        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+    ) {
+        guard challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
+              let serverTrust = challenge.protectionSpace.serverTrust else {
+            completionHandler(.cancelAuthenticationChallenge, nil)
+            return
+        }
+
+        // If no pin is configured, fall back to default system validation (still enforces HTTPS)
+        guard let expectedHash = Self.pinnedPublicKeyHash else {
+            completionHandler(.performDefaultHandling, nil)
+            return
+        }
+
+        // Evaluate trust first
+        var error: CFError?
+        guard SecTrustEvaluateWithError(serverTrust, &error) else {
+            completionHandler(.cancelAuthenticationChallenge, nil)
+            return
+        }
+
+        // Extract the leaf certificate's public key and hash it
+        guard let certificate = SecTrustGetCertificateAtIndex(serverTrust, 0),
+              let publicKey = SecCertificateCopyKey(certificate),
+              let publicKeyData = SecKeyCopyExternalRepresentation(publicKey, nil) as Data? else {
+            completionHandler(.cancelAuthenticationChallenge, nil)
+            return
+        }
+
+        let hash = SHA256.hash(data: publicKeyData)
+        let hashBase64 = Data(hash).base64EncodedString()
+
+        if hashBase64 == expectedHash {
+            completionHandler(.useCredential, URLCredential(trust: serverTrust))
+        } else {
+            completionHandler(.cancelAuthenticationChallenge, nil)
+        }
+    }
+}
+
+// MARK: - API Client
 
 final class APIClient: Sendable {
     static let shared = APIClient()
@@ -10,7 +66,11 @@ final class APIClient: Sendable {
     private init() {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 30
+#if DEBUG
         session = URLSession(configuration: config)
+#else
+        session = URLSession(configuration: config, delegate: PinningDelegate(), delegateQueue: nil)
+#endif
         decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         encoder = JSONEncoder()

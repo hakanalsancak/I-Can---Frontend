@@ -221,7 +221,8 @@ struct CoachChatView: View {
                 .animation(.easeOut(duration: 0.25), value: isLoading)
             }
             .onChange(of: messages.count) {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                Task {
+                    try? await Task.sleep(for: .milliseconds(100))
                     withAnimation(.easeOut(duration: 0.3)) {
                         if isLoading {
                             proxy.scrollTo("typing", anchor: .bottom)
@@ -233,7 +234,8 @@ struct CoachChatView: View {
             }
             .onChange(of: isLoading) {
                 if isLoading {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    Task {
+                        try? await Task.sleep(for: .milliseconds(100))
                         withAnimation(.easeOut(duration: 0.3)) {
                             proxy.scrollTo("typing", anchor: .bottom)
                         }
@@ -244,6 +246,7 @@ struct CoachChatView: View {
     }
 
     private func shouldShowAvatar(at index: Int) -> Bool {
+        guard index >= 0, index < messages.count else { return false }
         let msg = messages[index]
         if msg.isUser { return false }
         if index == 0 { return true }
@@ -409,7 +412,8 @@ struct CoachChatView: View {
         inputText = ""
         HapticManager.impact(.light)
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+        Task {
+            try? await Task.sleep(for: .milliseconds(400))
             withAnimation(.easeOut(duration: 0.25)) {
                 isLoading = true
             }

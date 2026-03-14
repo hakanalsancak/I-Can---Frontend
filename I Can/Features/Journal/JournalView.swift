@@ -111,7 +111,7 @@ struct JournalView: View {
                         .id("spacer-\(i)")
                 }
 
-                ForEach(viewModel.daysInMonth, id: \.self) { date in
+                ForEach(viewModel.daysInMonth, id: \.timeIntervalSinceReferenceDate) { date in
                     let dateStr = date.apiDateString
                     let hasEntry = viewModel.entryDates.contains(dateStr)
                     let isSelected = date.apiDateString == viewModel.selectedDate.apiDateString

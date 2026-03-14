@@ -89,7 +89,7 @@ struct ContentView: View {
             } catch {
                 let apiErr = error as? APIError
                 if case .unauthorized = apiErr {
-                    authService.signOut()
+                    await MainActor.run { authService.signOut() }
                 } else {
                     await MainActor.run { showMaintenance = true }
                 }

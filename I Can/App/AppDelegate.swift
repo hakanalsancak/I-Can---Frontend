@@ -31,7 +31,9 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     }
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        #if DEBUG
         print("Failed to register for push notifications: \(error.localizedDescription)")
+        #endif
     }
 
     func userNotificationCenter(

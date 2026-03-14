@@ -28,7 +28,7 @@ final class ReportsViewModel {
         do {
             periodStatus = try await ReportService.shared.getStatus()
         } catch {
-            if periodStatus == nil { hasFailedStatus = true }
+            hasFailedStatus = true
         }
     }
 

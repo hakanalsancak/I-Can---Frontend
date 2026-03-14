@@ -12,4 +12,5 @@ struct VerifyReceiptRequest: Encodable {
     let transactionId: String
     let productId: String
     let originalTransactionId: String?
+    let jwsRepresentation: String
 }

@@ -325,7 +325,8 @@ struct HomeView: View {
         withAnimation(.easeOut(duration: 0.4)) {
             quoteOpacity = 0
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+        Task {
+            try? await Task.sleep(for: .milliseconds(400))
             var nextIndex: Int
             repeat {
                 nextIndex = Int.random(in: 0..<iCanQuotes.count)
