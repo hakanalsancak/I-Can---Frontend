@@ -12,6 +12,9 @@ struct BreathingExerciseView: View {
     @State private var timer: Timer?
     @State private var ringProgress: CGFloat = 0
     @State private var outerPulse: CGFloat = 1.0
+    @State private var showModeContent = false
+    @State private var ambientRotation: Double = 0
+    @State private var showCompletion = false
 
     enum BreathingMode: String, CaseIterable {
         case game = "Before Game"
@@ -93,7 +96,25 @@ struct BreathingExerciseView: View {
 
     var body: some View {
         ZStack {
-            ColorTheme.background(colorScheme).ignoresSafeArea()
+            // Dynamic background
+            ZStack {
+                ColorTheme.background(colorScheme).ignoresSafeArea()
+
+                if let mode = selectedMode {
+                    RadialGradient(
+                        colors: [
+                            mode.gradient[0].opacity(isActive ? 0.1 : 0.04),
+                            mode.gradient[1].opacity(0.02),
+                            .clear
+                        ],
+                        center: .center,
+                        startRadius: 30,
+                        endRadius: 380
+                    )
+                    .ignoresSafeArea()
+                    .animation(.easeInOut(duration: 1.5), value: isActive)
+                }
+            }
 
             if let mode = selectedMode {
                 exerciseView(mode)
@@ -119,36 +140,62 @@ struct BreathingExerciseView: View {
 
             Spacer()
 
-            VStack(spacing: 10) {
-                Image(systemName: "wind")
-                    .font(.system(size: 36, weight: .light))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [ColorTheme.accent, ColorTheme.accent.opacity(0.6)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+            VStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(ColorTheme.accent.opacity(0.1))
+                        .frame(width: 76, height: 76)
+
+                    Circle()
+                        .strokeBorder(ColorTheme.accent.opacity(0.15), lineWidth: 1)
+                        .frame(width: 76, height: 76)
+
+                    Image(systemName: "wind")
+                        .font(.system(size: 32, weight: .light))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [ColorTheme.accent, ColorTheme.accent.opacity(0.6)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
                         )
-                    )
-                    .padding(.bottom, 4)
+                }
+                .opacity(showModeContent ? 1 : 0)
+                .scaleEffect(showModeContent ? 1 : 0.6)
 
                 Text("Breathing Exercise")
-                    .font(.system(size: 26, weight: .bold).width(.condensed))
+                    .font(.system(size: 28, weight: .heavy).width(.condensed))
                     .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    .opacity(showModeContent ? 1 : 0)
+                    .offset(y: showModeContent ? 0 : 12)
 
                 Text("Choose your session")
                     .font(.system(size: 15, weight: .medium).width(.condensed))
                     .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                    .opacity(showModeContent ? 1 : 0)
+                    .offset(y: showModeContent ? 0 : 12)
             }
             .padding(.bottom, 36)
 
             VStack(spacing: 12) {
-                ForEach(BreathingMode.allCases, id: \.rawValue) { mode in
+                ForEach(Array(BreathingMode.allCases.enumerated()), id: \.element.rawValue) { index, mode in
                     modeCard(mode)
+                        .opacity(showModeContent ? 1 : 0)
+                        .offset(y: showModeContent ? 0 : 20)
+                        .animation(
+                            .spring(response: 0.5, dampingFraction: 0.8).delay(0.15 + Double(index) * 0.08),
+                            value: showModeContent
+                        )
                 }
             }
             .padding(.horizontal, 24)
 
             Spacer()
+        }
+        .onAppear {
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                showModeContent = true
+            }
         }
     }
 
@@ -157,42 +204,64 @@ struct BreathingExerciseView: View {
             HapticManager.impact(.medium)
             selectedMode = mode
         } label: {
-            HStack(spacing: 14) {
-                Image(systemName: mode.icon)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.white)
-                    .frame(width: 44, height: 44)
-                    .background(
-                        LinearGradient(colors: mode.gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            HStack(spacing: 0) {
+                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    .fill(LinearGradient(colors: mode.gradient, startPoint: .top, endPoint: .bottom))
+                    .frame(width: 4)
+                    .padding(.vertical, 14)
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(mode.rawValue)
-                        .font(.system(size: 16, weight: .bold).width(.condensed))
-                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+                HStack(spacing: 14) {
+                    ZStack {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: mode.gradient.map { $0.opacity(0.12) },
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 48, height: 48)
 
-                    Text(mode.subtitle)
-                        .font(.system(size: 13, weight: .medium).width(.condensed))
-                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                }
+                        Image(systemName: mode.icon)
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundStyle(
+                                LinearGradient(colors: mode.gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
+                            )
+                    }
 
-                Spacer()
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(mode.rawValue)
+                            .font(.system(size: 16, weight: .bold).width(.condensed))
+                            .foregroundColor(ColorTheme.primaryText(colorScheme))
 
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(mode.pattern)
-                        .font(.system(size: 13, weight: .bold, design: .monospaced))
-                        .foregroundColor(mode.gradient[0])
+                        Text(mode.subtitle)
+                            .font(.system(size: 13, weight: .medium).width(.condensed))
+                            .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                    }
 
-                    Text("\(mode.totalDuration)s")
-                        .font(.system(size: 11, weight: .medium).width(.condensed))
+                    Spacer()
+
+                    VStack(alignment: .trailing, spacing: 5) {
+                        Text(mode.pattern)
+                            .font(.system(size: 14, weight: .bold, design: .monospaced))
+                            .foregroundColor(mode.gradient[0])
+
+                        HStack(spacing: 3) {
+                            Image(systemName: "clock")
+                                .font(.system(size: 9, weight: .bold))
+                            Text("\(mode.totalDuration)s")
+                                .font(.system(size: 11, weight: .semibold).width(.condensed))
+                        }
                         .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                    }
                 }
+                .padding(.leading, 12)
+                .padding(.trailing, 16)
             }
-            .padding(14)
+            .padding(.vertical, 10)
             .background(ColorTheme.cardBackground(colorScheme))
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 3)
         }
         .buttonStyle(.plain)
     }
@@ -210,11 +279,17 @@ struct BreathingExerciseView: View {
                         phase = .ready
                         circleScale = 0.35
                         cycleCount = 0
+                        showModeContent = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                                showModeContent = true
+                            }
+                        }
                     } label: {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 14, weight: .semibold))
                             .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                            .frame(width: 32, height: 32)
+                            .frame(width: 36, height: 36)
                             .background(ColorTheme.elevatedBackground(colorScheme))
                             .clipShape(Circle())
                     }
@@ -225,50 +300,100 @@ struct BreathingExerciseView: View {
             .padding(.horizontal, 24)
             .padding(.top, 16)
 
-            Spacer()
-
-            breathingCircle(mode)
-
-            Spacer()
-
-            bottomInfo(mode)
+            if phase == .complete {
+                completionView(mode)
+            } else {
+                Spacer()
+                breathingCircle(mode)
+                Spacer()
+                bottomInfo(mode)
+            }
         }
     }
 
+    // MARK: - Breathing Circle
+
     private func breathingCircle(_ mode: BreathingMode) -> some View {
         let gradient = LinearGradient(colors: mode.gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
+        let primaryColor = mode.gradient[0]
 
         return ZStack {
+            // Decorative dashed ring (slowly rotates)
             Circle()
-                .stroke(mode.gradient[0].opacity(0.08), lineWidth: 2)
-                .frame(width: 280, height: 280)
+                .stroke(primaryColor.opacity(0.06), style: StrokeStyle(lineWidth: 1, dash: [4, 8]))
+                .frame(width: 300, height: 300)
+                .rotationEffect(.degrees(ambientRotation))
 
+            // Outer boundary ring
             Circle()
-                .fill(mode.gradient[0].opacity(0.04))
-                .frame(width: 280, height: 280)
+                .stroke(primaryColor.opacity(0.08), lineWidth: 1.5)
+                .frame(width: 270, height: 270)
+
+            // Outer fill
+            Circle()
+                .fill(primaryColor.opacity(0.03))
+                .frame(width: 270, height: 270)
                 .scaleEffect(outerPulse)
 
+            // Glow layer behind main circle
             Circle()
-                .fill(mode.gradient[0].opacity(0.1))
-                .frame(width: 240 * circleScale, height: 240 * circleScale)
+                .fill(
+                    RadialGradient(
+                        colors: [primaryColor.opacity(0.15 * Double(circleScale)), .clear],
+                        center: .center,
+                        startRadius: 40 * circleScale,
+                        endRadius: 140 * circleScale
+                    )
+                )
+                .frame(width: 260, height: 260)
+                .blur(radius: 20)
 
+            // Intermediate ring
             Circle()
-                .fill(mode.gradient[0].opacity(0.2))
-                .frame(width: 180 * circleScale, height: 180 * circleScale)
+                .fill(primaryColor.opacity(0.08))
+                .frame(width: 220 * circleScale, height: 220 * circleScale)
 
+            // Inner breathing circle
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [primaryColor.opacity(0.25), primaryColor.opacity(0.1)],
+                        center: .center,
+                        startRadius: 10,
+                        endRadius: 90 * circleScale
+                    )
+                )
+                .frame(width: 170 * circleScale, height: 170 * circleScale)
+
+            // Core bright circle
+            Circle()
+                .fill(primaryColor.opacity(0.15))
+                .frame(width: 100 * circleScale, height: 100 * circleScale)
+
+            // Progress ring
             if isActive || phase == .complete {
                 Circle()
                     .trim(from: 0, to: ringProgress)
-                    .stroke(gradient, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                    .frame(width: 280, height: 280)
+                    .stroke(gradient, style: StrokeStyle(lineWidth: 3.5, lineCap: .round))
+                    .frame(width: 270, height: 270)
                     .rotationEffect(.degrees(-90))
+
+                // Glow dot at progress ring tip
+                Circle()
+                    .fill(primaryColor)
+                    .frame(width: 6, height: 6)
+                    .blur(radius: 3)
+                    .offset(y: -135)
+                    .rotationEffect(.degrees(Double(ringProgress) * 360 - 90))
+                    .opacity(ringProgress > 0 ? 1 : 0)
             }
 
+            // Center content
             VStack(spacing: 6) {
                 if isActive {
                     Text("\(secondsLeft)")
-                        .font(.system(size: 42, weight: .bold, design: .rounded))
-                        .foregroundColor(mode.gradient[0])
+                        .font(.system(size: 48, weight: .heavy, design: .rounded))
+                        .foregroundColor(primaryColor)
                         .contentTransition(.numericText())
                         .animation(.easeInOut(duration: 0.3), value: secondsLeft)
                 }
@@ -289,6 +414,12 @@ struct BreathingExerciseView: View {
             }
             .animation(.easeInOut(duration: 0.3), value: phase)
         }
+        .onAppear {
+            ambientRotation = 0
+            withAnimation(.linear(duration: 30).repeatForever(autoreverses: false)) {
+                ambientRotation = 360
+            }
+        }
         .onTapGesture {
             if !isActive && phase != .complete {
                 startBreathing(mode)
@@ -296,27 +427,118 @@ struct BreathingExerciseView: View {
         }
     }
 
+    // MARK: - Completion View
+
+    private func completionView(_ mode: BreathingMode) -> some View {
+        VStack(spacing: 0) {
+            Spacer()
+
+            VStack(spacing: 24) {
+                ZStack {
+                    Circle()
+                        .strokeBorder(mode.gradient[0].opacity(0.08), lineWidth: 1)
+                        .frame(width: 140, height: 140)
+
+                    Circle()
+                        .fill(mode.gradient[0].opacity(0.08))
+                        .frame(width: 100, height: 100)
+
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 36, weight: .semibold))
+                        .foregroundStyle(
+                            LinearGradient(colors: mode.gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
+                        )
+                }
+                .scaleEffect(showCompletion ? 1 : 0.5)
+                .opacity(showCompletion ? 1 : 0)
+
+                VStack(spacing: 6) {
+                    Text("Well Done")
+                        .font(.system(size: 26, weight: .heavy).width(.condensed))
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+
+                    Text("Session complete")
+                        .font(.system(size: 15, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                }
+                .opacity(showCompletion ? 1 : 0)
+                .offset(y: showCompletion ? 0 : 10)
+
+                // Stats row
+                HStack(spacing: 0) {
+                    statItem(value: "\(mode.cycles)", label: "Cycles", color: mode.gradient[0])
+
+                    dividerLine
+
+                    statItem(value: mode.pattern, label: "Pattern", color: mode.gradient[0])
+
+                    dividerLine
+
+                    statItem(value: "\(mode.totalDuration)s", label: "Duration", color: mode.gradient[0])
+                }
+                .padding(.vertical, 16)
+                .background(ColorTheme.cardBackground(colorScheme))
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 3)
+                .padding(.horizontal, 24)
+                .opacity(showCompletion ? 1 : 0)
+                .offset(y: showCompletion ? 0 : 15)
+            }
+
+            Spacer()
+            Spacer()
+
+            PrimaryButton(title: "Done") { dismiss() }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 48)
+                .opacity(showCompletion ? 1 : 0)
+        }
+        .onAppear {
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.7).delay(0.15)) {
+                showCompletion = true
+            }
+        }
+    }
+
+    private func statItem(value: String, label: String, color: Color) -> some View {
+        VStack(spacing: 4) {
+            Text(value)
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .foregroundColor(color)
+            Text(label)
+                .font(.system(size: 11, weight: .semibold).width(.condensed))
+                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                .textCase(.uppercase)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var dividerLine: some View {
+        Rectangle()
+            .fill(ColorTheme.separator(colorScheme))
+            .frame(width: 1, height: 28)
+    }
+
+    // MARK: - Bottom Info
+
     private func bottomInfo(_ mode: BreathingMode) -> some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 14) {
             if isActive {
-                HStack(spacing: 20) {
-                    phaseLabel("In", seconds: Int(mode.inhale), active: phase == .inhale, color: mode.gradient[0])
-                    phaseLabel("Hold", seconds: Int(mode.hold), active: phase == .hold, color: mode.gradient[0])
-                    phaseLabel("Out", seconds: Int(mode.exhale), active: phase == .exhale, color: mode.gradient[0])
+                HStack(spacing: 8) {
+                    phasePill("In", seconds: Int(mode.inhale), active: phase == .inhale, mode: mode)
+                    phasePill("Hold", seconds: Int(mode.hold), active: phase == .hold, mode: mode)
+                    phasePill("Out", seconds: Int(mode.exhale), active: phase == .exhale, mode: mode)
                 }
                 .padding(.horizontal, 24)
 
-                Text("Cycle \(cycleCount) of \(mode.cycles)")
-                    .font(.system(size: 13, weight: .medium).width(.condensed))
-                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
-            } else if phase == .complete {
-                VStack(spacing: 14) {
-                    Text("Session Complete")
-                        .font(.system(size: 15, weight: .semibold).width(.condensed))
-                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
-
-                    PrimaryButton(title: "Done") { dismiss() }
-                        .padding(.horizontal, 24)
+                // Cycle progress dots
+                HStack(spacing: 8) {
+                    ForEach(1...mode.cycles, id: \.self) { cycle in
+                        Circle()
+                            .fill(cycle <= cycleCount ? mode.gradient[0] : mode.gradient[0].opacity(0.15))
+                            .frame(width: 7, height: 7)
+                            .animation(.easeInOut(duration: 0.3), value: cycleCount)
+                    }
                 }
             } else {
                 HStack(spacing: 6) {
@@ -332,21 +554,23 @@ struct BreathingExerciseView: View {
         .padding(.bottom, 48)
     }
 
-    private func phaseLabel(_ label: String, seconds: Int, active: Bool, color: Color) -> some View {
-        VStack(spacing: 4) {
+    private func phasePill(_ label: String, seconds: Int, active: Bool, mode: BreathingMode) -> some View {
+        VStack(spacing: 3) {
             Text("\(seconds)s")
-                .font(.system(size: 15, weight: .bold, design: .rounded))
-                .foregroundColor(active ? color : ColorTheme.tertiaryText(colorScheme))
-
+                .font(.system(size: 14, weight: .bold, design: .rounded))
             Text(label)
-                .font(.system(size: 11, weight: .semibold).width(.condensed))
-                .foregroundColor(active ? color : ColorTheme.tertiaryText(colorScheme))
+                .font(.system(size: 10, weight: .semibold).width(.condensed))
                 .textCase(.uppercase)
         }
+        .foregroundColor(active ? .white : ColorTheme.tertiaryText(colorScheme))
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)
-        .background(active ? color.opacity(0.1) : .clear)
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .background(
+            active
+                ? AnyShapeStyle(LinearGradient(colors: mode.gradient, startPoint: .leading, endPoint: .trailing))
+                : AnyShapeStyle(ColorTheme.elevatedBackground(colorScheme))
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .animation(.easeInOut(duration: 0.3), value: active)
     }
 
@@ -360,7 +584,7 @@ struct BreathingExerciseView: View {
             Image(systemName: "xmark")
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                .frame(width: 32, height: 32)
+                .frame(width: 36, height: 36)
                 .background(ColorTheme.elevatedBackground(colorScheme))
                 .clipShape(Circle())
         }
@@ -372,6 +596,7 @@ struct BreathingExerciseView: View {
         isActive = true
         cycleCount = 0
         ringProgress = 0
+        showCompletion = false
         runCycle(mode)
     }
 
