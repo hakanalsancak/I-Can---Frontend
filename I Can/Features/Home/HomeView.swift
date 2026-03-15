@@ -454,28 +454,20 @@ struct HomeView: View {
 
     private var loggedHero: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 0) {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(Color(hex: "22C55E"))
-                        Text("LOGGED TODAY")
-                            .font(.system(size: 11, weight: .heavy).width(.condensed))
-                            .foregroundColor(Color(hex: "22C55E"))
-                    }
-
-                    Text("Performance\nSummary")
-                        .font(.system(size: 24, weight: .heavy).width(.condensed))
-                        .foregroundColor(ColorTheme.primaryText(colorScheme))
-                        .lineSpacing(2)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(Color(hex: "22C55E"))
+                    Text("LOGGED TODAY")
+                        .font(.system(size: 11, weight: .heavy).width(.condensed))
+                        .foregroundColor(Color(hex: "22C55E"))
                 }
 
-                Spacer()
-
-                if let entry = viewModel.todayEntry {
-                    scoreRing(value: entry.performanceScore)
-                }
+                Text("Today's\nReflection")
+                    .font(.system(size: 24, weight: .heavy).width(.condensed))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    .lineSpacing(2)
             }
             .padding(.horizontal, 20)
             .padding(.top, 20)
@@ -599,37 +591,6 @@ struct HomeView: View {
             ratingColumn(label: "Focus", value: entry.focusRating, color: Color(hex: "3B82F6"))
             ratingColumn(label: "Effort", value: entry.effortRating, color: Color(hex: "F97316"))
             ratingColumn(label: "Confidence", value: entry.confidenceRating, color: Color(hex: "8B5CF6"))
-        }
-    }
-
-    private func scoreRing(value: Int) -> some View {
-        ZStack {
-            Circle()
-                .stroke(ColorTheme.accent.opacity(0.12), lineWidth: 5)
-                .frame(width: 64, height: 64)
-
-            Circle()
-                .trim(from: 0, to: CGFloat(value) / 100.0)
-                .stroke(
-                    LinearGradient(
-                        colors: [ColorTheme.accent, Color(hex: "22C55E")],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    style: StrokeStyle(lineWidth: 5, lineCap: .round)
-                )
-                .frame(width: 64, height: 64)
-                .rotationEffect(.degrees(-90))
-
-            VStack(spacing: 0) {
-                Text("\(value)")
-                    .font(.system(size: 22, weight: .heavy, design: .rounded))
-                    .foregroundColor(ColorTheme.primaryText(colorScheme))
-                Text("score")
-                    .font(.system(size: 9, weight: .bold).width(.condensed))
-                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                    .textCase(.uppercase)
-            }
         }
     }
 

@@ -60,62 +60,27 @@ struct TodayEntryDetailSheet: View {
     // MARK: - Header
 
     private var headerCard: some View {
-        HStack(spacing: 16) {
-            scoreRing
+        VStack(alignment: .leading, spacing: 4) {
+            Text(entry.activityTypeDisplay)
+                .font(.system(size: 13, weight: .bold).width(.condensed))
+                .foregroundColor(ColorTheme.accent)
+                .textCase(.uppercase)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(entry.activityTypeDisplay)
-                    .font(.system(size: 13, weight: .bold).width(.condensed))
-                    .foregroundColor(ColorTheme.accent)
-                    .textCase(.uppercase)
+            Text("Today's Reflection")
+                .font(.system(size: 18, weight: .bold).width(.condensed))
+                .foregroundColor(ColorTheme.primaryText(colorScheme))
 
-                Text("Day Score")
-                    .font(.system(size: 18, weight: .bold).width(.condensed))
-                    .foregroundColor(ColorTheme.primaryText(colorScheme))
-
-                if let date = entry.date {
-                    Text(date, style: .date)
-                        .font(.system(size: 12, weight: .medium).width(.condensed))
-                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                }
+            if let date = entry.date {
+                Text(date, style: .date)
+                    .font(.system(size: 12, weight: .medium).width(.condensed))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
             }
-
-            Spacer()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
         .background(ColorTheme.cardBackground(colorScheme))
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
-    }
-
-    private var scoreRing: some View {
-        ZStack {
-            Circle()
-                .stroke(ColorTheme.accent.opacity(0.12), lineWidth: 5)
-                .frame(width: 64, height: 64)
-
-            Circle()
-                .trim(from: 0, to: CGFloat(entry.performanceScore) / 100.0)
-                .stroke(
-                    LinearGradient(
-                        colors: [ColorTheme.accent, Color(hex: "22C55E")],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    style: StrokeStyle(lineWidth: 5, lineCap: .round)
-                )
-                .frame(width: 64, height: 64)
-                .rotationEffect(.degrees(-90))
-
-            VStack(spacing: 0) {
-                Text("\(entry.performanceScore)")
-                    .font(.system(size: 22, weight: .heavy, design: .rounded))
-                    .foregroundColor(ColorTheme.primaryText(colorScheme))
-                Text("/100")
-                    .font(.system(size: 10, weight: .bold).width(.condensed))
-                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
-            }
-        }
     }
 
     // MARK: - Activity-Specific Section

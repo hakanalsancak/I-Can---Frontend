@@ -13,7 +13,11 @@ struct EntryDetailView: View {
                     .font(.system(size: 14, weight: .semibold).width(.condensed))
                     .foregroundColor(ColorTheme.secondaryText(colorScheme))
                 Spacer()
-                PerformanceScoreCard(score: entry.performanceScore)
+                if let date = entry.date {
+                    Text(date, style: .date)
+                        .font(.system(size: 12, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                }
             }
             .padding(16)
             .background(ColorTheme.cardBackground(colorScheme))

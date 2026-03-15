@@ -31,25 +31,10 @@ struct EntrySubmittedView: View {
                 }
                 .opacity(showContent ? 1 : 0)
 
-                VStack(spacing: 6) {
-                    Text("Daily Reflection Saved")
-                        .font(.system(size: 22, weight: .heavy).width(.condensed))
-                        .foregroundColor(ColorTheme.primaryText(colorScheme))
-
-                    Text("Day Score")
-                        .font(.system(size: 13, weight: .semibold).width(.condensed))
-                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
-
-                    HStack(alignment: .firstTextBaseline, spacing: 2) {
-                        Text("\(response.entry.performanceScore)")
-                            .font(.system(size: 52, weight: .heavy, design: .rounded))
-                            .foregroundColor(ColorTheme.accent)
-                        Text("/100")
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
-                            .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                    }
-                }
-                .opacity(showContent ? 1 : 0)
+                Text("Daily Reflection Saved")
+                    .font(.system(size: 22, weight: .heavy).width(.condensed))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    .opacity(showContent ? 1 : 0)
 
                 if showStreak {
                     VStack(spacing: 6) {
