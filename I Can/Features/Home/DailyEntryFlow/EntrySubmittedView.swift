@@ -104,6 +104,11 @@ struct EntrySubmittedView: View {
                 showInsight = true
             }
             HapticManager.notification(.success)
+            ReviewManager.recordEntrySubmitted()
+        }
+        .task {
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            ReviewManager.requestReviewIfAppropriate()
         }
         .sheet(isPresented: $showSubscription, onDismiss: {
             Task { try? await SubscriptionService.shared.checkStatus() }
