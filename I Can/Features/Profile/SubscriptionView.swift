@@ -93,6 +93,11 @@ struct SubscriptionView: View {
             .sheet(isPresented: $showAccountUpgrade) {
                 AccountUpgradeSheet()
             }
+            .onChange(of: showAccountUpgrade) { _, isShowing in
+                if !isShowing {
+                    isGuest = AuthService.shared.currentUser?.isGuest ?? false
+                }
+            }
         }
     }
 

@@ -8,6 +8,10 @@ struct ContentView: View {
     @State private var logoOpacity: Double = 0
     @Environment(\.colorScheme) private var colorScheme
 
+    private var showingSplash: Bool {
+        isLoading || (authService.isAuthenticated && authService.hasCompletedOnboarding && !SubscriptionService.shared.statusChecked)
+    }
+
     var body: some View {
         ZStack {
             Group {
@@ -19,9 +23,9 @@ struct ContentView: View {
                     MainTabView()
                 }
             }
-            .opacity(isLoading ? 0 : 1)
+            .opacity(showingSplash ? 0 : 1)
 
-            if isLoading {
+            if showingSplash {
                 splashScreen
                     .transition(.opacity)
             }
@@ -32,7 +36,7 @@ struct ContentView: View {
                     .zIndex(10)
             }
         }
-        .animation(.easeInOut(duration: 0.4), value: isLoading)
+        .animation(.easeInOut(duration: 0.4), value: showingSplash)
         .animation(.easeInOut(duration: 0.3), value: showMaintenance)
         .task {
             await loadInitialState()

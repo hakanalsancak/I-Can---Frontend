@@ -132,7 +132,7 @@ struct HomeView: View {
 
                         streakSection
 
-                        if !SubscriptionService.shared.isPremium {
+                        if SubscriptionService.shared.statusChecked && !SubscriptionService.shared.isPremium {
                             aiCoachPromo
                         }
 

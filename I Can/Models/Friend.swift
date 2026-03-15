@@ -28,6 +28,14 @@ struct FriendActionResponse: Codable {
     let action: String?
 }
 
+struct SendFriendRequestResponse: Codable {
+    let id: String
+    let senderId: String
+    let receiverId: String
+    let status: String
+    let createdAt: String?
+}
+
 struct UsernameCheck: Codable {
     let available: Bool
     let error: String?

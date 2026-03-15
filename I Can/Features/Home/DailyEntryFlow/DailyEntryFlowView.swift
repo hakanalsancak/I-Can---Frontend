@@ -8,7 +8,6 @@ enum EntryStep: Hashable {
     case gameReflections
     case singleChoice(id: String)
     case restReflection
-    case universalReflections
     case submitting
 }
 
@@ -56,20 +55,17 @@ final class DailyEntryViewModel {
                 .shortText(id: "hardestDrill"),
                 .shortText(id: "commonMistake"),
                 .shortText(id: "tomorrowFocus"),
-                .universalReflections,
             ]
         case "game":
             s += [
                 .gameStats,
                 .gameReflections,
-                .universalReflections,
             ]
         case "rest_day":
             s += [
                 .multiSelect(id: "recoveryActivities"),
                 .singleChoice(id: "sportStudy"),
                 .restReflection,
-                .universalReflections,
             ]
         default:
             break
@@ -111,11 +107,10 @@ final class DailyEntryViewModel {
             let areaCount = workedOn.count
             let textFields = [skillImproved, hardestDrill, commonMistake, tomorrowFocus]
             let filledTexts = textFields.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }.count
-            let reflectionsFilled = [didWell, improveNext, proudMoment].filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }.count
 
             let focus = min(4 + areaCount + filledTexts / 2, 9)
             let effort = min(3 + areaCount + filledTexts, 9)
-            let confidence = min(4 + reflectionsFilled * 2 + (filledTexts > 2 ? 1 : 0), 8)
+            let confidence = min(4 + filledTexts + (areaCount > 2 ? 1 : 0), 8)
             return (max(focus, 3), max(effort, 3), max(confidence, 3))
 
         case "game":
@@ -157,9 +152,7 @@ final class DailyEntryViewModel {
                 .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }.count
             let effort = max(min(base + normalizedStat + (reflectionBonus > 1 ? 1 : 0), 9), 2)
 
-            let universalBonus = [didWell, improveNext, proudMoment]
-                .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }.count
-            let confidence = max(min(base + normalizedStat + (universalBonus > 1 ? 1 : 0), 9), 2)
+            let confidence = max(min(base + normalizedStat + (reflectionBonus > 2 ? 1 : 0), 9), 2)
 
             return (focus, effort, confidence)
 
@@ -167,12 +160,10 @@ final class DailyEntryViewModel {
             let activityCount = recoveryActivities.count
             let studied = sportStudy == "Watched match film" || sportStudy == "Studied tactics"
             let hasFocus = !restTomorrowFocus.trimmingCharacters(in: .whitespaces).isEmpty
-            let reflections = [didWell, improveNext, proudMoment]
-                .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }.count
 
             let focus = max(min(4 + activityCount + (studied ? 1 : 0), 8), 4)
             let effort = max(min(4 + activityCount + (hasFocus ? 1 : 0), 8), 4)
-            let confidence = max(min(4 + reflections + (studied ? 1 : 0), 8), 4)
+            let confidence = max(min(4 + activityCount + (studied ? 1 : 0) + (hasFocus ? 1 : 0), 8), 4)
             return (focus, effort, confidence)
 
         default:
@@ -480,17 +471,6 @@ struct DailyEntryFlowView: View {
                 isOptional: true
             )
 
-        case .universalReflections:
-            UniversalReflectionsView(
-                didWell: $viewModel.didWell,
-                improveNext: $viewModel.improveNext,
-                proudMoment: $viewModel.proudMoment,
-                onSubmit: { submitEntry() },
-                onBack: { viewModel.previousStep() },
-                isSubmitting: viewModel.isSubmitting,
-                errorMessage: viewModel.errorMessage
-            )
-
         case .submitting:
             if let response = viewModel.submittedResponse {
                 EntrySubmittedView(
@@ -504,6 +484,7 @@ struct DailyEntryFlowView: View {
                 )
             } else {
                 LoadingView(message: "Saving your entry...")
+                    .task { submitEntry() }
             }
         }
     }

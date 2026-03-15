@@ -6,6 +6,7 @@ final class SubscriptionService {
     static let shared = SubscriptionService()
 
     var isPremium = false
+    var statusChecked = false
     var subscriptionStatus: SubscriptionStatus?
 
     static let monthlyProductId = "com.hakanalsancak.ican.premium.monthly"
@@ -18,6 +19,7 @@ final class SubscriptionService {
         )
         subscriptionStatus = status
         isPremium = status.isPremium
+        statusChecked = true
     }
 
     func verifyReceipt(transactionId: String, productId: String, originalTransactionId: String?, jwsRepresentation: String) async throws {
@@ -94,6 +96,7 @@ final class SubscriptionService {
 
     func resetForSignOut() {
         isPremium = false
+        statusChecked = false
         subscriptionStatus = nil
     }
 

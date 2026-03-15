@@ -25,7 +25,7 @@ final class FriendService {
         try await APIClient.shared.request(APIEndpoints.Friends.requests)
     }
 
-    func sendFriendRequest(receiverId: String) async throws -> FriendActionResponse {
+    func sendFriendRequest(receiverId: String) async throws -> SendFriendRequestResponse {
         let body = ["receiverId": receiverId]
         return try await APIClient.shared.request(
             APIEndpoints.Friends.sendRequest, method: "POST", body: body

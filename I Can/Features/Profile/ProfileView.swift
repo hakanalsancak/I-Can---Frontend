@@ -5,6 +5,7 @@ struct ProfileView: View {
     @State private var subscriptionShimmer: CGFloat = -1
     @State private var showAccountUpgrade = false
     @State private var showFeedback = false
+    @State private var showBugReport = false
     @State private var headerAppeared = false
     @State private var cardsAppeared = false
     @Environment(\.colorScheme) private var colorScheme
@@ -53,6 +54,9 @@ struct ProfileView: View {
 
                         feedbackCard
                             .opacity(cardsAppeared ? 1 : 0)
+
+                        bugReportCard
+                            .opacity(cardsAppeared ? 1 : 0)
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 20)
@@ -95,6 +99,9 @@ struct ProfileView: View {
             }
             .sheet(isPresented: $showFeedback) {
                 FeedbackView()
+            }
+            .sheet(isPresented: $showBugReport) {
+                BugReportView()
             }
         }
     }
@@ -658,6 +665,50 @@ struct ProfileView: View {
                         .font(.system(size: 15, weight: .bold).width(.condensed))
                         .foregroundColor(ColorTheme.primaryText(colorScheme))
                     Text("Help us improve I Can")
+                        .font(.system(size: 12, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+            }
+            .padding(16)
+            .background(ColorTheme.cardBackground(colorScheme))
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(ColorTheme.separator(colorScheme), lineWidth: 1)
+            )
+            .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Bug Report Card
+
+    private var bugReportCard: some View {
+        Button {
+            HapticManager.selection()
+            showBugReport = true
+        } label: {
+            HStack(spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color(hex: "EF4444").opacity(0.15))
+                        .frame(width: 42, height: 42)
+                    Image(systemName: "ladybug.fill")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(Color(hex: "EF4444"))
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Report a Bug")
+                        .font(.system(size: 15, weight: .bold).width(.condensed))
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    Text("Let us know if something is broken")
                         .font(.system(size: 12, weight: .medium).width(.condensed))
                         .foregroundColor(ColorTheme.secondaryText(colorScheme))
                 }

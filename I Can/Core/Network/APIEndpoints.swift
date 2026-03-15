@@ -15,6 +15,8 @@ enum APIEndpoints {
         static let onboarding = "/api/auth/onboarding"
         static let profile = "/api/auth/profile"
         static let logout = "/api/auth/logout"
+        static let linkApple = "/api/auth/link-apple"
+        static let linkGoogle = "/api/auth/link-google"
         static let deleteAccount = "/api/auth/account"
     }
 

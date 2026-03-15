@@ -20,7 +20,7 @@ struct User: Codable, Identifiable {
 
     var isGuest: Bool {
         guard let email = email else { return true }
-        return email.hasPrefix("guest_") && email.hasSuffix("@ican.app")
+        return email.hasPrefix("guest_") && (email.hasSuffix("@ican.app") || email.hasSuffix("@guest.ican.app"))
     }
 }
 

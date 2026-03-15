@@ -14,7 +14,7 @@ struct JournalView: View {
 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 20) {
-                        if !SubscriptionService.shared.isPremium {
+                        if SubscriptionService.shared.statusChecked && !SubscriptionService.shared.isPremium {
                             AIReportPromoCard(style: .journal) {
                                 showSubscription = true
                             }

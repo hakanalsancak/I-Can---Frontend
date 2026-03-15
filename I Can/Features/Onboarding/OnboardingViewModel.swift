@@ -40,6 +40,8 @@ final class OnboardingViewModel {
     var isLoading = false
     var errorMessage: String?
     var showLogin = false
+    var signInAuthorization: ASAuthorization?
+    var pendingGoogleSignIn = false
 
     let sports = [
         ("soccer", "Soccer", "sportscourt"),
@@ -79,15 +81,21 @@ final class OnboardingViewModel {
 
         isLoading = true
         errorMessage = nil
+        let wasAuthenticated = AuthService.shared.isAuthenticated
         do {
             try await AuthService.shared.signInWithApple(
-                identityToken: token, fullName: credential.fullName
+                identityToken: token, fullName: credential.fullName,
+                activate: skipCompleteOnboardingAfterSocialAuth
             )
             AnalyticsManager.log("user_signed_up", parameters: ["method": "apple"])
             if !skipCompleteOnboardingAfterSocialAuth {
                 try await completeOnboarding()
+                AuthService.shared.activateSession()
             }
         } catch {
+            if !wasAuthenticated {
+                AuthService.shared.deactivatePendingSession()
+            }
             errorMessage = error.localizedDescription
         }
         isLoading = false
@@ -104,6 +112,7 @@ final class OnboardingViewModel {
 
         isLoading = true
         errorMessage = nil
+        let wasAuthenticated = AuthService.shared.isAuthenticated
 
         do {
             let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootVC)
@@ -113,15 +122,22 @@ final class OnboardingViewModel {
                 return
             }
 
-            try await AuthService.shared.signInWithGoogle(idToken: idToken)
+            try await AuthService.shared.signInWithGoogle(
+                idToken: idToken,
+                activate: skipCompleteOnboardingAfterSocialAuth
+            )
             AnalyticsManager.log("user_signed_up", parameters: ["method": "google"])
             if !skipCompleteOnboardingAfterSocialAuth {
                 try await completeOnboarding()
+                AuthService.shared.activateSession()
             }
         } catch {
             if (error as NSError).code == GIDSignInError.canceled.rawValue {
                 errorMessage = nil
             } else {
+                if !wasAuthenticated {
+                    AuthService.shared.deactivatePendingSession()
+                }
                 errorMessage = error.localizedDescription
             }
         }
@@ -136,13 +152,16 @@ final class OnboardingViewModel {
         errorMessage = nil
         do {
             try await AuthService.shared.register(
-                email: "guest_\(UUID().uuidString.prefix(8))@ican.app",
+                email: "guest_\(UUID().uuidString.prefix(8))@guest.ican.app",
                 password: UUID().uuidString,
-                fullName: athleteName.isEmpty ? nil : athleteName
+                fullName: athleteName.isEmpty ? nil : athleteName,
+                activate: false
             )
             AnalyticsManager.log("user_signed_up", parameters: ["method": "guest"])
             try await completeOnboarding()
+            AuthService.shared.activateSession()
         } catch {
+            AuthService.shared.deactivatePendingSession()
             errorMessage = "Could not connect to server. Please try again."
         }
         isLoading = false

@@ -4,17 +4,22 @@ enum FeedbackService {
     struct FeedbackRequest: Encodable {
         let message: String
         let email: String?
+        let type: String?
     }
 
     struct FeedbackResponse: Decodable {
         let success: Bool
     }
 
-    static func submit(message: String, email: String?) async throws {
+    static func submit(message: String, email: String?, type: String = "feedback") async throws {
         let _: FeedbackResponse = try await APIClient.shared.request(
             APIEndpoints.Feedback.base,
             method: "POST",
-            body: FeedbackRequest(message: message, email: email?.isEmpty == true ? nil : email)
+            body: FeedbackRequest(
+                message: message,
+                email: email?.isEmpty == true ? nil : email,
+                type: type
+            )
         )
     }
 }

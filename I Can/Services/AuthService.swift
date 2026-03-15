@@ -9,17 +9,17 @@ final class AuthService {
     private(set) var isAuthenticated = TokenManager.shared.isAuthenticated
     var hasCompletedOnboarding: Bool { currentUser?.onboardingCompleted ?? false }
 
-    func register(email: String, password: String, fullName: String?) async throws {
+    func register(email: String, password: String, fullName: String?, activate: Bool = true) async throws {
         let request = RegisterRequest(email: email, password: password, fullName: fullName)
         let response: AuthResponse = try await APIClient.shared.request(
             APIEndpoints.Auth.register, method: "POST", body: request, authenticated: false
         )
         TokenManager.shared.saveTokens(access: response.accessToken, refresh: response.refreshToken)
         currentUser = response.user
-        isAuthenticated = true
+        if activate { isAuthenticated = true }
     }
 
-    func signInWithApple(identityToken: String, fullName: PersonNameComponents?) async throws {
+    func signInWithApple(identityToken: String, fullName: PersonNameComponents?, activate: Bool = true) async throws {
         let name = fullName.map {
             AppleSignInRequest.FullName(givenName: $0.givenName, familyName: $0.familyName)
         }
@@ -29,17 +29,47 @@ final class AuthService {
         )
         TokenManager.shared.saveTokens(access: response.accessToken, refresh: response.refreshToken)
         currentUser = response.user
-        isAuthenticated = true
+        if activate { isAuthenticated = true }
     }
 
-    func signInWithGoogle(idToken: String) async throws {
+    func signInWithGoogle(idToken: String, activate: Bool = true) async throws {
         let request = GoogleSignInRequest(idToken: idToken)
         let response: AuthResponse = try await APIClient.shared.request(
             APIEndpoints.Auth.google, method: "POST", body: request, authenticated: false
         )
         TokenManager.shared.saveTokens(access: response.accessToken, refresh: response.refreshToken)
         currentUser = response.user
+        if activate { isAuthenticated = true }
+    }
+
+    /// Call after deferred auth + onboarding to finalize the session.
+    func activateSession() {
         isAuthenticated = true
+    }
+
+    /// Discard saved tokens/user when a deferred auth flow fails.
+    func deactivatePendingSession() {
+        TokenManager.shared.clearTokens()
+        currentUser = nil
+    }
+
+    func linkAppleAccount(identityToken: String, fullName: PersonNameComponents?) async throws {
+        let name = fullName.map {
+            AppleSignInRequest.FullName(givenName: $0.givenName, familyName: $0.familyName)
+        }
+        let request = AppleSignInRequest(identityToken: identityToken, fullName: name)
+        let user: User = try await APIClient.shared.request(
+            APIEndpoints.Auth.linkApple, method: "PUT", body: request
+        )
+        currentUser = user
+    }
+
+    func linkGoogleAccount(idToken: String) async throws {
+        let request = GoogleSignInRequest(idToken: idToken)
+        let user: User = try await APIClient.shared.request(
+            APIEndpoints.Auth.linkGoogle, method: "PUT", body: request
+        )
+        currentUser = user
     }
 
     func completeOnboarding(

@@ -1,5 +1,6 @@
 import Foundation
 
+@MainActor
 @Observable
 final class FriendsViewModel {
     var friends: [AthleteProfile] = []
@@ -58,13 +59,16 @@ final class FriendsViewModel {
     }
 
     func sendRequest(to userId: String) async {
+        guard let idx = searchResults.firstIndex(where: { $0.id == userId }) else { return }
+
+        let previousStatus = searchResults[idx].friendStatus
+        searchResults[idx].friendStatus = "pending"
+
         do {
             _ = try await FriendService.shared.sendFriendRequest(receiverId: userId)
             AnalyticsManager.log("friend_added", parameters: ["target_user_id": userId])
-            if let idx = searchResults.firstIndex(where: { $0.id == userId }) {
-                searchResults[idx].friendStatus = "pending"
-            }
         } catch {
+            searchResults[idx].friendStatus = previousStatus
             errorMessage = error.localizedDescription
         }
     }
