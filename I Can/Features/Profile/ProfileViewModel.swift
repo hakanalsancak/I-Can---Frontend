@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 import PhotosUI
 
+@MainActor
 @Observable
 final class ProfileViewModel {
     var user: User? { AuthService.shared.currentUser }
@@ -21,8 +22,8 @@ final class ProfileViewModel {
         isLoading = true
         async let streakTask: () = loadStreak()
         async let subTask: () = loadSubscription()
-        _ = await (streakTask, subTask)
-        loadProfilePhoto()
+        async let photoTask: () = loadProfilePhotoAsync()
+        _ = await (streakTask, subTask, photoTask)
         isLoading = false
     }
 
@@ -104,6 +105,18 @@ final class ProfileViewModel {
               let data = try? Data(contentsOf: url),
               let image = UIImage(data: data) else { return }
         profileImage = image
+    }
+
+    private func loadProfilePhotoAsync() async {
+        guard let userId = user?.id,
+              let url = Self.photoURL(for: userId) else { return }
+        let image = await Task.detached(priority: .userInitiated) {
+            guard let data = try? Data(contentsOf: url) else { return nil as UIImage? }
+            return UIImage(data: data)
+        }.value
+        if let image {
+            profileImage = image
+        }
     }
 
     func saveProfilePhoto(_ image: UIImage) {

@@ -40,9 +40,9 @@ struct JournalView: View {
             }
             .background(ColorTheme.background(colorScheme).ignoresSafeArea())
             .navigationBarHidden(true)
-            .task { await viewModel.loadEntries() }
+            .task { viewModel.loadEntries() }
             .onChange(of: viewModel.currentMonth) { _, _ in
-                Task { await viewModel.loadEntries() }
+                viewModel.loadEntries()
             }
             .sheet(isPresented: $showSubscription, onDismiss: {
                 Task { try? await SubscriptionService.shared.checkStatus() }

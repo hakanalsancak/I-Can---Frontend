@@ -5,16 +5,17 @@ final class FriendService {
     private init() {}
 
     func searchUsers(query: String) async throws -> [AthleteProfile] {
-        try await APIClient.shared.request(
-            "\(APIEndpoints.Friends.search)?q=\(query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query)"
-        )
+        var components = URLComponents()
+        components.path = APIEndpoints.Friends.search
+        components.queryItems = [URLQueryItem(name: "q", value: query)]
+        return try await APIClient.shared.request(components.string ?? APIEndpoints.Friends.search)
     }
 
     func checkUsername(_ username: String) async throws -> UsernameCheck {
-        try await APIClient.shared.request(
-            "\(APIEndpoints.Friends.checkUsername)?username=\(username.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? username)",
-            authenticated: false
-        )
+        var components = URLComponents()
+        components.path = APIEndpoints.Friends.checkUsername
+        components.queryItems = [URLQueryItem(name: "username", value: username)]
+        return try await APIClient.shared.request(components.string ?? APIEndpoints.Friends.checkUsername, authenticated: false)
     }
 
     func getFriends() async throws -> [AthleteProfile] {

@@ -15,12 +15,12 @@ final class SubscriptionService {
     static let productIds: [String] = [monthlyProductId, yearlyProductId]
 
     func checkStatus() async throws {
+        defer { statusChecked = true }
         let status: SubscriptionStatus = try await APIClient.shared.request(
             APIEndpoints.Subscriptions.status
         )
         subscriptionStatus = status
         isPremium = status.isPremium
-        statusChecked = true
     }
 
     func verifyReceipt(transactionId: String, productId: String, originalTransactionId: String?, jwsRepresentation: String) async throws {

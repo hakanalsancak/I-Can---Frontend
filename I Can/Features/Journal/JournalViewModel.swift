@@ -1,5 +1,6 @@
 import Foundation
 
+@MainActor
 @Observable
 final class JournalViewModel {
     var entries: [DailyEntry] = []
@@ -7,6 +8,8 @@ final class JournalViewModel {
     var selectedEntry: DailyEntry?
     var isLoading = false
     var currentMonth: Date = Date()
+
+    private var loadTask: Task<Void, Never>?
 
     var entryDates: Set<String> {
         Set(entries.map { $0.entryDate })
@@ -37,26 +40,32 @@ final class JournalViewModel {
         return formatter.string(from: currentMonth)
     }
 
-    func loadEntries() async {
-        isLoading = true
-        defer { isLoading = false }
+    func loadEntries() {
+        loadTask?.cancel()
+        loadTask = Task {
+            isLoading = true
+            defer { isLoading = false }
 
-        let calendar = Calendar.current
-        guard let firstDay = calendar.date(from: calendar.dateComponents([.year, .month], from: currentMonth)),
-              let lastDay = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: firstDay)
-        else { return }
+            let calendar = Calendar.current
+            guard let firstDay = calendar.date(from: calendar.dateComponents([.year, .month], from: currentMonth)),
+                  let lastDay = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: firstDay)
+            else { return }
 
-        do {
-            entries = try await EntryService.shared.getEntries(
-                startDate: firstDay.apiDateString,
-                endDate: lastDay.apiDateString,
-                limit: 31
-            )
-            let dateStr = selectedDate.apiDateString
-            selectedEntry = entries.first { $0.entryDate == dateStr }
-        } catch {
-            entries = []
-            selectedEntry = nil
+            do {
+                let fetched = try await EntryService.shared.getEntries(
+                    startDate: firstDay.apiDateString,
+                    endDate: lastDay.apiDateString,
+                    limit: 31
+                )
+                guard !Task.isCancelled else { return }
+                entries = fetched
+                let dateStr = selectedDate.apiDateString
+                selectedEntry = entries.first { $0.entryDate == dateStr }
+            } catch {
+                guard !Task.isCancelled else { return }
+                entries = []
+                selectedEntry = nil
+            }
         }
     }
 

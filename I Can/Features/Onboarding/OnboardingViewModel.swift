@@ -21,6 +21,7 @@ enum OnboardingStep: Int, CaseIterable {
     case accountCreation
 }
 
+@MainActor
 @Observable
 final class OnboardingViewModel {
     var currentStep: OnboardingStep = .welcome
