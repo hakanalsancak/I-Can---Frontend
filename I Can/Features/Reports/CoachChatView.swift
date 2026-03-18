@@ -195,12 +195,13 @@ struct CoachChatView: View {
     // MARK: - Messages List
 
     private var messagesList: some View {
+        GeometryReader { geometry in
         ScrollViewReader { proxy in
             ScrollView(showsIndicators: false) {
                 LazyVStack(spacing: 4) {
                     ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
                         let showAvatar = shouldShowAvatar(at: index)
-                        messageBubble(message, showAvatar: showAvatar)
+                        messageBubble(message, showAvatar: showAvatar, containerWidth: geometry.size.width)
                             .id(message.id)
                             .transition(.asymmetric(
                                 insertion: .opacity.combined(with: .offset(y: 12)).combined(with: .scale(scale: 0.97)),
@@ -243,6 +244,7 @@ struct CoachChatView: View {
                 }
             }
         }
+        }
     }
 
     private func shouldShowAvatar(at index: Int) -> Bool {
@@ -253,7 +255,7 @@ struct CoachChatView: View {
         return messages[index - 1].isUser
     }
 
-    private func messageBubble(_ message: ChatMessage, showAvatar: Bool) -> some View {
+    private func messageBubble(_ message: ChatMessage, showAvatar: Bool, containerWidth: CGFloat = 350) -> some View {
         HStack(alignment: .bottom, spacing: 8) {
             if !message.isUser {
                 if showAvatar {
@@ -300,7 +302,7 @@ struct CoachChatView: View {
                     .padding(.horizontal, 6)
                     .padding(.top, 1)
             }
-            .frame(maxWidth: UIScreen.main.bounds.width * 0.78, alignment: message.isUser ? .trailing : .leading)
+            .frame(maxWidth: containerWidth * 0.78, alignment: message.isUser ? .trailing : .leading)
 
             if message.isUser {
                 Spacer(minLength: 0)

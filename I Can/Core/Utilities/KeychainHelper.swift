@@ -11,7 +11,11 @@ enum KeychainHelper {
         ]
         SecItemDelete(query as CFDictionary)
         let status = SecItemAdd(query as CFDictionary, nil)
-        assert(status == errSecSuccess, "Keychain save failed for key '\(key)': \(status)")
+        if status != errSecSuccess {
+            #if DEBUG
+            print("Keychain save failed for key '\(key)': \(status)")
+            #endif
+        }
     }
 
     static func save(_ string: String, forKey key: String) {

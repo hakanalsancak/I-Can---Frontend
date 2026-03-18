@@ -75,7 +75,8 @@ struct SettingsView: View {
                 Button("Cancel", role: .cancel) {}
                 Button("Sign Out", role: .destructive) {
                     dismiss()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    Task {
+                        try? await Task.sleep(for: .milliseconds(300))
                         AuthService.shared.signOut()
                     }
                 }

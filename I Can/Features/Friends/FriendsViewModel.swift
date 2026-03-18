@@ -44,7 +44,7 @@ final class FriendsViewModel {
             try? await Task.sleep(for: .milliseconds(400))
             guard !Task.isCancelled, current == searchText else { return }
 
-            AnalyticsManager.log("friend_search", parameters: ["query": current])
+            AnalyticsManager.log("friend_search", parameters: ["query_length": current.count])
             do {
                 let results = try await FriendService.shared.searchUsers(query: current)
                 guard !Task.isCancelled else { return }
