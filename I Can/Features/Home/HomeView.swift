@@ -110,7 +110,7 @@ struct HomeView: View {
     @State private var quoteOpacity: Double = 1
     @State private var showSubscription = false
     @State private var showBreathing = false
-    @State private var showLeaderboard = false
+
     @State private var showEntryDetail = false
     @State private var editingEntry = false
     @State private var heroAppeared = false
@@ -161,9 +161,7 @@ struct HomeView: View {
             }) {
                 SubscriptionView()
             }
-            .sheet(isPresented: $showLeaderboard) {
-                LeaderboardView()
-            }
+
             .fullScreenCover(isPresented: $showBreathing) {
                 BreathingExerciseView()
             }
@@ -205,8 +203,6 @@ struct HomeView: View {
 
                 HStack(spacing: 10) {
                     streakBadge
-
-                    rankingBadge
                 }
             }
             .padding(.horizontal, 20)
@@ -249,27 +245,6 @@ struct HomeView: View {
         .padding(.vertical, 6)
         .background(Color(hex: "F97316").opacity(0.1))
         .clipShape(Capsule())
-    }
-
-    private var rankingBadge: some View {
-        Button {
-            HapticManager.impact(.light)
-            showLeaderboard = true
-        } label: {
-            HStack(spacing: 4) {
-                Image(systemName: "trophy.fill")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(Color(hex: "EAB308"))
-                Text("Rankings")
-                    .font(.system(size: 13, weight: .heavy).width(.condensed))
-                    .foregroundColor(ColorTheme.primaryText(colorScheme))
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(Color(hex: "EAB308").opacity(0.1))
-            .clipShape(Capsule())
-        }
-        .buttonStyle(.plain)
     }
 
     // MARK: - Mantra Card
