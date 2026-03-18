@@ -39,11 +39,15 @@ final class ProfileViewModel {
         } catch { }
     }
 
-    func saveMantra(_ mantra: String) async {
+    func saveMantra(_ mantra: String) async -> Bool {
         do {
             try await AuthService.shared.updateMantra(mantra)
             HapticManager.notification(.success)
-        } catch {}
+            return true
+        } catch {
+            HapticManager.notification(.error)
+            return false
+        }
     }
 
     func saveProfile(

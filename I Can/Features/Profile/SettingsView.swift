@@ -13,6 +13,7 @@ struct SettingsView: View {
     @State private var isDeleting = false
     @State private var deleteError: String?
     @State private var showMailComposer = false
+    @State private var saveError: String?
 
     private var currentUsername: String {
         AuthService.shared.currentUser?.username ?? ""
@@ -31,6 +32,16 @@ struct SettingsView: View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 24) {
+                    if let saveError {
+                        Text(saveError)
+                            .font(.system(size: 13, weight: .medium).width(.condensed))
+                            .foregroundColor(.red)
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.red.opacity(0.08))
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
+
                     appearanceSection
                     notificationSection
                     contactSection
@@ -199,7 +210,7 @@ struct SettingsView: View {
                     .font(.system(size: 15, weight: .medium).width(.condensed))
                     .foregroundColor(ColorTheme.primaryText(colorScheme))
                 Spacer()
-                Text("1.0.0")
+                Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0")
                     .font(Typography.subheadline)
                     .foregroundColor(ColorTheme.secondaryText(colorScheme))
             }
@@ -425,6 +436,7 @@ struct SettingsView: View {
 
     private func saveSettings() async {
         isSaving = true
+        saveError = nil
         do {
             try await AuthService.shared.completeOnboarding(
                 sport: AuthService.shared.currentUser?.sport ?? "soccer",
@@ -437,7 +449,9 @@ struct SettingsView: View {
                 frequency: Int(notificationFrequency)
             )
             dismiss()
-        } catch {}
+        } catch {
+            saveError = "Failed to save settings. Please try again."
+        }
         isSaving = false
     }
 

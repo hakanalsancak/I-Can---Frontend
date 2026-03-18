@@ -95,12 +95,17 @@ final class AuthService {
     func loadProfile() async throws {
         let user: User = try await APIClient.shared.request(APIEndpoints.Auth.profile)
         currentUser = user
+    }
 
-        if user.country == nil, let deviceCountry = Locale.current.region?.identifier {
-            let body = ["country": deviceCountry]
-            let updated: User = try await APIClient.shared.request(
-                APIEndpoints.Auth.profile, method: "PUT", body: body
-            )
+    /// Sets the user's country from device locale if not already set.
+    /// Called explicitly during onboarding so the user is aware.
+    func setCountryIfNeeded() async {
+        guard let user = currentUser, user.country == nil,
+              let deviceCountry = Locale.current.region?.identifier else { return }
+        let body = ["country": deviceCountry]
+        if let updated: User = try? await APIClient.shared.request(
+            APIEndpoints.Auth.profile, method: "PUT", body: body
+        ) {
             currentUser = updated
         }
     }

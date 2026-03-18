@@ -413,15 +413,17 @@ struct CoachChatView: View {
         HapticManager.impact(.light)
 
         Task {
-            try? await Task.sleep(for: .milliseconds(400))
-            withAnimation(.easeOut(duration: 0.25)) {
-                isLoading = true
+            // Show typing indicator after a short delay, but cancel if the response arrives first
+            let loadingTask = Task {
+                try await Task.sleep(for: .milliseconds(400))
+                withAnimation(.easeOut(duration: 0.25)) {
+                    isLoading = true
+                }
             }
-        }
 
-        Task {
             do {
                 let reply = try await ChatService.shared.send(message: text, history: messages)
+                loadingTask.cancel()
                 let coachMessage = ChatMessage(role: "assistant", content: reply)
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
                     isLoading = false
@@ -429,6 +431,7 @@ struct CoachChatView: View {
                 }
                 HapticManager.impact(.light)
             } catch {
+                loadingTask.cancel()
                 let errMsg = ChatMessage(
                     role: "assistant",
                     content: "Sorry, I couldn't respond right now. Try again in a sec."

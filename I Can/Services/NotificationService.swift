@@ -6,7 +6,7 @@ import UserNotifications
 final class NotificationService {
     static let shared = NotificationService()
 
-    private static let streakReminderID = "streak-reminder"
+    private static let streakReminderPrefix = "streak-reminder"
 
     private let reminderMessages = [
         ("Don't break the chain!", "You haven't logged today. Keep your streak alive."),
@@ -45,38 +45,43 @@ final class NotificationService {
         )
     }
 
-    /// Schedules a daily 8 PM local notification reminding the user to log.
+    /// Schedules streak reminders for the next 7 days at 8 PM, each with a different random message.
     func scheduleStreakReminder() {
         let center = UNUserNotificationCenter.current()
-        center.removePendingNotificationRequests(withIdentifiers: [Self.streakReminderID])
+        cancelStreakReminder()
 
-        let pick = reminderMessages[Int.random(in: 0..<reminderMessages.count)]
+        let calendar = Calendar.current
+        let today = Date()
 
-        let content = UNMutableNotificationContent()
-        content.title = pick.0
-        content.body = pick.1
-        content.sound = .default
+        for dayOffset in 0..<7 {
+            guard let targetDate = calendar.date(byAdding: .day, value: dayOffset, to: today) else { continue }
+            let pick = reminderMessages[Int.random(in: 0..<reminderMessages.count)]
 
-        var dateComponents = DateComponents()
-        dateComponents.hour = 20
-        dateComponents.minute = 0
+            let content = UNMutableNotificationContent()
+            content.title = pick.0
+            content.body = pick.1
+            content.sound = .default
 
-        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
-        let request = UNNotificationRequest(
-            identifier: Self.streakReminderID,
-            content: content,
-            trigger: trigger
-        )
+            var dateComponents = calendar.dateComponents([.year, .month, .day], from: targetDate)
+            dateComponents.hour = 20
+            dateComponents.minute = 0
 
-        center.add(request) { error in
-            assert(error == nil, "Failed to schedule streak reminder: \(error!.localizedDescription)")
+            let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
+            let request = UNNotificationRequest(
+                identifier: "\(Self.streakReminderPrefix)-\(dayOffset)",
+                content: content,
+                trigger: trigger
+            )
+
+            center.add(request) { _ in }
         }
     }
 
-    /// Cancels today's streak reminder (called after the user logs their entry).
+    /// Cancels all pending streak reminders (called after the user logs their entry).
     func cancelStreakReminder() {
+        let ids = (0..<7).map { "\(Self.streakReminderPrefix)-\($0)" }
         UNUserNotificationCenter.current()
-            .removePendingNotificationRequests(withIdentifiers: [Self.streakReminderID])
+            .removePendingNotificationRequests(withIdentifiers: ids)
     }
 
     private init() {}

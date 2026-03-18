@@ -39,6 +39,8 @@ final class JournalViewModel {
 
     func loadEntries() async {
         isLoading = true
+        defer { isLoading = false }
+
         let calendar = Calendar.current
         guard let firstDay = calendar.date(from: calendar.dateComponents([.year, .month], from: currentMonth)),
               let lastDay = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: firstDay)
@@ -56,7 +58,6 @@ final class JournalViewModel {
             entries = []
             selectedEntry = nil
         }
-        isLoading = false
     }
 
     func selectDate(_ date: Date) {

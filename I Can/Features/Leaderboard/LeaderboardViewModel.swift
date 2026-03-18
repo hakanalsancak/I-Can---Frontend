@@ -44,7 +44,8 @@ final class LeaderboardViewModel {
     }
 
     func loadAll() async {
-        await loadGlobal()
-        await loadCountry()
+        async let globalTask: () = loadGlobal()
+        async let countryTask: () = loadCountry()
+        _ = await (globalTask, countryTask)
     }
 }

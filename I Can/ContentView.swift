@@ -88,6 +88,7 @@ struct ContentView: View {
         if authService.isAuthenticated {
             do {
                 try await authService.loadProfile()
+                await authService.setCountryIfNeeded()
                 try? await SubscriptionService.shared.checkStatus()
                 await MainActor.run { showMaintenance = false }
             } catch {
