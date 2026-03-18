@@ -6,10 +6,13 @@ import CryptoKit
 private final class PinningDelegate: NSObject, URLSessionDelegate, Sendable {
     // SHA-256 fingerprint of the server's leaf certificate (base64-encoded).
     // Update this when you rotate your TLS certificate.
-    // To obtain: openssl s_client -connect your-app.onrender.com:443 </dev/null 2>/dev/null \
+    // To obtain: openssl s_client -connect i-can-backend.onrender.com:443 </dev/null 2>/dev/null \
     //   | openssl x509 -noout -pubkey | openssl pkey -pubin -outform der \
     //   | openssl dgst -sha256 -binary | base64
-    private static let pinnedPublicKeyHash: String? = nil // Set to your actual hash in production
+    //
+    // TODO: Run the command above and paste the result here before shipping to production.
+    // While this is nil, the app relies on default system TLS validation only.
+    private static let pinnedPublicKeyHash: String? = nil
 
     func urlSession(
         _ session: URLSession,
@@ -36,7 +39,8 @@ private final class PinningDelegate: NSObject, URLSessionDelegate, Sendable {
         }
 
         // Extract the leaf certificate's public key and hash it
-        guard let certificate = SecTrustGetCertificateAtIndex(serverTrust, 0),
+        guard let chain = SecTrustCopyCertificateChain(serverTrust) as? [SecCertificate],
+              let certificate = chain.first,
               let publicKey = SecCertificateCopyKey(certificate),
               let publicKeyData = SecKeyCopyExternalRepresentation(publicKey, nil) as Data? else {
             completionHandler(.cancelAuthenticationChallenge, nil)
@@ -54,14 +58,41 @@ private final class PinningDelegate: NSObject, URLSessionDelegate, Sendable {
     }
 }
 
+// MARK: - Token Refresh Coordinator
+
+/// Ensures only one token refresh happens at a time across concurrent requests.
+private actor TokenRefreshCoordinator {
+    private var activeRefresh: Task<Void, Error>?
+
+    func refresh(using refreshAction: @escaping @Sendable () async throws -> Void) async throws {
+        // If a refresh is already in progress, wait for it instead of starting another
+        if let existing = activeRefresh {
+            try await existing.value
+            return
+        }
+
+        let task = Task { try await refreshAction() }
+        activeRefresh = task
+
+        do {
+            try await task.value
+            activeRefresh = nil
+        } catch {
+            activeRefresh = nil
+            throw error
+        }
+    }
+}
+
 // MARK: - API Client
 
-final class APIClient: Sendable {
+final class APIClient: @unchecked Sendable {
     static let shared = APIClient()
 
     private let session: URLSession
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
+    private let refreshCoordinator = TokenRefreshCoordinator()
 
     private init() {
         let config = URLSessionConfiguration.default
@@ -106,7 +137,9 @@ final class APIClient: Sendable {
 
         if httpResponse.statusCode == 401, authenticated {
             do {
-                try await refreshAccessToken()
+                try await refreshCoordinator.refresh { [self] in
+                    try await self.refreshAccessToken()
+                }
                 if let newToken = TokenManager.shared.accessToken {
                     var retryRequest = urlRequest
                     retryRequest.setValue("Bearer \(newToken)", forHTTPHeaderField: "Authorization")

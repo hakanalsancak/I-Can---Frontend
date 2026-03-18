@@ -1,6 +1,8 @@
 import Foundation
 
 enum APIEndpoints {
+    // NOTE: DEBUG and RELEASE both use the same backend.
+    // When a staging server is available, update the DEBUG URL to separate environments.
     #if DEBUG
     static let baseURL = "https://i-can-backend.onrender.com"
     #else

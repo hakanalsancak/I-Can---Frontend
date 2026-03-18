@@ -1,6 +1,7 @@
 import Foundation
 import StoreKit
 
+@MainActor
 @Observable
 final class SubscriptionService {
     static let shared = SubscriptionService()

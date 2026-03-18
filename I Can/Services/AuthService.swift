@@ -1,6 +1,7 @@
 import Foundation
 import AuthenticationServices
 
+@MainActor
 @Observable
 final class AuthService {
     static let shared = AuthService()
@@ -144,21 +145,27 @@ final class AuthService {
     }
 
     func signOut() {
-        // Best-effort: revoke refresh token on the server so it can't be reused after logout
-        if let refreshToken = TokenManager.shared.refreshToken {
-            Task {
-                struct LogoutBody: Encodable { let refreshToken: String }
-                let _: [String: Bool] = (try? await APIClient.shared.request(
-                    APIEndpoints.Auth.logout,
-                    method: "POST",
-                    body: LogoutBody(refreshToken: refreshToken)
-                )) ?? [:]
-            }
-        }
+        // Capture tokens before clearing so the logout request can still use them
+        let refreshToken = TokenManager.shared.refreshToken
+
+        // Clear local state immediately so the UI reacts right away
         TokenManager.shared.clearTokens()
         currentUser = nil
         isAuthenticated = false
         SubscriptionService.shared.resetForSignOut()
+
+        // Best-effort: revoke refresh token on the server so it can't be reused after logout
+        if let refreshToken {
+            Task.detached {
+                struct LogoutBody: Encodable { let refreshToken: String }
+                let _: [String: Bool] = (try? await APIClient.shared.request(
+                    APIEndpoints.Auth.logout,
+                    method: "POST",
+                    body: LogoutBody(refreshToken: refreshToken),
+                    authenticated: false
+                )) ?? [:]
+            }
+        }
     }
 
     private init() {}

@@ -1,5 +1,6 @@
 import Foundation
 
+@MainActor
 @Observable
 final class ReportService {
     static let shared = ReportService()
