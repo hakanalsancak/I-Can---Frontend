@@ -5,17 +5,28 @@ final class FriendService {
     private init() {}
 
     func searchUsers(query: String) async throws -> [AthleteProfile] {
-        var components = URLComponents()
-        components.path = APIEndpoints.Friends.search
-        components.queryItems = [URLQueryItem(name: "q", value: query)]
-        return try await APIClient.shared.request(components.string ?? APIEndpoints.Friends.search)
+        let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
+        let endpoint = APIEndpoints.Friends.search + "?q=\(encoded)"
+        #if DEBUG
+        print("[FriendService] searchUsers endpoint: \(endpoint)")
+        #endif
+        do {
+            let results: [AthleteProfile] = try await APIClient.shared.request(endpoint)
+            #if DEBUG
+            print("[FriendService] searchUsers returned \(results.count) results")
+            #endif
+            return results
+        } catch {
+            #if DEBUG
+            print("[FriendService] searchUsers error: \(error)")
+            #endif
+            throw error
+        }
     }
 
     func checkUsername(_ username: String) async throws -> UsernameCheck {
-        var components = URLComponents()
-        components.path = APIEndpoints.Friends.checkUsername
-        components.queryItems = [URLQueryItem(name: "username", value: username)]
-        return try await APIClient.shared.request(components.string ?? APIEndpoints.Friends.checkUsername, authenticated: false)
+        let encoded = username.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? username
+        return try await APIClient.shared.request(APIEndpoints.Friends.checkUsername + "?username=\(encoded)", authenticated: false)
     }
 
     func getFriends() async throws -> [AthleteProfile] {

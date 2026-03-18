@@ -49,12 +49,12 @@ final class FriendsViewModel {
                 let results = try await FriendService.shared.searchUsers(query: current)
                 guard !Task.isCancelled else { return }
                 searchResults = results
-                isSearching = false
             } catch {
                 guard !Task.isCancelled else { return }
                 searchResults = []
-                isSearching = false
+                errorMessage = error.localizedDescription
             }
+            isSearching = false
         }
     }
 

@@ -87,19 +87,23 @@ struct AthleteProfileSheet: View {
                     )
                     .frame(width: 108, height: 108)
 
-                Text(String((p.fullName ?? "?").prefix(1)).uppercased())
-                    .font(.system(size: 42, weight: .heavy).width(.condensed))
-                    .foregroundColor(.white)
-                    .frame(width: 100, height: 100)
-                    .background(
-                        LinearGradient(
-                            colors: [ColorTheme.accent, Color(hex: "2A7A80")],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .clipShape(Circle())
-                    .shadow(color: ColorTheme.accent.opacity(0.4), radius: 16, x: 0, y: 6)
+                if let photoUrl = p.profilePhotoUrl, let url = URL(string: photoUrl) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 100, height: 100)
+                                .clipShape(Circle())
+                                .shadow(color: ColorTheme.accent.opacity(0.4), radius: 16, x: 0, y: 6)
+                        default:
+                            profileInitials(p)
+                        }
+                    }
+                } else {
+                    profileInitials(p)
+                }
             }
 
             VStack(spacing: 6) {
@@ -127,6 +131,22 @@ struct AthleteProfileSheet: View {
 
         }
         .padding(.horizontal, 20)
+    }
+
+    private func profileInitials(_ p: AthleteProfile) -> some View {
+        Text(String((p.fullName ?? "?").prefix(1)).uppercased())
+            .font(.system(size: 42, weight: .heavy).width(.condensed))
+            .foregroundColor(.white)
+            .frame(width: 100, height: 100)
+            .background(
+                LinearGradient(
+                    colors: [ColorTheme.accent, Color(hex: "2A7A80")],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .clipShape(Circle())
+            .shadow(color: ColorTheme.accent.opacity(0.4), radius: 16, x: 0, y: 6)
     }
 
     // MARK: - Badges Row

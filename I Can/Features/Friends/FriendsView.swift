@@ -40,6 +40,14 @@ struct FriendsView: View {
                         AnalyticsManager.log("profile_viewed", parameters: ["athlete_id": profile.id])
                     }
             }
+            .alert("Error", isPresented: Binding(
+                get: { viewModel.errorMessage != nil },
+                set: { if !$0 { viewModel.errorMessage = nil } }
+            )) {
+                Button("OK") { viewModel.errorMessage = nil }
+            } message: {
+                Text(viewModel.errorMessage ?? "")
+            }
         }
     }
 
@@ -51,14 +59,17 @@ struct FriendsView: View {
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundColor(isSearchFieldFocused ? ColorTheme.accent : ColorTheme.secondaryText(colorScheme))
 
-            TextField("Search by username or name...", text: $viewModel.searchText)
+            TextField("Search by username or name...", text: Binding(
+                get: { viewModel.searchText },
+                set: { newValue in
+                    viewModel.searchText = newValue
+                    viewModel.search(query: newValue)
+                }
+            ))
                 .font(.system(size: 16, weight: .medium).width(.condensed))
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
                 .focused($isSearchFieldFocused)
-                .onChange(of: viewModel.searchText) { _, newValue in
-                    viewModel.search(query: newValue)
-                }
 
             if !viewModel.searchText.isEmpty {
                 Button {
@@ -294,7 +305,7 @@ private struct SearchResultCard: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            RingAvatar(name: user.fullName, size: 48, colorScheme: colorScheme)
+            RingAvatar(name: user.fullName, photoUrl: user.profilePhotoUrl, size: 48, colorScheme: colorScheme)
                 .onTapGesture { onTap() }
 
             VStack(alignment: .leading, spacing: 3) {
@@ -407,7 +418,7 @@ private struct FriendRequestCard: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            RingAvatar(name: request.sender.fullName, size: 48, colorScheme: colorScheme)
+            RingAvatar(name: request.sender.fullName, photoUrl: request.sender.profilePhotoUrl, size: 48, colorScheme: colorScheme)
                 .onTapGesture { onTap() }
 
             VStack(alignment: .leading, spacing: 3) {
@@ -486,7 +497,7 @@ private struct FriendCard: View {
             onTap()
         } label: {
             HStack(spacing: 14) {
-                RingAvatar(name: friend.fullName, size: 54, colorScheme: colorScheme)
+                RingAvatar(name: friend.fullName, photoUrl: friend.profilePhotoUrl, size: 54, colorScheme: colorScheme)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(friend.fullName ?? "Athlete")
@@ -563,8 +574,16 @@ private struct FriendCardButtonStyle: ButtonStyle {
 
 struct RingAvatar: View {
     let name: String?
+    let photoUrl: String?
     let size: CGFloat
     let colorScheme: ColorScheme
+
+    init(name: String?, photoUrl: String? = nil, size: CGFloat, colorScheme: ColorScheme) {
+        self.name = name
+        self.photoUrl = photoUrl
+        self.size = size
+        self.colorScheme = colorScheme
+    }
 
     var body: some View {
         let initial = name?.first.map(String.init) ?? "?"
@@ -580,18 +599,37 @@ struct RingAvatar: View {
                 )
                 .frame(width: size + 6, height: size + 6)
 
-            Text(initial.uppercased())
-                .font(.system(size: size * 0.38, weight: .bold).width(.condensed))
-                .foregroundColor(.white)
-                .frame(width: size, height: size)
-                .background(
-                    LinearGradient(
-                        colors: [ColorTheme.accent, Color(hex: "2A7A80")],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .clipShape(Circle())
+            if let photoUrl, let url = URL(string: photoUrl) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: size, height: size)
+                            .clipShape(Circle())
+                    default:
+                        initialsCircle(initial)
+                    }
+                }
+            } else {
+                initialsCircle(initial)
+            }
         }
+    }
+
+    private func initialsCircle(_ initial: String) -> some View {
+        Text(initial.uppercased())
+            .font(.system(size: size * 0.38, weight: .bold).width(.condensed))
+            .foregroundColor(.white)
+            .frame(width: size, height: size)
+            .background(
+                LinearGradient(
+                    colors: [ColorTheme.accent, Color(hex: "2A7A80")],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .clipShape(Circle())
     }
 }

@@ -17,6 +17,7 @@ struct User: Codable, Identifiable {
     var primaryGoal: String?
     var onboardingCompleted: Bool
     var createdAt: String?
+    var profilePhotoUrl: String?
 
     var isGuest: Bool {
         guard let email = email else { return true }

@@ -20,6 +20,7 @@ enum APIEndpoints {
         static let linkApple = "/api/auth/link-apple"
         static let linkGoogle = "/api/auth/link-google"
         static let deleteAccount = "/api/auth/account"
+        static let profilePhoto = "/api/auth/profile/photo"
     }
 
     enum Entries {

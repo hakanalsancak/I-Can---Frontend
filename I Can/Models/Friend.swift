@@ -10,6 +10,7 @@ struct AthleteProfile: Codable, Identifiable {
     let country: String?
     let competitionLevel: String?
     let mantra: String?
+    let profilePhotoUrl: String?
     let currentStreak: Int
     let longestStreak: Int?
     var friendStatus: String?

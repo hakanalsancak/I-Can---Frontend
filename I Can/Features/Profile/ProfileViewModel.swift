@@ -82,11 +82,22 @@ final class ProfileViewModel {
             )
 
             if removePhoto {
+                let _: [String: String]? = try? await APIClient.shared.request(
+                    APIEndpoints.Auth.profilePhoto, method: "DELETE"
+                )
                 deleteProfilePhoto()
                 profileImage = nil
             } else if let photo {
                 saveProfilePhoto(photo)
                 profileImage = photo
+                if let data = photo.jpegData(compressionQuality: 0.8) {
+                    if let updatedUser: User = try? await APIClient.shared.uploadImage(
+                        APIEndpoints.Auth.profilePhoto,
+                        imageData: data
+                    ) {
+                        AuthService.shared.currentUser = updatedUser
+                    }
+                }
             }
 
             HapticManager.notification(.success)
@@ -108,14 +119,30 @@ final class ProfileViewModel {
     }
 
     private func loadProfilePhotoAsync() async {
-        guard let userId = user?.id,
-              let url = Self.photoURL(for: userId) else { return }
-        let image = await Task.detached(priority: .userInitiated) {
-            guard let data = try? Data(contentsOf: url) else { return nil as UIImage? }
-            return UIImage(data: data)
-        }.value
-        if let image {
-            profileImage = image
+        // Try local cache first
+        if let userId = user?.id,
+           let localURL = Self.photoURL(for: userId) {
+            let image = await Task.detached(priority: .userInitiated) {
+                guard let data = try? Data(contentsOf: localURL) else { return nil as UIImage? }
+                return UIImage(data: data)
+            }.value
+            if let image {
+                profileImage = image
+                return
+            }
+        }
+
+        // Fall back to server URL (e.g. new device, reinstall)
+        if let photoUrlString = user?.profilePhotoUrl,
+           let serverURL = URL(string: photoUrlString) {
+            let image = await Task.detached(priority: .userInitiated) {
+                guard let data = try? Data(contentsOf: serverURL) else { return nil as UIImage? }
+                return UIImage(data: data)
+            }.value
+            if let image {
+                profileImage = image
+                saveProfilePhoto(image)
+            }
         }
     }
 

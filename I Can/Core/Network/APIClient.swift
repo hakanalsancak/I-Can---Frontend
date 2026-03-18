@@ -175,6 +175,69 @@ final class APIClient: @unchecked Sendable {
         }
     }
 
+    func uploadImage<T: Decodable>(
+        _ endpoint: String,
+        imageData: Data,
+        fieldName: String = "photo",
+        fileName: String = "photo.jpg"
+    ) async throws -> T {
+        guard let url = URL(string: APIEndpoints.baseURL + endpoint) else {
+            throw APIError.invalidURL
+        }
+
+        let boundary = "Boundary-\(UUID().uuidString)"
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "PUT"
+        urlRequest.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+
+        if let token = TokenManager.shared.accessToken {
+            urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        var body = Data()
+        body.appendString("--\(boundary)\r\n")
+        body.appendString("Content-Disposition: form-data; name=\"\(fieldName)\"; filename=\"\(fileName)\"\r\n")
+        body.appendString("Content-Type: image/jpeg\r\n\r\n")
+        body.append(imageData)
+        body.appendString("\r\n--\(boundary)--\r\n")
+
+        urlRequest.httpBody = body
+
+        let (data, response) = try await performRequest(urlRequest)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+
+        if httpResponse.statusCode == 401 {
+            do {
+                try await refreshCoordinator.refresh { [self] in
+                    try await self.refreshAccessToken()
+                }
+                if let newToken = TokenManager.shared.accessToken {
+                    var retryRequest = urlRequest
+                    retryRequest.setValue("Bearer \(newToken)", forHTTPHeaderField: "Authorization")
+                    let (retryData, retryResponse) = try await performRequest(retryRequest)
+                    guard let retryHttp = retryResponse as? HTTPURLResponse,
+                          (200...299).contains(retryHttp.statusCode) else {
+                        throw APIError.unauthorized
+                    }
+                    return try decoder.decode(T.self, from: retryData)
+                }
+            } catch {
+                throw APIError.unauthorized
+            }
+            throw APIError.unauthorized
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let errorBody = try? decoder.decode(APIErrorResponse.self, from: data)
+            throw APIError.serverError(errorBody?.error ?? "Server error (\(httpResponse.statusCode))")
+        }
+
+        return try decoder.decode(T.self, from: data)
+    }
+
     private func performRequest(_ request: URLRequest) async throws -> (Data, URLResponse) {
         do {
             return try await session.data(for: request)
@@ -205,6 +268,14 @@ final class APIClient: @unchecked Sendable {
 private struct APIErrorResponse: Decodable {
     let error: String
     let code: String?
+}
+
+private extension Data {
+    mutating func appendString(_ string: String) {
+        if let data = string.data(using: .utf8) {
+            append(data)
+        }
+    }
 }
 
 private struct AnyEncodable: Encodable {
