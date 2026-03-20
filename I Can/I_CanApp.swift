@@ -48,7 +48,7 @@ struct I_CanApp: App {
             ContentView()
                 .preferredColorScheme(appearanceManager.current.colorScheme)
                 .task {
-                    try? await SubscriptionService.shared.checkStatus()
+                    await SubscriptionService.shared.syncEntitlements()
                     await SubscriptionService.shared.listenForTransactions()
                 }
                 .onAppear {

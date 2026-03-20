@@ -54,18 +54,45 @@ final class SubscriptionService {
                     originalTransactionId: String(transaction.originalID),
                     jwsRepresentation: jwsRepresentation
                 )
-            } catch {
                 await transaction.finish()
+                return true
+            } catch {
+                // Direct verification failed — try syncing all current entitlements as fallback
+                await syncEntitlements()
+                if isPremium {
+                    await transaction.finish()
+                    return true
+                }
+                // Don't finish the transaction so StoreKit redelivers on next launch
                 throw error
             }
-            await transaction.finish()
-            return true
         case .userCancelled:
             return false
         case .pending:
             return false
         @unknown default:
             return false
+        }
+    }
+
+    /// Iterates Apple's current entitlements and verifies any active subscriptions
+    /// with the backend. Acts as a recovery mechanism when initial verification fails.
+    func syncEntitlements() async {
+        for await result in Transaction.currentEntitlements {
+            let jwsRepresentation = result.jwsRepresentation
+            if let transaction = try? checkVerified(result) {
+                do {
+                    try await verifyReceipt(
+                        transactionId: String(transaction.id),
+                        productId: transaction.productID,
+                        originalTransactionId: String(transaction.originalID),
+                        jwsRepresentation: jwsRepresentation
+                    )
+                } catch {
+                    // Will retry on next launch
+                }
+                await transaction.finish()
+            }
         }
     }
 
@@ -80,10 +107,10 @@ final class SubscriptionService {
                         originalTransactionId: String(transaction.originalID),
                         jwsRepresentation: jwsRepresentation
                     )
+                    await transaction.finish()
                 } catch {
-                    // Backend rejected (e.g. guest account) — do not grant premium
+                    // Don't finish — StoreKit will redeliver on next launch
                 }
-                await transaction.finish()
             }
         }
     }

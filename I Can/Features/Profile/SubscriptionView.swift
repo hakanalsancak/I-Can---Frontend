@@ -295,6 +295,7 @@ struct SubscriptionView: View {
     private func restorePurchases() async {
         do {
             try await AppStore.sync()
+            await SubscriptionService.shared.syncEntitlements()
             try await SubscriptionService.shared.checkStatus()
             if SubscriptionService.shared.isPremium { dismiss() }
         } catch {
