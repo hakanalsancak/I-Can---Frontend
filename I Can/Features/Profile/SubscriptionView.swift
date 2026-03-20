@@ -12,6 +12,7 @@ struct SubscriptionView: View {
     @State private var showAccountUpgrade = false
 
     private let features = [
+        ("bubble.left.and.bubble.right.fill", "AI Coach Chat", "Ask your coach anything, anytime"),
         ("sparkles", "Daily Coach Insights", "AI coaching after every log"),
         ("chart.bar.fill", "Weekly AI Reports", "Get coaching insights every week"),
         ("chart.line.uptrend.xyaxis", "Monthly Analysis", "Deep-dive into monthly progress"),
