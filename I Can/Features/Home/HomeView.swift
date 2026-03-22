@@ -184,7 +184,9 @@ struct HomeView: View {
                 }
                 loadProfileImage()
             }
-            .sheet(isPresented: $showProfile) {
+            .sheet(isPresented: $showProfile, onDismiss: {
+                loadProfileImage()
+            }) {
                 ProfileView()
             }
         }
@@ -200,7 +202,7 @@ struct HomeView: View {
                 return UIImage(data: data)
             }.value
             await MainActor.run {
-                if let image { profileImage = image }
+                profileImage = image
             }
         }
     }

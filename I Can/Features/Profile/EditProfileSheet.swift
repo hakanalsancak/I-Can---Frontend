@@ -21,6 +21,7 @@ struct EditProfileSheet: View {
     @State private var showSportPicker = false
     @State private var showPositionPicker = false
     @State private var photoRemoved = false
+    @State private var photoChanged = false
     @State private var showPhotoOptions = false
     @State private var showCamera = false
     @State private var showPhotoPicker = false
@@ -188,6 +189,7 @@ struct EditProfileSheet: View {
                 if let image = imageToCrop {
                     ImageCropView(image: image) { cropped in
                         editedImage = cropped
+                        photoChanged = true
                         showCropView = false
                         imageToCrop = nil
                     } onCancel: {
@@ -502,7 +504,7 @@ struct EditProfileSheet: View {
     }
 
     private func save() async {
-        let photoChanged = photoRemoved || editedImage !== viewModel.profileImage
+        let photoDidChange = photoRemoved || photoChanged
         let success = await viewModel.saveProfile(
             fullName: fullName.trimmingCharacters(in: .whitespaces),
             username: username.trimmingCharacters(in: .whitespaces),
@@ -510,7 +512,7 @@ struct EditProfileSheet: View {
             team: team.trimmingCharacters(in: .whitespaces),
             position: position,
             mantra: mantra.trimmingCharacters(in: .whitespaces),
-            photo: photoChanged ? editedImage : viewModel.profileImage,
+            photo: photoDidChange ? editedImage : viewModel.profileImage,
             removePhoto: photoRemoved
         )
         if success { dismiss() }
