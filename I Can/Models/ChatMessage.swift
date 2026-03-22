@@ -1,6 +1,6 @@
 import Foundation
 
-struct ChatMessage: Identifiable, Equatable {
+struct ChatMessage: Identifiable, Equatable, Codable {
     let id: UUID
     let role: String
     let content: String
@@ -28,4 +28,5 @@ struct ChatHistoryItem: Encodable {
 
 struct ChatResponse: Decodable {
     let reply: String
+    let remaining: Int?
 }

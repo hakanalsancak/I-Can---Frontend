@@ -163,6 +163,14 @@ final class APIClient: @unchecked Sendable {
             }
         }
 
+        if httpResponse.statusCode == 429 {
+            let errorBody = try? decoder.decode(APIErrorResponse.self, from: data)
+            if errorBody?.code == "DAILY_LIMIT_EXCEEDED" {
+                let resetDate = errorBody?.resetAt.flatMap { ISO8601DateFormatter().date(from: $0) }
+                throw APIError.dailyLimitExceeded(resetAt: resetDate)
+            }
+        }
+
         guard (200...299).contains(httpResponse.statusCode) else {
             let errorBody = try? decoder.decode(APIErrorResponse.self, from: data)
             throw APIError.serverError(errorBody?.error ?? "Server error (\(httpResponse.statusCode))")
@@ -268,6 +276,7 @@ final class APIClient: @unchecked Sendable {
 private struct APIErrorResponse: Decodable {
     let error: String
     let code: String?
+    let resetAt: String?
 }
 
 private extension Data {

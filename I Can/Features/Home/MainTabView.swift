@@ -4,6 +4,23 @@ struct MainTabView: View {
     @State private var selectedTab = 0
     @Environment(\.colorScheme) private var colorScheme
 
+    private var coachImageName: String {
+        let gender = AuthService.shared.currentUser?.gender ?? ""
+        return gender == "male" ? "CoachMale" : "CoachFemale"
+    }
+
+    private var coachTabIcon: UIImage {
+        let size: CGFloat = 24
+        let img = UIImage(named: coachImageName) ?? UIImage(systemName: "person.circle.fill")!
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: size, height: size))
+        let circular = renderer.image { ctx in
+            let rect = CGRect(origin: .zero, size: CGSize(width: size, height: size))
+            UIBezierPath(ovalIn: rect).addClip()
+            img.draw(in: rect)
+        }
+        return circular.withRenderingMode(.alwaysOriginal)
+    }
+
     var body: some View {
         TabView(selection: $selectedTab) {
             HomeView()
@@ -29,7 +46,7 @@ struct MainTabView: View {
 
             CoachChatView()
                 .tabItem {
-                    Image(systemName: selectedTab == 3 ? "bubble.left.and.text.bubble.right.fill" : "bubble.left.and.text.bubble.right")
+                    Image(uiImage: coachTabIcon)
                     Text("AI Coach")
                 }
                 .tag(3)
