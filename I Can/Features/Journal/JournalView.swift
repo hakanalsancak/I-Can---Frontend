@@ -59,7 +59,8 @@ struct JournalView: View {
             .fullScreenCover(isPresented: $showEditEntry) {
                 if let entry = viewModel.selectedEntry {
                     DailyEntryFlowView(existingEntry: entry) { _ in
-                        Task { await viewModel.loadEntries() }
+                        Task {
+                            await viewModel.loadEntries() }
                     }
                 }
             }

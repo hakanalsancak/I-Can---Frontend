@@ -22,22 +22,22 @@ struct MainTabView: View {
 
             ReportsView()
                 .tabItem {
-                    Image(systemName: selectedTab == 2 ? "brain.fill" : "brain")
-                    Text("AI Coach")
+                    Image(systemName: selectedTab == 2 ? "chart.bar.fill" : "chart.bar")
+                    Text("Reports")
                 }
                 .tag(2)
 
-            FriendsView()
+            CoachChatView()
                 .tabItem {
-                    Image(systemName: selectedTab == 3 ? "person.2.fill" : "person.2")
-                    Text("Friends")
+                    Image(systemName: selectedTab == 3 ? "bubble.left.and.text.bubble.right.fill" : "bubble.left.and.text.bubble.right")
+                    Text("AI Coach")
                 }
                 .tag(3)
 
-            ProfileView()
+            MoreView()
                 .tabItem {
-                    Image(systemName: selectedTab == 4 ? "person.fill" : "person")
-                    Text("Profile")
+                    Image(systemName: selectedTab == 4 ? "ellipsis.circle.fill" : "ellipsis.circle")
+                    Text("More")
                 }
                 .tag(4)
         }

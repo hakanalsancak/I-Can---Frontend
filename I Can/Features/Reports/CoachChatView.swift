@@ -2,12 +2,12 @@ import SwiftUI
 
 struct CoachChatView: View {
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.dismiss) private var dismiss
     @State private var messages: [ChatMessage] = []
     @State private var inputText = ""
     @State private var isLoading = false
     @State private var headerVisible = false
     @State private var chipsVisible = false
+    @State private var showSubscription = false
     @FocusState private var isInputFocused: Bool
 
     private let coachGradient = [Color(hex: "0EA5E9"), Color(hex: "22C55E")]
@@ -15,38 +15,27 @@ struct CoachChatView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                if messages.isEmpty {
-                    emptyState
-                } else {
-                    messagesList
-                }
+                if SubscriptionService.shared.isPremium {
+                    PageHeader("AI Coach")
 
-                inputBar
+                    if messages.isEmpty {
+                        emptyState
+                    } else {
+                        messagesList
+                    }
+
+                    inputBar
+                } else {
+                    PageHeader("AI Coach")
+                    lockedState
+                }
             }
             .background(ColorTheme.background(colorScheme).ignoresSafeArea())
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    HStack(spacing: 10) {
-                        coachAvatar(size: 30)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text("AI Coach")
-                                .font(.system(size: 16, weight: .bold).width(.condensed))
-                                .foregroundColor(ColorTheme.primaryText(colorScheme))
-                            Text(isLoading ? "Thinking..." : "Online")
-                                .font(.system(size: 11, weight: .semibold).width(.condensed))
-                                .foregroundColor(isLoading ? Color(hex: "F59E0B") : Color(hex: "22C55E"))
-                        }
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { dismiss() } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 24))
-                            .symbolRenderingMode(.hierarchical)
-                            .foregroundStyle(ColorTheme.secondaryText(colorScheme))
-                    }
-                }
+            .navigationBarHidden(true)
+            .sheet(isPresented: $showSubscription, onDismiss: {
+                Task { try? await SubscriptionService.shared.checkStatus() }
+            }) {
+                SubscriptionView()
             }
         }
     }
@@ -70,6 +59,79 @@ struct CoachChatView: View {
                 .font(.system(size: size * 0.42, weight: .semibold))
                 .foregroundColor(.white)
         }
+    }
+
+    // MARK: - Locked State (Non-Premium)
+
+    private var lockedState: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                Spacer().frame(height: 40)
+
+                ZStack {
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [Color(hex: "0EA5E9").opacity(0.12), Color.clear],
+                                center: .center,
+                                startRadius: 0,
+                                endRadius: 70
+                            )
+                        )
+                        .frame(width: 140, height: 140)
+
+                    coachAvatar(size: 80)
+                }
+
+                VStack(spacing: 8) {
+                    Text("Your Personal AI Coach")
+                        .font(.system(size: 26, weight: .heavy).width(.condensed))
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+                        .multilineTextAlignment(.center)
+
+                    Text("Get personalized coaching advice\nabout training, tactics, recovery & mindset")
+                        .font(.system(size: 15, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(4)
+                }
+
+                Button {
+                    HapticManager.impact(.medium)
+                    showSubscription = true
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 14, weight: .bold))
+                        Text("Start Free Trial")
+                            .font(.system(size: 16, weight: .bold).width(.condensed))
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        LinearGradient(
+                            colors: coachGradient,
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .shadow(color: Color(hex: "0EA5E9").opacity(0.35), radius: 12, x: 0, y: 6)
+                }
+
+                HStack(spacing: 6) {
+                    Image(systemName: "gift.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(Color(hex: "EAB308"))
+                    Text("1 month free trial included")
+                        .font(.system(size: 13, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                }
+            }
+            .padding(.horizontal, 24)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Empty State
@@ -257,6 +319,10 @@ struct CoachChatView: View {
 
     private func messageBubble(_ message: ChatMessage, showAvatar: Bool, containerWidth: CGFloat = 350) -> some View {
         HStack(alignment: .bottom, spacing: 8) {
+            if message.isUser {
+                Spacer(minLength: 0)
+            }
+
             if !message.isUser {
                 if showAvatar {
                     coachAvatar(size: 28)
@@ -303,10 +369,6 @@ struct CoachChatView: View {
                     .padding(.top, 1)
             }
             .frame(maxWidth: containerWidth * 0.78, alignment: message.isUser ? .trailing : .leading)
-
-            if message.isUser {
-                Spacer(minLength: 0)
-            }
         }
         .frame(maxWidth: .infinity, alignment: message.isUser ? .trailing : .leading)
         .padding(.top, showAvatar && !message.isUser ? 12 : 2)
