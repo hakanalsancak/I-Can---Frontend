@@ -48,10 +48,21 @@ final class ChatService {
         }
     }
 
+    func clearMessages() {
+        guard let url = fileURL else { return }
+        try? FileManager.default.removeItem(at: url)
+        UserDefaults.standard.removeObject(forKey: "chat_limit_reset_at")
+    }
+
     private var fileURL: URL? {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+        guard let userId = AuthService.shared.currentUser?.id else {
+            return FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+                .first?
+                .appendingPathComponent(Self.fileName)
+        }
+        return FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
             .first?
-            .appendingPathComponent(Self.fileName)
+            .appendingPathComponent("coach_chat_\(userId).json")
     }
 
     private init() {}

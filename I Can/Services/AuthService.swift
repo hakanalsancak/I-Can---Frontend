@@ -154,6 +154,7 @@ final class AuthService {
         let refreshToken = TokenManager.shared.refreshToken
 
         // Clear local state immediately so the UI reacts right away
+        ChatService.shared.clearMessages()
         TokenManager.shared.clearTokens()
         currentUser = nil
         isAuthenticated = false

@@ -51,10 +51,10 @@ struct MainTabView: View {
                 }
                 .tag(3)
 
-            MoreView()
+            FriendsView()
                 .tabItem {
-                    Image(systemName: selectedTab == 4 ? "ellipsis.circle.fill" : "ellipsis.circle")
-                    Text("More")
+                    Image(systemName: selectedTab == 4 ? "person.2.fill" : "person.2")
+                    Text("Friends")
                 }
                 .tag(4)
         }

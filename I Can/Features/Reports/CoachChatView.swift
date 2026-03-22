@@ -55,6 +55,7 @@ struct CoachChatView: View {
                 if SubscriptionService.shared.isPremium {
                     limitReached = false
                     remainingMessages = nil
+                    clearLimitState()
                     stopCountdown()
                 }
             }) {
@@ -64,6 +65,7 @@ struct CoachChatView: View {
                 if messages.isEmpty {
                     messages = ChatService.shared.loadMessages()
                 }
+                restoreLimitState()
             }
             .onDisappear {
                 stopCountdown()
@@ -274,6 +276,8 @@ struct CoachChatView: View {
 
     private func startCountdown(to resetDate: Date) {
         resetAt = resetDate
+        limitReached = true
+        persistLimitState(resetDate: resetDate)
         updateCountdownText()
         countdownTimer?.invalidate()
         countdownTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
@@ -298,6 +302,7 @@ struct CoachChatView: View {
             countdownText = ""
             limitReached = false
             remainingMessages = dailyLimit
+            clearLimitState()
             stopCountdown()
             return
         }
@@ -305,6 +310,35 @@ struct CoachChatView: View {
         let minutes = (Int(remaining) % 3600) / 60
         let seconds = Int(remaining) % 60
         countdownText = String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+    }
+
+    private func persistLimitState(resetDate: Date) {
+        UserDefaults.standard.set(resetDate.timeIntervalSince1970, forKey: "chat_limit_reset_at")
+    }
+
+    private func clearLimitState() {
+        UserDefaults.standard.removeObject(forKey: "chat_limit_reset_at")
+    }
+
+    private func restoreLimitState() {
+        guard !isPremium else { return }
+        let stored = UserDefaults.standard.double(forKey: "chat_limit_reset_at")
+        guard stored > 0 else { return }
+        let resetDate = Date(timeIntervalSince1970: stored)
+        if resetDate.timeIntervalSinceNow > 0 {
+            resetAt = resetDate
+            limitReached = true
+            remainingMessages = 0
+            updateCountdownText()
+            countdownTimer?.invalidate()
+            countdownTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+                Task { @MainActor in
+                    updateCountdownText()
+                }
+            }
+        } else {
+            clearLimitState()
+        }
     }
 
     // MARK: - Empty State

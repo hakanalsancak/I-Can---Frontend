@@ -114,6 +114,8 @@ struct HomeView: View {
     @State private var showEntryDetail = false
     @State private var editingEntry = false
     @State private var heroAppeared = false
+    @State private var showProfile = false
+    @State private var profileImage: UIImage? = nil
     @Environment(\.colorScheme) private var colorScheme
 
     private let quoteTimer = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
@@ -180,8 +182,20 @@ struct HomeView: View {
                 withAnimation(.easeOut(duration: 0.6).delay(0.1)) {
                     heroAppeared = true
                 }
+                loadProfileImage()
+            }
+            .sheet(isPresented: $showProfile) {
+                ProfileView()
             }
         }
+    }
+
+    private func loadProfileImage() {
+        guard let userId = AuthService.shared.currentUser?.id else { return }
+        guard let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
+        let url = dir.appendingPathComponent("profile_photo_\(userId).jpg")
+        guard let data = try? Data(contentsOf: url), let image = UIImage(data: data) else { return }
+        profileImage = image
     }
 
     // MARK: - Header
@@ -203,6 +217,13 @@ struct HomeView: View {
 
                 HStack(spacing: 10) {
                     streakBadge
+
+                    Button {
+                        HapticManager.selection()
+                        showProfile = true
+                    } label: {
+                        profileAvatarSmall
+                    }
                 }
             }
             .padding(.horizontal, 20)
@@ -214,6 +235,46 @@ struct HomeView: View {
                 .frame(height: 1)
         }
         .background(ColorTheme.background(colorScheme))
+    }
+
+    private var profileAvatarSmall: some View {
+        ZStack {
+            if let image = profileImage {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 34, height: 34)
+                    .clipShape(Circle())
+            } else {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [ColorTheme.accent.opacity(0.25), ColorTheme.accent.opacity(0.08)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 34, height: 34)
+
+                Text(profileInitials)
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .foregroundColor(ColorTheme.accent)
+            }
+        }
+        .overlay(
+            Circle()
+                .strokeBorder(ColorTheme.accent.opacity(0.3), lineWidth: 1.5)
+                .frame(width: 36, height: 36)
+        )
+    }
+
+    private var profileInitials: String {
+        guard let name = AuthService.shared.currentUser?.fullName, !name.isEmpty else { return "?" }
+        let parts = name.components(separatedBy: " ").filter { !$0.isEmpty }
+        if parts.count >= 2 {
+            return "\(parts[0].prefix(1))\(parts[1].prefix(1))".uppercased()
+        }
+        return String(name.prefix(2)).uppercased()
     }
 
     private var firstName: String {
