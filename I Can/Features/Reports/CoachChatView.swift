@@ -314,18 +314,21 @@ struct CoachChatView: View {
         countdownText = String(format: "%02d:%02d:%02d", hours, minutes, seconds)
     }
 
+    private static let limitResetKeychainKey = "chat_limit_reset_at"
+
     private func persistLimitState(resetDate: Date) {
-        UserDefaults.standard.set(resetDate.timeIntervalSince1970, forKey: "chat_limit_reset_at")
+        let value = String(resetDate.timeIntervalSince1970)
+        KeychainHelper.save(value, forKey: Self.limitResetKeychainKey)
     }
 
     private func clearLimitState() {
-        UserDefaults.standard.removeObject(forKey: "chat_limit_reset_at")
+        KeychainHelper.delete(forKey: Self.limitResetKeychainKey)
     }
 
     private func restoreLimitState() {
         guard !isPremium else { return }
-        let stored = UserDefaults.standard.double(forKey: "chat_limit_reset_at")
-        guard stored > 0 else { return }
+        guard let storedString = KeychainHelper.readString(forKey: Self.limitResetKeychainKey),
+              let stored = Double(storedString), stored > 0 else { return }
         let resetDate = Date(timeIntervalSince1970: stored)
         if resetDate.timeIntervalSinceNow > 0 {
             remainingMessages = 0

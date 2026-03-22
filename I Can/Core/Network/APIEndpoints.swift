@@ -1,13 +1,7 @@
 import Foundation
 
 enum APIEndpoints {
-    // In DEBUG, use localhost for local development; fall back to production if local server is unavailable.
-    // In RELEASE, always use the production backend.
-    #if DEBUG
-    static let baseURL = "http://localhost:3000"
-    #else
     static let baseURL = "https://i-can-backend.onrender.com"
-    #endif
 
     enum Auth {
         static let register = "/api/auth/register"

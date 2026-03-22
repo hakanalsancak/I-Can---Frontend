@@ -13,8 +13,10 @@ final class ChatService {
     private static let fileName = "coach_chat_history.json"
 
     func send(message: String, history: [ChatMessage]) async throws -> ChatResult {
-        let historyItems = history.map { ChatHistoryItem(role: $0.role, content: $0.content) }
-        let request = ChatRequest(message: message, history: historyItems)
+        // Only send last 10 messages to match backend limit and reduce payload size
+        let recentHistory = history.suffix(10)
+        let historyItems = recentHistory.map { ChatHistoryItem(role: $0.role, content: String($0.content.prefix(2000))) }
+        let request = ChatRequest(message: String(message.prefix(2000)), history: historyItems)
         let response: ChatResponse = try await APIClient.shared.request(
             APIEndpoints.Chat.base,
             method: "POST",
@@ -51,7 +53,7 @@ final class ChatService {
     func clearMessages() {
         guard let url = fileURL else { return }
         try? FileManager.default.removeItem(at: url)
-        UserDefaults.standard.removeObject(forKey: "chat_limit_reset_at")
+        KeychainHelper.delete(forKey: "chat_limit_reset_at")
     }
 
     private var fileURL: URL? {

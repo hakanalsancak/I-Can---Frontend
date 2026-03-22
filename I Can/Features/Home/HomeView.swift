@@ -199,7 +199,9 @@ struct HomeView: View {
                 guard let data = try? Data(contentsOf: url) else { return nil as UIImage? }
                 return UIImage(data: data)
             }.value
-            if let image { profileImage = image }
+            await MainActor.run {
+                if let image { profileImage = image }
+            }
         }
     }
 
