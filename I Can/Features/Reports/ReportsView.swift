@@ -1,9 +1,13 @@
 import SwiftUI
+import Combine
 
 struct ReportsView: View {
     @State private var viewModel = ReportsViewModel()
     @State private var showSubscription = false
+    @State private var now = Date()
     @Environment(\.colorScheme) private var colorScheme
+
+    private let countdownTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
         NavigationStack {
@@ -49,6 +53,33 @@ struct ReportsView: View {
             }) {
                 SubscriptionView()
             }
+            .onReceive(countdownTimer) { _ in
+                now = Date()
+            }
+        }
+    }
+
+    private func countdownText(for period: PeriodInfo) -> String {
+        guard let endDate = Date.fromAPIString(period.periodEnd) else {
+            return "\(period.daysRemaining)d remaining"
+        }
+        // Period end date is a date (no time), report generates at the start of the next day
+        let calendar = Calendar.current
+        guard let deadline = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: endDate)) else {
+            return "\(period.daysRemaining)d remaining"
+        }
+        let remaining = deadline.timeIntervalSince(now)
+        guard remaining > 0 else { return "Generating..." }
+
+        let days = Int(remaining) / 86400
+        let hours = (Int(remaining) % 86400) / 3600
+        let minutes = (Int(remaining) % 3600) / 60
+        let seconds = Int(remaining) % 60
+
+        if days > 0 {
+            return String(format: "%dd %02dh %02dm %02ds", days, hours, minutes, seconds)
+        } else {
+            return String(format: "%02dh %02dm %02ds", hours, minutes, seconds)
         }
     }
 
@@ -227,10 +258,15 @@ struct ReportsView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "clock.fill")
                             .font(.system(size: 11, weight: .semibold))
-                        Text("Report generates at end of \(periodLabel)")
-                            .font(.system(size: 12, weight: .medium).width(.condensed))
+                            .foregroundColor(gradient[0])
+                        Text(countdownText(for: period))
+                            .font(.system(size: 13, weight: .bold, design: .monospaced))
+                            .foregroundColor(ColorTheme.primaryText(colorScheme))
                     }
-                    .foregroundColor(ColorTheme.secondaryText(colorScheme).opacity(0.8))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(gradient[0].opacity(0.08))
+                    .clipShape(Capsule())
                     .padding(.top, 2)
                 }
             }

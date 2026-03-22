@@ -134,14 +134,14 @@ struct HomeView: View {
 
                         streakSection
 
+                        breatheSection
+
                         if SubscriptionService.shared.statusChecked && !SubscriptionService.shared.isPremium {
                             aiCoachPromo
                         }
-
-                        quickActions
                     }
                     .padding(.horizontal, 20)
-                    .padding(.bottom, 32)
+                    .padding(.bottom, 16)
                 }
             }
             .background(ColorTheme.background(colorScheme).ignoresSafeArea())
@@ -720,64 +720,64 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - Quick Actions
+    // MARK: - Breathe Section
 
-    private var quickActions: some View {
-        VStack(spacing: 12) {
-            Text("QUICK ACTIONS")
-                .sectionHeader(colorScheme)
+    private var breatheSection: some View {
+        Button {
+            HapticManager.impact(.medium)
+            showBreathing = true
+        } label: {
+            VStack(spacing: 16) {
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color(hex: "3B82F6"), Color(hex: "2563EB")],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 64, height: 64)
+                        .shadow(color: Color(hex: "3B82F6").opacity(0.35), radius: 12, x: 0, y: 6)
 
-            HStack(spacing: 12) {
-                actionCard(
-                    icon: "wind",
-                    title: "Breathe",
-                    subtitle: "2-min reset",
-                    gradient: [Color(hex: "3B82F6"), Color(hex: "2563EB")]
-                ) {
-                    HapticManager.impact(.medium)
-                    showBreathing = true
+                    Image(systemName: "wind")
+                        .font(.system(size: 26, weight: .semibold))
+                        .foregroundColor(.white)
                 }
 
-                actionCard(
-                    icon: "brain.head.profile",
-                    title: "AI Coach",
-                    subtitle: "View insights",
-                    gradient: [Color(hex: "7C3AED"), Color(hex: "4F46E5")]
-                ) {
-                    HapticManager.selection()
-                    NotificationCenter.default.post(name: .switchToAICoachTab, object: nil)
-                }
-            }
-        }
-    }
-
-    private func actionCard(icon: String, title: String, subtitle: String, gradient: [Color], action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(spacing: 10) {
-                Image(systemName: icon)
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundColor(.white)
-                    .frame(width: 48, height: 48)
-                    .background(
-                        LinearGradient(colors: gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .shadow(color: gradient[0].opacity(0.3), radius: 8, x: 0, y: 4)
-
-                VStack(spacing: 2) {
-                    Text(title)
-                        .font(.system(size: 14, weight: .bold).width(.condensed))
+                VStack(spacing: 6) {
+                    Text("Breathe")
+                        .font(.system(size: 20, weight: .heavy).width(.condensed))
                         .foregroundColor(ColorTheme.primaryText(colorScheme))
 
-                    Text(subtitle)
-                        .font(.system(size: 11, weight: .medium).width(.condensed))
+                    Text("2-minute mental reset")
+                        .font(.system(size: 14, weight: .medium).width(.condensed))
                         .foregroundColor(ColorTheme.secondaryText(colorScheme))
                 }
+
+                Text("START")
+                    .font(.system(size: 13, weight: .heavy).width(.condensed))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 32)
+                    .padding(.vertical, 10)
+                    .background(
+                        LinearGradient(
+                            colors: [Color(hex: "3B82F6"), Color(hex: "2563EB")],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .clipShape(Capsule())
+                    .shadow(color: Color(hex: "3B82F6").opacity(0.3), radius: 8, x: 0, y: 4)
             }
+            .padding(.vertical, 28)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 18)
             .background(ColorTheme.cardBackground(colorScheme))
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(Color(hex: "3B82F6").opacity(0.12), lineWidth: 1)
+            )
             .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
         }
         .buttonStyle(.plain)
