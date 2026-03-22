@@ -49,6 +49,7 @@ struct CoachChatView: View {
                 }
             }
             .background(ColorTheme.background(colorScheme).ignoresSafeArea())
+            .onTapGesture { isInputFocused = false }
             .navigationBarHidden(true)
             .sheet(isPresented: $showSubscription, onDismiss: {
                 Task { try? await SubscriptionService.shared.checkStatus() }
