@@ -54,12 +54,11 @@ struct ContentView: View {
         do {
             try await authService.loadProfile()
             try? await SubscriptionService.shared.checkStatus()
-            await MainActor.run { showMaintenance = false }
+            showMaintenance = false
         } catch {
-            let apiErr = error as? APIError
-            if case .unauthorized = apiErr {
-                await MainActor.run { authService.signOut() }
-                await MainActor.run { showMaintenance = false }
+            if case .unauthorized = error as? APIError {
+                authService.signOut()
+                showMaintenance = false
             }
         }
     }
@@ -90,19 +89,18 @@ struct ContentView: View {
                 try await authService.loadProfile()
                 await authService.setCountryIfNeeded()
                 try? await SubscriptionService.shared.checkStatus()
-                await MainActor.run { showMaintenance = false }
+                showMaintenance = false
             } catch {
-                let apiErr = error as? APIError
-                if case .unauthorized = apiErr {
-                    await MainActor.run { authService.signOut() }
+                if case .unauthorized = error as? APIError {
+                    authService.signOut()
                 } else {
-                    await MainActor.run { showMaintenance = true }
+                    showMaintenance = true
                 }
             }
         }
 
         try? await Task.sleep(nanoseconds: 300_000_000)
 
-        await MainActor.run { isLoading = false }
+        isLoading = false
     }
 }

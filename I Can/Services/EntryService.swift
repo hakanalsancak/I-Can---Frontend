@@ -13,8 +13,12 @@ final class EntryService {
 
     func getEntries(startDate: String? = nil, endDate: String? = nil, limit: Int = 30) async throws -> [DailyEntry] {
         var endpoint = APIEndpoints.Entries.base + "?limit=\(limit)"
-        if let start = startDate { endpoint += "&startDate=\(start)" }
-        if let end = endDate { endpoint += "&endDate=\(end)" }
+        if let start = startDate?.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+            endpoint += "&startDate=\(start)"
+        }
+        if let end = endDate?.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+            endpoint += "&endDate=\(end)"
+        }
         let response: EntriesResponse = try await APIClient.shared.request(endpoint)
         return response.entries
     }

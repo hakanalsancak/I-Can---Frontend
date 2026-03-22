@@ -27,7 +27,7 @@ final class ChatService {
         guard let url = fileURL else { return }
         do {
             let data = try JSONEncoder().encode(messages)
-            try data.write(to: url, options: .atomic)
+            try data.write(to: url, options: [.atomic, .completeFileProtection])
         } catch {
             #if DEBUG
             print("ChatService: failed to save messages - \(error.localizedDescription)")
@@ -56,9 +56,8 @@ final class ChatService {
 
     private var fileURL: URL? {
         guard let userId = AuthService.shared.currentUser?.id else {
-            return FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
-                .first?
-                .appendingPathComponent(Self.fileName)
+            // No authenticated user — refuse to read/write chat data
+            return nil
         }
         return FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
             .first?

@@ -4,15 +4,18 @@ import CryptoKit
 // MARK: - Certificate Pinning Delegate
 
 private final class PinningDelegate: NSObject, URLSessionDelegate, Sendable {
-    // SHA-256 fingerprint of the server's leaf certificate (base64-encoded).
-    // Update this when you rotate your TLS certificate.
-    // To obtain: openssl s_client -connect i-can-backend.onrender.com:443 </dev/null 2>/dev/null \
-    //   | openssl x509 -noout -pubkey | openssl pkey -pubin -outform der \
-    //   | openssl dgst -sha256 -binary | base64
-    //
-    // TODO: Run the command above and paste the result here before shipping to production.
-    // While this is nil, the app relies on default system TLS validation only.
-    private static let pinnedPublicKeyHash: String? = nil
+    // SHA-256 hashes of trusted public keys (base64-encoded).
+    // Includes both the leaf and intermediate CA so cert rotation on Render doesn't break the app.
+    // To refresh the leaf hash:
+    //   echo | openssl s_client -connect i-can-backend.onrender.com:443 2>/dev/null \
+    //     | openssl x509 -noout -pubkey | openssl pkey -pubin -outform der \
+    //     | openssl dgst -sha256 -binary | base64
+    private static let pinnedPublicKeyHashes: Set<String> = [
+        // Leaf: onrender.com (rotates every ~3 months — update after rotation)
+        "IX2/a47sFHkF9jewioc5OzEDzS0dNQjNMCX8PCQ26Pg=",
+        // Intermediate CA: Google Trust Services WE1 (stable across rotations)
+        "kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4=",
+    ]
 
     func urlSession(
         _ session: URLSession,
@@ -25,36 +28,33 @@ private final class PinningDelegate: NSObject, URLSessionDelegate, Sendable {
             return
         }
 
-        // If no pin is configured, fall back to default system validation (still enforces HTTPS)
-        guard let expectedHash = Self.pinnedPublicKeyHash else {
-            completionHandler(.performDefaultHandling, nil)
-            return
-        }
-
-        // Evaluate trust first
+        // Evaluate system trust first
         var error: CFError?
         guard SecTrustEvaluateWithError(serverTrust, &error) else {
             completionHandler(.cancelAuthenticationChallenge, nil)
             return
         }
 
-        // Extract the leaf certificate's public key and hash it
-        guard let chain = SecTrustCopyCertificateChain(serverTrust) as? [SecCertificate],
-              let certificate = chain.first,
-              let publicKey = SecCertificateCopyKey(certificate),
-              let publicKeyData = SecKeyCopyExternalRepresentation(publicKey, nil) as Data? else {
+        // Check each certificate in the chain against our pinned hashes
+        guard let chain = SecTrustCopyCertificateChain(serverTrust) as? [SecCertificate] else {
             completionHandler(.cancelAuthenticationChallenge, nil)
             return
         }
 
-        let hash = SHA256.hash(data: publicKeyData)
-        let hashBase64 = Data(hash).base64EncodedString()
-
-        if hashBase64 == expectedHash {
-            completionHandler(.useCredential, URLCredential(trust: serverTrust))
-        } else {
-            completionHandler(.cancelAuthenticationChallenge, nil)
+        for certificate in chain {
+            guard let publicKey = SecCertificateCopyKey(certificate),
+                  let publicKeyData = SecKeyCopyExternalRepresentation(publicKey, nil) as Data? else {
+                continue
+            }
+            let hash = SHA256.hash(data: publicKeyData)
+            let hashBase64 = Data(hash).base64EncodedString()
+            if Self.pinnedPublicKeyHashes.contains(hashBase64) {
+                completionHandler(.useCredential, URLCredential(trust: serverTrust))
+                return
+            }
         }
+
+        completionHandler(.cancelAuthenticationChallenge, nil)
     }
 }
 

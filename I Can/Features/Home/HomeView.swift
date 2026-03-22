@@ -194,8 +194,13 @@ struct HomeView: View {
         guard let userId = AuthService.shared.currentUser?.id else { return }
         guard let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
         let url = dir.appendingPathComponent("profile_photo_\(userId).jpg")
-        guard let data = try? Data(contentsOf: url), let image = UIImage(data: data) else { return }
-        profileImage = image
+        Task {
+            let image = await Task.detached(priority: .userInitiated) {
+                guard let data = try? Data(contentsOf: url) else { return nil as UIImage? }
+                return UIImage(data: data)
+            }.value
+            if let image { profileImage = image }
+        }
     }
 
     // MARK: - Header

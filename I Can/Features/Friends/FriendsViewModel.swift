@@ -43,6 +43,7 @@ final class FriendsViewModel {
         isSearching = true
         let current = query
         searchTask = Task {
+            defer { isSearching = false }
             try? await Task.sleep(for: .milliseconds(400))
             guard !Task.isCancelled, current == searchText else { return }
 
@@ -56,7 +57,6 @@ final class FriendsViewModel {
                 searchResults = []
                 errorMessage = error.localizedDescription
             }
-            isSearching = false
         }
     }
 

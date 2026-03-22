@@ -12,7 +12,7 @@ struct CoachChatView: View {
     @State private var limitReached = false
     @State private var resetAt: Date? = nil
     @State private var countdownText = ""
-    @State private var countdownTimer: Timer? = nil
+    @State private var countdownTask: Task<Void, Never>? = nil
     @FocusState private var isInputFocused: Bool
 
     private let coachGradient = [Color(hex: "0EA5E9"), Color(hex: "22C55E")]
@@ -279,17 +279,19 @@ struct CoachChatView: View {
         limitReached = true
         persistLimitState(resetDate: resetDate)
         updateCountdownText()
-        countdownTimer?.invalidate()
-        countdownTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            Task { @MainActor in
+        countdownTask?.cancel()
+        countdownTask = Task { @MainActor in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1))
+                guard !Task.isCancelled else { break }
                 updateCountdownText()
             }
         }
     }
 
     private func stopCountdown() {
-        countdownTimer?.invalidate()
-        countdownTimer = nil
+        countdownTask?.cancel()
+        countdownTask = nil
     }
 
     private func updateCountdownText() {
@@ -326,16 +328,8 @@ struct CoachChatView: View {
         guard stored > 0 else { return }
         let resetDate = Date(timeIntervalSince1970: stored)
         if resetDate.timeIntervalSinceNow > 0 {
-            resetAt = resetDate
-            limitReached = true
             remainingMessages = 0
-            updateCountdownText()
-            countdownTimer?.invalidate()
-            countdownTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-                Task { @MainActor in
-                    updateCountdownText()
-                }
-            }
+            startCountdown(to: resetDate)
         } else {
             clearLimitState()
         }
@@ -708,9 +702,8 @@ struct CoachChatView: View {
                     if remaining <= 0 {
                         // Next message will be blocked, calculate reset
                         let now = Date()
-                        let calendar = Calendar(identifier: .gregorian)
-                        var utcCalendar = calendar
-                        utcCalendar.timeZone = TimeZone(identifier: "UTC")!
+                        var utcCalendar = Calendar(identifier: .gregorian)
+                        utcCalendar.timeZone = TimeZone(identifier: "UTC") ?? .gmt
                         if let tomorrow = utcCalendar.date(byAdding: .day, value: 1, to: now) {
                             let resetDate = utcCalendar.startOfDay(for: tomorrow)
                             limitReached = true
