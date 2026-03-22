@@ -25,7 +25,9 @@ final class FriendsViewModel {
             friends = f
             pendingRequests = r
         } catch {
-            errorMessage = error.localizedDescription
+            if !Task.isCancelled && (error as? URLError)?.code != .cancelled {
+                errorMessage = error.localizedDescription
+            }
         }
         isLoading = false
     }
@@ -50,7 +52,7 @@ final class FriendsViewModel {
                 guard !Task.isCancelled else { return }
                 searchResults = results
             } catch {
-                guard !Task.isCancelled else { return }
+                guard !Task.isCancelled, (error as? URLError)?.code != .cancelled else { return }
                 searchResults = []
                 errorMessage = error.localizedDescription
             }

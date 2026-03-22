@@ -21,6 +21,11 @@ struct EditProfileSheet: View {
     @State private var showSportPicker = false
     @State private var showPositionPicker = false
     @State private var photoRemoved = false
+    @State private var showPhotoOptions = false
+    @State private var showCamera = false
+    @State private var showPhotoPicker = false
+    @State private var imageToCrop: UIImage?
+    @State private var showCropView = false
 
     private let sports: [(id: String, name: String, icon: String)] = [
         ("soccer", "Soccer", "sportscourt"),
@@ -85,7 +90,10 @@ struct EditProfileSheet: View {
 
     private var photoSection: some View {
         VStack(spacing: 14) {
-            PhotosPicker(selection: $selectedPhoto, matching: .images) {
+            Button {
+                HapticManager.selection()
+                showPhotoOptions = true
+            } label: {
                 ZStack {
                     if let image = editedImage {
                         Image(uiImage: image)
@@ -138,32 +146,62 @@ struct EditProfileSheet: View {
                     .frame(width: 100, height: 100)
                 }
             }
+            .buttonStyle(.plain)
+            .confirmationDialog("Profile Photo", isPresented: $showPhotoOptions, titleVisibility: .visible) {
+                Button("Choose from Library") { showPhotoPicker = true }
+                if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                    Button("Take Photo") { showCamera = true }
+                }
+                if editedImage != nil {
+                    Button("Remove Photo", role: .destructive) {
+                        HapticManager.impact(.light)
+                        editedImage = nil
+                        selectedPhoto = nil
+                        photoRemoved = true
+                    }
+                }
+            }
+            .photosPicker(isPresented: $showPhotoPicker, selection: $selectedPhoto, matching: .images)
             .onChange(of: selectedPhoto) { _, item in
                 guard let item else { return }
                 Task {
                     if let data = try? await item.loadTransferable(type: Data.self),
                        let uiImage = UIImage(data: data) {
-                        editedImage = uiImage
+                        imageToCrop = uiImage
+                        showCropView = true
                     }
+                }
+            }
+            .fullScreenCover(isPresented: $showCamera) {
+                CameraPicker { image in
+                    showCamera = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        imageToCrop = image
+                        showCropView = true
+                    }
+                } onCancel: {
+                    showCamera = false
+                }
+                .ignoresSafeArea()
+            }
+            .fullScreenCover(isPresented: $showCropView) {
+                if let image = imageToCrop {
+                    ImageCropView(image: image) { cropped in
+                        editedImage = cropped
+                        showCropView = false
+                        imageToCrop = nil
+                    } onCancel: {
+                        showCropView = false
+                        imageToCrop = nil
+                    }
+                    .ignoresSafeArea()
                 }
             }
 
             if editedImage != nil {
-                Button {
-                    HapticManager.impact(.light)
-                    editedImage = nil
-                    selectedPhoto = nil
-                    photoRemoved = true
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "trash")
-                            .font(.system(size: 11, weight: .semibold))
-                        Text("Remove Photo")
-                            .font(.system(size: 12, weight: .semibold).width(.condensed))
-                    }
-                    .foregroundColor(.red.opacity(0.8))
-                }
-                .buttonStyle(.plain)
+                Text("Tap to change photo")
+                    .font(.system(size: 12, weight: .medium).width(.condensed))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
             } else {
                 Text("Tap to add photo")
                     .font(.system(size: 12, weight: .medium).width(.condensed))

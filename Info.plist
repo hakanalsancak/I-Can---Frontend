@@ -13,6 +13,8 @@
 	</array>
 	<key>GIDClientID</key>
 	<string>457092074996-de84m5ic6uvhpctclgsvi8muolqhlaeh.apps.googleusercontent.com</string>
+	<key>NSCameraUsageDescription</key>
+	<string>I Can needs camera access to take your profile photo.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

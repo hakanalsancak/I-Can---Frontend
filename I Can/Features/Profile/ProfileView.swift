@@ -52,6 +52,9 @@ struct ProfileView: View {
                         premiumCard
                             .opacity(cardsAppeared ? 1 : 0)
 
+                        contactUsCard
+                            .opacity(cardsAppeared ? 1 : 0)
+
                         feedbackCard
                             .opacity(cardsAppeared ? 1 : 0)
 
@@ -641,6 +644,52 @@ struct ProfileView: View {
                 subscriptionShimmer = 2
             }
         }
+    }
+
+    // MARK: - Contact Us Card
+
+    private var contactUsCard: some View {
+        Button {
+            HapticManager.selection()
+            if let url = URL(string: "mailto:contact@alsancar.co.uk") {
+                UIApplication.shared.open(url)
+            }
+        } label: {
+            HStack(spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color(hex: "3B82F6").opacity(0.15))
+                        .frame(width: 42, height: 42)
+                    Image(systemName: "envelope.fill")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(Color(hex: "3B82F6"))
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Contact Us")
+                        .font(.system(size: 15, weight: .bold).width(.condensed))
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    Text("contact@alsancar.co.uk")
+                        .font(.system(size: 12, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                }
+
+                Spacer()
+
+                Image(systemName: "arrow.up.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+            }
+            .padding(16)
+            .background(ColorTheme.cardBackground(colorScheme))
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(ColorTheme.separator(colorScheme), lineWidth: 1)
+            )
+            .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Feedback Card
