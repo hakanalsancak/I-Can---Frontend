@@ -9,10 +9,11 @@ struct UsernameEntryView: View {
     @State private var isAvailable: Bool?
     @State private var errorText: String?
     @State private var checkTask: Task<Void, Never>?
+    @State private var networkError = false
 
     private var isValid: Bool {
         let trimmed = username.trimmingCharacters(in: .whitespaces).lowercased()
-        return trimmed.count >= 3 && isAvailable == true
+        return trimmed.count >= 3 && (isAvailable == true || networkError)
     }
 
     var body: some View {
@@ -47,6 +48,7 @@ struct UsernameEntryView: View {
                                 )
                                 isAvailable = nil
                                 errorText = nil
+                                networkError = false
                                 checkTask?.cancel()
                                 let current = username
                                 checkTask = Task {
@@ -73,7 +75,7 @@ struct UsernameEntryView: View {
                     if let error = errorText {
                         Text(error)
                             .font(.system(size: 13, weight: .medium).width(.condensed))
-                            .foregroundColor(.red)
+                            .foregroundColor(networkError ? .orange : .red)
                     } else if isAvailable == true {
                         HStack(spacing: 4) {
                             Image(systemName: "checkmark.circle.fill")
@@ -153,8 +155,10 @@ struct UsernameEntryView: View {
                 }
             }
         } catch {
-            errorText = nil
-            isAvailable = nil
+            if !Task.isCancelled {
+                errorText = "Could not verify username. You can still continue."
+                networkError = true
+            }
         }
     }
 }

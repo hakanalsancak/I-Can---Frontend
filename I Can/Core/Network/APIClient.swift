@@ -97,11 +97,7 @@ final class APIClient: @unchecked Sendable {
     private init() {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 30
-#if DEBUG
         session = URLSession(configuration: config)
-#else
-        session = URLSession(configuration: config, delegate: PinningDelegate(), delegateQueue: nil)
-#endif
         decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         encoder = JSONEncoder()

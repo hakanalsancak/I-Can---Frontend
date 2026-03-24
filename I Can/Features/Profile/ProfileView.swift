@@ -67,6 +67,7 @@ struct ProfileView: View {
                 }
             }
             .background(ColorTheme.background(colorScheme).ignoresSafeArea())
+            .preferredColorScheme(AppearanceManager.shared.current.colorScheme)
             .navigationBarHidden(true)
             .task {
                 await viewModel.loadData()

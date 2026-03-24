@@ -88,8 +88,17 @@ final class OnboardingViewModel {
                 identityToken: token, fullName: credential.fullName,
                 activate: skipCompleteOnboardingAfterSocialAuth
             )
-            AnalyticsManager.log("user_signed_up", parameters: ["method": "apple"])
-            if !skipCompleteOnboardingAfterSocialAuth {
+            if skipCompleteOnboardingAfterSocialAuth || showLogin {
+                AnalyticsManager.log("user_signed_in", parameters: ["method": "apple"])
+                AuthService.shared.activateSession()
+            } else {
+                if AuthService.shared.currentUser?.onboardingCompleted == true {
+                    AuthService.shared.deactivatePendingSession()
+                    errorMessage = "An account already exists with this Apple ID. Please log in instead, or use a different email to create a new account."
+                    isLoading = false
+                    return
+                }
+                AnalyticsManager.log("user_signed_up", parameters: ["method": "apple"])
                 try await completeOnboarding()
                 AuthService.shared.activateSession()
             }
@@ -127,8 +136,17 @@ final class OnboardingViewModel {
                 idToken: idToken,
                 activate: skipCompleteOnboardingAfterSocialAuth
             )
-            AnalyticsManager.log("user_signed_up", parameters: ["method": "google"])
-            if !skipCompleteOnboardingAfterSocialAuth {
+            if skipCompleteOnboardingAfterSocialAuth || showLogin {
+                AnalyticsManager.log("user_signed_in", parameters: ["method": "google"])
+                AuthService.shared.activateSession()
+            } else {
+                if AuthService.shared.currentUser?.onboardingCompleted == true {
+                    AuthService.shared.deactivatePendingSession()
+                    errorMessage = "An account already exists with this Google account. Please log in instead, or use a different email to create a new account."
+                    isLoading = false
+                    return
+                }
+                AnalyticsManager.log("user_signed_up", parameters: ["method": "google"])
                 try await completeOnboarding()
                 AuthService.shared.activateSession()
             }
