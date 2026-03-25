@@ -40,6 +40,7 @@ final class OnboardingViewModel {
     var notificationFrequency: Int = 1
     var isLoading = false
     var errorMessage: String?
+    var usernameError: String?
     var showLogin = false
     var signInAuthorization: ASAuthorization?
     var pendingGoogleSignIn = false
@@ -106,7 +107,12 @@ final class OnboardingViewModel {
             if !wasAuthenticated {
                 AuthService.shared.deactivatePendingSession()
             }
-            errorMessage = error.localizedDescription
+            if isUsernameTakenError(error) {
+                usernameError = "Username is already taken. Please choose another."
+                currentStep = .usernameEntry
+            } else {
+                errorMessage = error.localizedDescription
+            }
         }
         isLoading = false
     }
@@ -157,7 +163,12 @@ final class OnboardingViewModel {
                 if !wasAuthenticated {
                     AuthService.shared.deactivatePendingSession()
                 }
-                errorMessage = error.localizedDescription
+                if isUsernameTakenError(error) {
+                    usernameError = "Username is already taken. Please choose another."
+                    currentStep = .usernameEntry
+                } else {
+                    errorMessage = error.localizedDescription
+                }
             }
         }
         isLoading = false
@@ -181,9 +192,19 @@ final class OnboardingViewModel {
             AuthService.shared.activateSession()
         } catch {
             AuthService.shared.deactivatePendingSession()
-            errorMessage = "Could not connect to server. Please try again."
+            if isUsernameTakenError(error) {
+                usernameError = "Username is already taken. Please choose another."
+                currentStep = .usernameEntry
+            } else {
+                errorMessage = "Could not connect to server. Please try again."
+            }
         }
         isLoading = false
+    }
+
+    private func isUsernameTakenError(_ error: Error) -> Bool {
+        error.localizedDescription.lowercased().contains("username") &&
+        error.localizedDescription.lowercased().contains("taken")
     }
 
     private func completeOnboarding() async throws {

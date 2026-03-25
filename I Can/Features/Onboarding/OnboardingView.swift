@@ -82,8 +82,15 @@ struct OnboardingView: View {
                     case .usernameEntry:
                         UsernameEntryView(
                             username: $viewModel.username,
-                            onNext: { viewModel.nextStep() },
-                            onBack: { viewModel.previousStep() }
+                            serverError: viewModel.usernameError,
+                            onNext: {
+                                viewModel.usernameError = nil
+                                viewModel.nextStep()
+                            },
+                            onBack: {
+                                viewModel.usernameError = nil
+                                viewModel.previousStep()
+                            }
                         )
                     case .mantraCreation:
                         MantraCreationView(

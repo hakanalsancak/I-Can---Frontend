@@ -2,6 +2,7 @@ import SwiftUI
 
 struct UsernameEntryView: View {
     @Binding var username: String
+    var serverError: String?
     let onNext: () -> Void
     let onBack: () -> Void
     @Environment(\.colorScheme) private var colorScheme
@@ -9,11 +10,11 @@ struct UsernameEntryView: View {
     @State private var isAvailable: Bool?
     @State private var errorText: String?
     @State private var checkTask: Task<Void, Never>?
-    @State private var networkError = false
+    @State private var isChecking = false
 
-    private var isValid: Bool {
+    private var isFormatValid: Bool {
         let trimmed = username.trimmingCharacters(in: .whitespaces).lowercased()
-        return trimmed.count >= 3 && (isAvailable == true || networkError)
+        return trimmed.count >= 3
     }
 
     var body: some View {
@@ -48,9 +49,11 @@ struct UsernameEntryView: View {
                                 )
                                 isAvailable = nil
                                 errorText = nil
-                                networkError = false
+                                isChecking = false
                                 checkTask?.cancel()
                                 let current = username
+                                guard current.trimmingCharacters(in: .whitespaces).count >= 3 else { return }
+                                isChecking = true
                                 checkTask = Task {
                                     try? await Task.sleep(for: .milliseconds(500))
                                     guard !Task.isCancelled, current == username else { return }
@@ -72,16 +75,28 @@ struct UsernameEntryView: View {
                     .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
                     .padding(.horizontal, 40)
 
-                    if let error = errorText {
+                    if let error = serverError {
                         Text(error)
                             .font(.system(size: 13, weight: .medium).width(.condensed))
-                            .foregroundColor(networkError ? .orange : .red)
+                            .foregroundColor(.red)
+                    } else if let error = errorText {
+                        Text(error)
+                            .font(.system(size: 13, weight: .medium).width(.condensed))
+                            .foregroundColor(.red)
                     } else if isAvailable == true {
                         HStack(spacing: 4) {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundColor(.green)
                             Text("Username available")
                                 .foregroundColor(.green)
+                        }
+                        .font(.system(size: 13, weight: .medium).width(.condensed))
+                    } else if isChecking {
+                        HStack(spacing: 6) {
+                            ProgressView()
+                                .scaleEffect(0.7)
+                            Text("Checking availability...")
+                                .foregroundColor(ColorTheme.secondaryText(colorScheme))
                         }
                         .font(.system(size: 13, weight: .medium).width(.condensed))
                     }
@@ -112,7 +127,7 @@ struct UsernameEntryView: View {
 
                     PrimaryButton(
                         title: "Continue",
-                        isDisabled: !isValid
+                        isDisabled: !isFormatValid
                     ) {
                         withAnimation { onNext() }
                     }
@@ -136,15 +151,13 @@ struct UsernameEntryView: View {
     private func checkAvailability() async {
         let trimmed = username.trimmingCharacters(in: .whitespaces)
         guard trimmed.count >= 3 else {
-            if !trimmed.isEmpty {
-                errorText = "Username must be at least 3 characters"
-            }
-            isAvailable = false
+            isChecking = false
             return
         }
 
         do {
             let result = try await FriendService.shared.checkUsername(trimmed)
+            guard !Task.isCancelled else { return }
             if let error = result.error {
                 errorText = error
                 isAvailable = false
@@ -155,10 +168,10 @@ struct UsernameEntryView: View {
                 }
             }
         } catch {
-            if !Task.isCancelled {
-                errorText = "Could not verify username. You can still continue."
-                networkError = true
-            }
+            // Network errors are silently ignored -- backend enforces uniqueness on submit
+        }
+        if !Task.isCancelled {
+            isChecking = false
         }
     }
 }
