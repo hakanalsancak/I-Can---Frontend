@@ -99,7 +99,7 @@
               "locale" : "en_GB"
             }
           ],
-          "productID" : "com.hakanalsancak.ican.premium.monthly",
+          "productID" : "com.ican.premium.monthly",
           "recurringSubscriptionPeriod" : "P1M",
           "referenceName" : "Monthly Premium",
           "subscriptionGroupID" : "A1B2C3D4",
@@ -138,7 +138,7 @@
               "locale" : "en_GB"
             }
           ],
-          "productID" : "com.hakanalsancak.ican.premium.yearly",
+          "productID" : "com.ican.premium.yearly",
           "recurringSubscriptionPeriod" : "P1Y",
           "referenceName" : "Yearly Premium",
           "subscriptionGroupID" : "A1B2C3D4",

@@ -10,8 +10,8 @@ final class SubscriptionService {
     var statusChecked = false
     var subscriptionStatus: SubscriptionStatus?
 
-    static let monthlyProductId = "com.hakanalsancak.ican.premium.monthly"
-    static let yearlyProductId = "com.hakanalsancak.ican.premium.yearly"
+    static let monthlyProductId = "com.ican.premium.monthly"
+    static let yearlyProductId = "com.ican.premium.yearly"
     static let productIds: [String] = [monthlyProductId, yearlyProductId]
 
     func checkStatus() async throws {
