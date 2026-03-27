@@ -236,12 +236,22 @@ struct EditProfileSheet: View {
                                 username = newValue.lowercased().replacingOccurrences(
                                     of: "[^a-z0-9._]", with: "", options: .regularExpression
                                 )
-                                usernameAvailable = nil
-                                usernameError = nil
                                 checkTask?.cancel()
                                 let current = username
                                 let original = AuthService.shared.currentUser?.username ?? ""
-                                guard current != original else { return }
+                                guard current != original else {
+                                    usernameAvailable = nil
+                                    usernameError = nil
+                                    return
+                                }
+                                let trimmed = current.trimmingCharacters(in: .whitespaces)
+                                if !trimmed.isEmpty && trimmed.count < 3 {
+                                    usernameAvailable = false
+                                    usernameError = "At least 3 characters"
+                                    return
+                                }
+                                usernameAvailable = nil
+                                usernameError = nil
                                 checkTask = Task {
                                     try? await Task.sleep(for: .milliseconds(500))
                                     guard !Task.isCancelled, current == username else { return }
@@ -353,17 +363,27 @@ struct EditProfileSheet: View {
             }
 
             fieldGroup(title: "MANTRA") {
-                TextField("Your personal mantra...", text: $mantra, axis: .vertical)
-                    .font(.system(size: 16, weight: .medium).width(.condensed))
-                    .lineLimit(3...)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 14)
-                    .background(ColorTheme.cardBackground(colorScheme))
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .strokeBorder(ColorTheme.separator(colorScheme), lineWidth: 1)
-                    )
+                VStack(alignment: .trailing, spacing: 4) {
+                    TextField("Your personal mantra...", text: $mantra, axis: .vertical)
+                        .font(.system(size: 16, weight: .medium).width(.condensed))
+                        .lineLimit(3...)
+                        .onChange(of: mantra) { _, newValue in
+                            if newValue.count > 20 {
+                                mantra = String(newValue.prefix(20))
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 14)
+                        .background(ColorTheme.cardBackground(colorScheme))
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .strokeBorder(ColorTheme.separator(colorScheme), lineWidth: 1)
+                        )
+                    Text("\(mantra.count)/20")
+                        .font(.system(size: 11, weight: .medium).width(.condensed))
+                        .foregroundColor(mantra.count >= 20 ? .red : ColorTheme.tertiaryText(colorScheme))
+                }
             }
         }
     }
@@ -512,7 +532,7 @@ struct EditProfileSheet: View {
             team: team.trimmingCharacters(in: .whitespaces),
             position: position,
             mantra: mantra.trimmingCharacters(in: .whitespaces),
-            photo: photoDidChange ? editedImage : viewModel.profileImage,
+            photo: photoDidChange ? editedImage : nil,
             removePhoto: photoRemoved
         )
         if success { dismiss() }

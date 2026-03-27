@@ -47,12 +47,18 @@ struct UsernameEntryView: View {
                                 username = newValue.lowercased().replacingOccurrences(
                                     of: "[^a-z0-9._]", with: "", options: .regularExpression
                                 )
+                                checkTask?.cancel()
+                                isChecking = false
+                                let current = username
+                                let trimmed = current.trimmingCharacters(in: .whitespaces)
+                                if !trimmed.isEmpty && trimmed.count < 3 {
+                                    isAvailable = false
+                                    errorText = "At least 3 characters"
+                                    return
+                                }
                                 isAvailable = nil
                                 errorText = nil
-                                isChecking = false
-                                checkTask?.cancel()
-                                let current = username
-                                guard current.trimmingCharacters(in: .whitespaces).count >= 3 else { return }
+                                guard trimmed.count >= 3 else { return }
                                 isChecking = true
                                 checkTask = Task {
                                     try? await Task.sleep(for: .milliseconds(500))
