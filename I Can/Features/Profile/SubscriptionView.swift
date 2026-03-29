@@ -71,6 +71,13 @@ struct SubscriptionView: View {
                         Text("Cancel anytime. No commitment.")
                             .font(Typography.footnote)
                             .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+
+                        HStack(spacing: 16) {
+                            Link("Terms of Use", destination: URL(string: "https://www.icanathlete.com/terms")!)
+                            Link("Privacy Policy", destination: URL(string: "https://www.icanathlete.com/privacy")!)
+                        }
+                        .font(Typography.footnote)
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
                     }
                     .padding(.bottom, 40)
                 }
