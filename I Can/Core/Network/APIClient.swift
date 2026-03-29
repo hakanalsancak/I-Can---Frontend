@@ -4,18 +4,49 @@ import CryptoKit
 // MARK: - Certificate Pinning Delegate
 
 private final class PinningDelegate: NSObject, URLSessionDelegate, Sendable {
-    // SHA-256 hashes of trusted public keys (base64-encoded).
+    // SHA-256 hashes of SubjectPublicKeyInfo (SPKI) for trusted certificates (base64-encoded).
     // Includes both the leaf and intermediate CA so cert rotation on Render doesn't break the app.
     // To refresh the leaf hash:
     //   echo | openssl s_client -connect i-can-backend.onrender.com:443 2>/dev/null \
     //     | openssl x509 -noout -pubkey | openssl pkey -pubin -outform der \
     //     | openssl dgst -sha256 -binary | base64
-    private static let pinnedPublicKeyHashes: Set<String> = [
+    private static let pinnedSPKIHashes: Set<String> = [
         // Leaf: onrender.com (rotates every ~3 months — update after rotation)
         "T4eoRdbfIYF3G9IOGamqR3Vgye2bNLHQTSCOY8u3y5w=",
         // Intermediate CA: Google Trust Services WE1 (stable across rotations)
         "kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4=",
     ]
+
+    // ASN.1 header for EC P-256 SubjectPublicKeyInfo.
+    // SecKeyCopyExternalRepresentation returns the raw key (04 || x || y);
+    // prepending this header reconstructs the full SPKI DER so the hash
+    // matches the standard OpenSSL output.
+    private static let ecP256SPKIHeader = Data([
+        0x30, 0x59, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02,
+        0x01, 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07, 0x03,
+        0x42, 0x00
+    ])
+
+    // ASN.1 header for RSA 2048 SubjectPublicKeyInfo.
+    private static let rsa2048SPKIHeader = Data([
+        0x30, 0x82, 0x01, 0x22, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86,
+        0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00, 0x03, 0x82, 0x01, 0x0f, 0x00
+    ])
+
+    // ASN.1 header for RSA 4096 SubjectPublicKeyInfo.
+    private static let rsa4096SPKIHeader = Data([
+        0x30, 0x82, 0x02, 0x22, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86,
+        0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00, 0x03, 0x82, 0x02, 0x0f, 0x00
+    ])
+
+    private static func spkiHeader(for keyData: Data) -> Data? {
+        switch keyData.count {
+        case 65:  return ecP256SPKIHeader     // EC P-256 uncompressed point
+        case 270: return rsa2048SPKIHeader     // RSA 2048
+        case 526: return rsa4096SPKIHeader     // RSA 4096
+        default:  return nil
+        }
+    }
 
     func urlSession(
         _ session: URLSession,
@@ -35,7 +66,7 @@ private final class PinningDelegate: NSObject, URLSessionDelegate, Sendable {
             return
         }
 
-        // Check each certificate in the chain against our pinned hashes
+        // Check each certificate in the chain against our pinned SPKI hashes
         guard let chain = SecTrustCopyCertificateChain(serverTrust) as? [SecCertificate] else {
             completionHandler(.cancelAuthenticationChallenge, nil)
             return
@@ -43,12 +74,15 @@ private final class PinningDelegate: NSObject, URLSessionDelegate, Sendable {
 
         for certificate in chain {
             guard let publicKey = SecCertificateCopyKey(certificate),
-                  let publicKeyData = SecKeyCopyExternalRepresentation(publicKey, nil) as Data? else {
+                  let publicKeyData = SecKeyCopyExternalRepresentation(publicKey, nil) as Data?,
+                  let header = Self.spkiHeader(for: publicKeyData) else {
                 continue
             }
-            let hash = SHA256.hash(data: publicKeyData)
+            var spkiData = header
+            spkiData.append(publicKeyData)
+            let hash = SHA256.hash(data: spkiData)
             let hashBase64 = Data(hash).base64EncodedString()
-            if Self.pinnedPublicKeyHashes.contains(hashBase64) {
+            if Self.pinnedSPKIHashes.contains(hashBase64) {
                 completionHandler(.useCredential, URLCredential(trust: serverTrust))
                 return
             }
@@ -97,7 +131,7 @@ final class APIClient: @unchecked Sendable {
     private init() {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 30
-        session = URLSession(configuration: config)
+        session = URLSession(configuration: config, delegate: PinningDelegate(), delegateQueue: nil)
         decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         encoder = JSONEncoder()
