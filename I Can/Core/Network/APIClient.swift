@@ -12,7 +12,7 @@ private final class PinningDelegate: NSObject, URLSessionDelegate, Sendable {
     //     | openssl dgst -sha256 -binary | base64
     private static let pinnedPublicKeyHashes: Set<String> = [
         // Leaf: onrender.com (rotates every ~3 months — update after rotation)
-        "T4eoRdbfIYF3G9IOGamqR3Vgye2bNLHQTSCOY8u3y5w=",
+        "IX2/a47sFHkF9jewioc5OzEDzS0dNQjNMCX8PCQ26Pg=",
         // Intermediate CA: Google Trust Services WE1 (stable across rotations)
         "kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4=",
     ]
