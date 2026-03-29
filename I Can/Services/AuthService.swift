@@ -152,7 +152,6 @@ final class AuthService {
     func signOut() {
         // Capture tokens before clearing so the logout request can still use them
         let refreshToken = TokenManager.shared.refreshToken
-        let accessToken = TokenManager.shared.accessToken
 
         // Clear local state immediately so the UI reacts right away
         ChatService.shared.clearMessages()
@@ -161,19 +160,16 @@ final class AuthService {
         isAuthenticated = false
         SubscriptionService.shared.resetForSignOut()
 
-        // Best-effort: revoke refresh token on the server so it can't be reused after logout.
-        // Uses the captured access token directly since tokens are already cleared from Keychain.
-        if let refreshToken, let accessToken {
+        // Best-effort: revoke refresh token on the server so it can't be reused after logout
+        if let refreshToken {
             Task.detached {
                 struct LogoutBody: Encodable { let refreshToken: String }
-                let body = LogoutBody(refreshToken: refreshToken)
-                guard let url = URL(string: APIEndpoints.baseURL + APIEndpoints.Auth.logout) else { return }
-                var request = URLRequest(url: url)
-                request.httpMethod = "POST"
-                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-                request.httpBody = try? JSONEncoder().encode(body)
-                _ = try? await URLSession.shared.data(for: request)
+                let _: [String: Bool] = (try? await APIClient.shared.request(
+                    APIEndpoints.Auth.logout,
+                    method: "POST",
+                    body: LogoutBody(refreshToken: refreshToken),
+                    authenticated: false
+                )) ?? [:]
             }
         }
     }
