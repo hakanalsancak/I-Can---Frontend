@@ -164,16 +164,18 @@ final class AuthService {
         // Best-effort: revoke refresh token on the server so it can't be reused after logout.
         // Uses the captured access token directly since tokens are already cleared from Keychain.
         if let refreshToken, let accessToken {
-            Task.detached {
+            let logoutURL = URL(string: APIEndpoints.baseURL + APIEndpoints.Auth.logout)
+            Task.detached { @Sendable in
                 struct LogoutBody: Encodable { let refreshToken: String }
                 let body = LogoutBody(refreshToken: refreshToken)
-                guard let url = URL(string: APIEndpoints.baseURL + APIEndpoints.Auth.logout) else { return }
+                guard let url = logoutURL else { return }
                 var request = URLRequest(url: url)
                 request.httpMethod = "POST"
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")
                 request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
                 request.httpBody = try? JSONEncoder().encode(body)
-                _ = try? await URLSession.shared.data(for: request)
+                let session = URLSession(configuration: .default)
+                let _ = try? await session.data(for: request)
             }
         }
     }
