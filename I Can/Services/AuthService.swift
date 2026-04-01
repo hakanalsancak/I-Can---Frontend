@@ -20,7 +20,8 @@ final class AuthService {
         if activate { isAuthenticated = true }
     }
 
-    func signInWithApple(identityToken: String, fullName: PersonNameComponents?, activate: Bool = true) async throws {
+    @discardableResult
+    func signInWithApple(identityToken: String, fullName: PersonNameComponents?, activate: Bool = true) async throws -> AuthResponse {
         let name = fullName.map {
             AppleSignInRequest.FullName(givenName: $0.givenName, familyName: $0.familyName)
         }
@@ -31,9 +32,11 @@ final class AuthService {
         TokenManager.shared.saveTokens(access: response.accessToken, refresh: response.refreshToken)
         currentUser = response.user
         if activate { isAuthenticated = true }
+        return response
     }
 
-    func signInWithGoogle(idToken: String, activate: Bool = true) async throws {
+    @discardableResult
+    func signInWithGoogle(idToken: String, activate: Bool = true) async throws -> AuthResponse {
         let request = GoogleSignInRequest(idToken: idToken)
         let response: AuthResponse = try await APIClient.shared.request(
             APIEndpoints.Auth.google, method: "POST", body: request, authenticated: false
@@ -41,6 +44,7 @@ final class AuthService {
         TokenManager.shared.saveTokens(access: response.accessToken, refresh: response.refreshToken)
         currentUser = response.user
         if activate { isAuthenticated = true }
+        return response
     }
 
     /// Call after deferred auth + onboarding to finalize the session.

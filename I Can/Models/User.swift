@@ -35,6 +35,7 @@ struct AuthResponse: Codable {
     let user: User
     let accessToken: String
     let refreshToken: String
+    let isNewUser: Bool?
 }
 
 struct AppleSignInRequest: Encodable {

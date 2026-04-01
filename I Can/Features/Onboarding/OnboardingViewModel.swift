@@ -85,7 +85,7 @@ final class OnboardingViewModel {
         errorMessage = nil
         let wasAuthenticated = AuthService.shared.isAuthenticated
         do {
-            try await AuthService.shared.signInWithApple(
+            let response = try await AuthService.shared.signInWithApple(
                 identityToken: token, fullName: credential.fullName,
                 activate: skipCompleteOnboardingAfterSocialAuth
             )
@@ -93,9 +93,9 @@ final class OnboardingViewModel {
                 AnalyticsManager.log("user_signed_in", parameters: ["method": "apple"])
                 AuthService.shared.activateSession()
             } else {
-                if AuthService.shared.currentUser?.onboardingCompleted == true {
+                if response.isNewUser != true {
                     AuthService.shared.deactivatePendingSession()
-                    errorMessage = "An account already exists with this Apple ID. Please log in instead, or use a different email to create a new account."
+                    errorMessage = "This email is already registered. Please sign in instead."
                     isLoading = false
                     return
                 }
@@ -138,7 +138,7 @@ final class OnboardingViewModel {
                 return
             }
 
-            try await AuthService.shared.signInWithGoogle(
+            let response = try await AuthService.shared.signInWithGoogle(
                 idToken: idToken,
                 activate: skipCompleteOnboardingAfterSocialAuth
             )
@@ -146,9 +146,9 @@ final class OnboardingViewModel {
                 AnalyticsManager.log("user_signed_in", parameters: ["method": "google"])
                 AuthService.shared.activateSession()
             } else {
-                if AuthService.shared.currentUser?.onboardingCompleted == true {
+                if response.isNewUser != true {
                     AuthService.shared.deactivatePendingSession()
-                    errorMessage = "An account already exists with this Google account. Please log in instead, or use a different email to create a new account."
+                    errorMessage = "This email is already registered. Please sign in instead."
                     isLoading = false
                     return
                 }
