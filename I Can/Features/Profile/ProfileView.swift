@@ -598,7 +598,7 @@ struct ProfileView: View {
                     HStack(spacing: 4) {
                         Image(systemName: "sparkles")
                             .font(.system(size: 10, weight: .bold))
-                        Text("1 month free trial")
+                        Text("Unlock AI coaching")
                             .font(.system(size: 12, weight: .medium).width(.condensed))
                     }
                     .foregroundColor(.white.opacity(0.75))

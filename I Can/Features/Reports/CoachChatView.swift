@@ -211,10 +211,10 @@ struct CoachChatView: View {
                     }
 
                     HStack(spacing: 6) {
-                        Image(systemName: "gift.fill")
+                        Image(systemName: "crown.fill")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundColor(Color(hex: "EAB308"))
-                        Text("1 month free trial included")
+                        Text("Premium feature")
                             .font(.system(size: 13, weight: .medium).width(.condensed))
                             .foregroundColor(ColorTheme.secondaryText(colorScheme))
                     }

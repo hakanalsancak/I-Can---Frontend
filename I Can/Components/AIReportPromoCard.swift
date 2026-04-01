@@ -70,9 +70,9 @@ struct AIReportPromoCard: View {
 
             HStack(spacing: 0) {
                 HStack(spacing: 6) {
-                    Image(systemName: "sparkles")
+                    Image(systemName: "crown.fill")
                         .font(.system(size: 12, weight: .bold))
-                    Text("1 MONTH FREE")
+                    Text("PREMIUM")
                         .font(.system(size: 12, weight: .heavy).width(.condensed))
                 }
                 .foregroundColor(Color(hex: "8B5CF6"))
@@ -84,7 +84,7 @@ struct AIReportPromoCard: View {
                 Spacer()
 
                 HStack(spacing: 4) {
-                    Text("Try Now")
+                    Text("Learn More")
                         .font(.system(size: 14, weight: .bold).width(.condensed))
                     Image(systemName: "arrow.right")
                         .font(.system(size: 12, weight: .bold))
@@ -144,14 +144,9 @@ struct AIReportPromoCard: View {
                     .font(Typography.headline)
                     .foregroundColor(ColorTheme.primaryText(colorScheme))
 
-                HStack(spacing: 4) {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(Color(hex: "8B5CF6"))
-                    Text("1 month free trial")
-                        .font(Typography.footnote)
-                        .foregroundColor(Color(hex: "8B5CF6"))
-                }
+                Text("Unlock premium coaching")
+                    .font(Typography.footnote)
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
             }
 
             Spacer()

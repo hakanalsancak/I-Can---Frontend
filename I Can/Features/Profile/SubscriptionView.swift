@@ -111,26 +111,9 @@ struct SubscriptionView: View {
 
     private var trialSection: some View {
         VStack(spacing: 14) {
-            HStack(spacing: 6) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(Color(hex: "EAB308"))
-                Text("1 MONTH FREE TRIAL")
-                    .font(.system(size: 14, weight: .heavy).width(.condensed))
-                    .foregroundColor(Color(hex: "EAB308"))
-            }
-
-            if !isLoading && !products.isEmpty {
-                Text("Then \(monthlyPriceText) monthly or \(yearlyPriceText) yearly")
-                    .font(Typography.subheadline)
-                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                    .multilineTextAlignment(.center)
-            } else if !isLoading {
-                Text("Free for 1 month, then auto-renews")
-                    .font(Typography.subheadline)
-                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                    .multilineTextAlignment(.center)
-            }
+            Text("Choose Your Plan")
+                .font(.system(size: 18, weight: .bold).width(.condensed))
+                .foregroundColor(ColorTheme.primaryText(colorScheme))
 
             if isLoading {
                 PrimaryButton(title: "Loading...", isLoading: true) {}
@@ -142,8 +125,14 @@ struct SubscriptionView: View {
                     }
                 }
                 .padding(.horizontal, 20)
+
+                Text("1-month free trial included. After the trial, your subscription will automatically renew at the price shown above unless cancelled at least 24 hours before the end of the trial period.")
+                    .font(.system(size: 11, weight: .regular).width(.condensed))
+                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 20)
             } else {
-                PrimaryButton(title: "Start Free Trial") {
+                PrimaryButton(title: "Subscribe") {
                     Task { await retryLoadAndPurchase() }
                 }
                 .padding(.horizontal, 20)
@@ -230,6 +219,7 @@ struct SubscriptionView: View {
 
     private func planButton(product: Product) -> some View {
         let isYearly = product.id == SubscriptionService.yearlyProductId
+        let hasTrial = product.subscription?.introductoryOffer != nil
         return Button {
             if isGuest {
                 showAccountUpgrade = true
@@ -239,15 +229,22 @@ struct SubscriptionView: View {
         } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(isYearly ? "Yearly" : "Monthly")
-                        .font(.system(size: 16, weight: .bold).width(.condensed))
+                    Text(isYearly ? "\(product.displayPrice)/year" : "\(product.displayPrice)/month")
+                        .font(.system(size: 18, weight: .heavy).width(.condensed))
                         .foregroundColor(.white)
-                    Text(isYearly ? "\(product.displayPrice)/year · Save 38%" : "\(product.displayPrice)/month")
-                        .font(.system(size: 13, weight: .medium).width(.condensed))
-                        .foregroundColor(.white.opacity(0.9))
+                    HStack(spacing: 4) {
+                        Text(isYearly ? "Yearly · Save 38%" : "Monthly")
+                            .font(.system(size: 13, weight: .medium).width(.condensed))
+                            .foregroundColor(.white.opacity(0.85))
+                        if hasTrial {
+                            Text("· 1-month free trial")
+                                .font(.system(size: 12, weight: .regular).width(.condensed))
+                                .foregroundColor(.white.opacity(0.7))
+                        }
+                    }
                 }
                 Spacer()
-                Text("Start Free Trial")
+                Text(hasTrial ? "Try Free" : "Subscribe")
                     .font(.system(size: 14, weight: .bold).width(.condensed))
                     .foregroundColor(.white)
             }

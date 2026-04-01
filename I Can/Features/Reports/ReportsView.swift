@@ -421,7 +421,7 @@ struct ReportsView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "sparkles")
                         .font(.system(size: 14, weight: .bold))
-                    Text("Start Free Trial")
+                    Text("Upgrade to Premium")
                         .font(.system(size: 16, weight: .bold).width(.condensed))
                 }
                 .foregroundColor(.white)
@@ -436,15 +436,6 @@ struct ReportsView: View {
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 .shadow(color: Color(hex: "7C3AED").opacity(0.35), radius: 12, x: 0, y: 6)
-            }
-
-            HStack(spacing: 6) {
-                Image(systemName: "gift.fill")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(Color(hex: "EAB308"))
-                Text("1 month free trial included")
-                    .font(Typography.footnote)
-                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
             }
         }
         .padding(.vertical, 24)

@@ -174,7 +174,7 @@ struct EntrySubmittedView: View {
                 HStack(spacing: 4) {
                     Image(systemName: "crown.fill")
                         .font(.system(size: 10, weight: .bold))
-                    Text("Unlock with Free Trial")
+                    Text("Unlock Premium")
                         .font(.system(size: 12, weight: .heavy).width(.condensed))
                 }
                 .foregroundColor(.white)
