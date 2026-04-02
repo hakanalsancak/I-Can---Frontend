@@ -126,11 +126,19 @@ struct SubscriptionView: View {
                 }
                 .padding(.horizontal, 20)
 
-                Text("1-month free trial included. After the trial, your subscription will automatically renew at the price shown above unless cancelled at least 24 hours before the end of the trial period.")
-                    .font(.system(size: 11, weight: .regular).width(.condensed))
-                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 20)
+                if anyProductHasTrial {
+                    Text("Free trial included. After the trial, your subscription will automatically renew at the price shown above unless cancelled at least 24 hours before the end of the trial period.")
+                        .font(.system(size: 11, weight: .regular).width(.condensed))
+                        .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 20)
+                } else {
+                    Text("Your subscription will automatically renew at the price shown above unless cancelled at least 24 hours before the end of the current period.")
+                        .font(.system(size: 11, weight: .regular).width(.condensed))
+                        .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 20)
+                }
             } else {
                 PrimaryButton(title: "Subscribe") {
                     Task { await retryLoadAndPurchase() }
@@ -203,6 +211,10 @@ struct SubscriptionView: View {
         .background(ColorTheme.cardBackground(colorScheme))
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
+    }
+
+    private var anyProductHasTrial: Bool {
+        products.contains { $0.subscription?.introductoryOffer != nil }
     }
 
     private var monthlyPriceText: String {

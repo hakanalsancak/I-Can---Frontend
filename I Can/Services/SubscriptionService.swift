@@ -47,24 +47,29 @@ final class SubscriptionService {
         case .success(let verification):
             let jwsRepresentation = verification.jwsRepresentation
             let transaction = try checkVerified(verification)
-            do {
-                try await verifyReceipt(
-                    transactionId: String(transaction.id),
-                    productId: transaction.productID,
-                    originalTransactionId: String(transaction.originalID),
-                    jwsRepresentation: jwsRepresentation
-                )
+
+            // Reject revoked transactions immediately
+            if transaction.revocationDate != nil {
+                await transaction.finish()
+                throw APIError.serverError("This transaction has been revoked")
+            }
+
+            try await verifyReceipt(
+                transactionId: String(transaction.id),
+                productId: transaction.productID,
+                originalTransactionId: String(transaction.originalID),
+                jwsRepresentation: jwsRepresentation
+            )
+
+            // Re-verify with backend to ensure the subscription is truly active
+            try await checkStatus()
+            if isPremium {
                 await transaction.finish()
                 return true
-            } catch {
-                // Direct verification failed — try syncing all current entitlements as fallback
-                await syncEntitlements()
-                if isPremium {
-                    await transaction.finish()
-                    return true
-                }
-                // Don't finish the transaction so StoreKit redelivers on next launch
-                throw error
+            } else {
+                // Backend says not premium despite receipt verification — don't grant access
+                await transaction.finish()
+                return false
             }
         case .userCancelled:
             return false
@@ -76,11 +81,21 @@ final class SubscriptionService {
     }
 
     /// Iterates Apple's current entitlements and verifies any active subscriptions
-    /// with the backend. Acts as a recovery mechanism when initial verification fails.
+    /// with the backend. Skips revoked or expired transactions.
     func syncEntitlements() async {
         for await result in Transaction.currentEntitlements {
             let jwsRepresentation = result.jwsRepresentation
             if let transaction = try? checkVerified(result) {
+                // Skip revoked transactions
+                if transaction.revocationDate != nil {
+                    await transaction.finish()
+                    continue
+                }
+                // Skip expired subscriptions
+                if let expirationDate = transaction.expirationDate, expirationDate < Date() {
+                    await transaction.finish()
+                    continue
+                }
                 do {
                     try await verifyReceipt(
                         transactionId: String(transaction.id),
@@ -100,6 +115,19 @@ final class SubscriptionService {
         for await result in Transaction.updates {
             let jwsRepresentation = result.jwsRepresentation
             if let transaction = try? checkVerified(result) {
+                // Skip revoked transactions — payment may have failed
+                if transaction.revocationDate != nil {
+                    await transaction.finish()
+                    // Revocation means premium should be removed — re-check with backend
+                    try? await checkStatus()
+                    continue
+                }
+                // Skip expired subscriptions
+                if let expirationDate = transaction.expirationDate, expirationDate < Date() {
+                    await transaction.finish()
+                    try? await checkStatus()
+                    continue
+                }
                 do {
                     try await verifyReceipt(
                         transactionId: String(transaction.id),
