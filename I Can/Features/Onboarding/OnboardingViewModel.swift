@@ -65,6 +65,25 @@ final class OnboardingViewModel {
 
     func nextStep() {
         guard let next = OnboardingStep(rawValue: currentStep.rawValue + 1) else { return }
+        // Skip account creation if user already signed in (e.g. via Welcome screen)
+        if next == .accountCreation && AuthService.shared.isAuthenticated {
+            isLoading = true
+            Task {
+                do {
+                    try await completeOnboarding()
+                    AuthService.shared.activateSession()
+                } catch {
+                    if isUsernameTakenError(error) {
+                        usernameError = "Username is already taken. Please choose another."
+                        currentStep = .usernameEntry
+                    } else {
+                        errorMessage = error.localizedDescription
+                    }
+                }
+                isLoading = false
+            }
+            return
+        }
         currentStep = next
     }
 
@@ -93,7 +112,7 @@ final class OnboardingViewModel {
                 AnalyticsManager.log("user_signed_in", parameters: ["method": "apple"])
                 AuthService.shared.activateSession()
             } else {
-                if response.isNewUser != true {
+                if response.isNewUser != true && AuthService.shared.currentUser?.onboardingCompleted == true {
                     AuthService.shared.deactivatePendingSession()
                     errorMessage = "This email is already registered. Please sign in instead."
                     isLoading = false
@@ -146,7 +165,7 @@ final class OnboardingViewModel {
                 AnalyticsManager.log("user_signed_in", parameters: ["method": "google"])
                 AuthService.shared.activateSession()
             } else {
-                if response.isNewUser != true {
+                if response.isNewUser != true && AuthService.shared.currentUser?.onboardingCompleted == true {
                     AuthService.shared.deactivatePendingSession()
                     errorMessage = "This email is already registered. Please sign in instead."
                     isLoading = false
