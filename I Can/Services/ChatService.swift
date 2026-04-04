@@ -3,6 +3,7 @@ import Foundation
 struct ChatResult {
     let reply: String
     let remaining: Int? // nil = unlimited (premium)
+    let conversationId: String?
 }
 
 @MainActor
@@ -12,18 +13,43 @@ final class ChatService {
 
     private static let fileName = "coach_chat_history.json"
 
-    func send(message: String, history: [ChatMessage]) async throws -> ChatResult {
+    func send(message: String, history: [ChatMessage], conversationId: String? = nil) async throws -> ChatResult {
         // Only send last 10 messages to match backend limit and reduce payload size
         let recentHistory = history.suffix(10)
         let historyItems = recentHistory.map { ChatHistoryItem(role: $0.role, content: String($0.content.prefix(2000))) }
-        let request = ChatRequest(message: String(message.prefix(2000)), history: historyItems)
+        let request = ChatRequest(message: String(message.prefix(2000)), history: historyItems, conversationId: conversationId)
         let response: ChatResponse = try await APIClient.shared.request(
             APIEndpoints.Chat.base,
             method: "POST",
             body: request
         )
-        return ChatResult(reply: response.reply, remaining: response.remaining)
+        return ChatResult(reply: response.reply, remaining: response.remaining, conversationId: response.conversationId)
     }
+
+    // MARK: - Conversation History
+
+    func fetchConversations(limit: Int = 20, offset: Int = 0) async throws -> ConversationsResponse {
+        let endpoint = "\(APIEndpoints.Chat.conversations)?limit=\(limit)&offset=\(offset)"
+        return try await APIClient.shared.request(endpoint)
+    }
+
+    func fetchMessages(conversationId: String, limit: Int = 50, before: Date? = nil) async throws -> MessagesResponse {
+        var endpoint = "\(APIEndpoints.Chat.conversationMessages(conversationId))?limit=\(limit)"
+        if let before {
+            let formatter = ISO8601DateFormatter()
+            endpoint += "&before=\(formatter.string(from: before))"
+        }
+        return try await APIClient.shared.request(endpoint)
+    }
+
+    func deleteConversation(_ id: String) async throws {
+        let _: [String: String] = try await APIClient.shared.request(
+            APIEndpoints.Chat.deleteConversation(id),
+            method: "DELETE"
+        )
+    }
+
+    // MARK: - Local Persistence
 
     func saveMessages(_ messages: [ChatMessage]) {
         guard let url = fileURL else { return }

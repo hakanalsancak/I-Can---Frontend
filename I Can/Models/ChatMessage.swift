@@ -13,12 +13,26 @@ struct ChatMessage: Identifiable, Equatable, Codable {
         self.timestamp = Date()
     }
 
+    init(role: String, content: String, timestamp: Date) {
+        self.id = UUID()
+        self.role = role
+        self.content = content
+        self.timestamp = timestamp
+    }
+
     var isUser: Bool { role == "user" }
 }
 
 struct ChatRequest: Encodable {
     let message: String
     let history: [ChatHistoryItem]
+    let conversationId: String?
+
+    init(message: String, history: [ChatHistoryItem], conversationId: String? = nil) {
+        self.message = message
+        self.history = history
+        self.conversationId = conversationId
+    }
 }
 
 struct ChatHistoryItem: Encodable {
@@ -29,4 +43,39 @@ struct ChatHistoryItem: Encodable {
 struct ChatResponse: Decodable {
     let reply: String
     let remaining: Int?
+    let conversationId: String?
+}
+
+// MARK: - Conversation History Models
+
+struct Conversation: Identifiable, Codable {
+    let id: String
+    let title: String?
+    let lastMessage: String?
+    let messageCount: Int
+    let createdAt: Date
+    let updatedAt: Date
+}
+
+struct ConversationsResponse: Decodable {
+    let conversations: [Conversation]
+    let total: Int
+}
+
+struct MessagesResponse: Decodable {
+    let messages: [ServerChatMessage]
+    let hasMore: Bool
+}
+
+struct ServerChatMessage: Identifiable, Codable {
+    let id: String
+    let role: String
+    let content: String
+    let createdAt: Date
+
+    var isUser: Bool { role == "user" }
+
+    func toChatMessage() -> ChatMessage {
+        ChatMessage(role: role, content: content, timestamp: createdAt)
+    }
 }

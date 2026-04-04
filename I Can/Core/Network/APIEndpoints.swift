@@ -47,6 +47,9 @@ enum APIEndpoints {
 
     enum Chat {
         static let base = "/api/chat"
+        static let conversations = "/api/chat/conversations"
+        static func conversationMessages(_ id: String) -> String { "/api/chat/conversations/\(id)/messages" }
+        static func deleteConversation(_ id: String) -> String { "/api/chat/conversations/\(id)" }
     }
 
     enum Feedback {

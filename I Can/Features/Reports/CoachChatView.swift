@@ -13,6 +13,9 @@ struct CoachChatView: View {
     @State private var resetAt: Date? = nil
     @State private var countdownText = ""
     @State private var countdownTask: Task<Void, Never>? = nil
+    @State private var currentConversationId: String? = nil
+    @State private var showHistory = false
+    @State private var isLoadingConversation = false
     @FocusState private var isInputFocused: Bool
 
     private let coachGradient = [Color(hex: "0EA5E9"), Color(hex: "22C55E")]
@@ -28,9 +31,41 @@ struct CoachChatView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                PageHeader("AI Coach")
+                PageHeader("AI Coach") {
+                    HStack(spacing: 16) {
+                        Button {
+                            HapticManager.impact(.light)
+                            startNewChat()
+                        } label: {
+                            Image(systemName: "square.and.pencil")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(
+                                    LinearGradient(colors: coachGradient, startPoint: .topLeading, endPoint: .bottomTrailing)
+                                )
+                        }
 
-                if messages.isEmpty && !limitReached {
+                        Button {
+                            HapticManager.impact(.light)
+                            showHistory = true
+                        } label: {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(
+                                    LinearGradient(colors: coachGradient, startPoint: .topLeading, endPoint: .bottomTrailing)
+                                )
+                        }
+                    }
+                }
+
+                if isLoadingConversation {
+                    VStack {
+                        Spacer()
+                        ProgressView()
+                            .tint(Color(hex: "0EA5E9"))
+                        Spacer()
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if messages.isEmpty && !limitReached {
                     emptyState
                 } else if limitReached {
                     if messages.isEmpty {
@@ -62,6 +97,16 @@ struct CoachChatView: View {
             }) {
                 SubscriptionView()
             }
+            .sheet(isPresented: $showHistory) {
+                ChatHistoryView(
+                    onSelectConversation: { id in
+                        Task { await loadConversation(id) }
+                    },
+                    onNewChat: {
+                        startNewChat()
+                    }
+                )
+            }
             .onAppear {
                 if messages.isEmpty {
                     messages = ChatService.shared.loadMessages()
@@ -76,6 +121,40 @@ struct CoachChatView: View {
 
     private func persistMessages() {
         ChatService.shared.saveMessages(messages)
+    }
+
+    private func loadConversation(_ id: String) async {
+        isLoadingConversation = true
+        do {
+            let response = try await ChatService.shared.fetchMessages(conversationId: id)
+            let loaded = response.messages.map { $0.toChatMessage() }
+            withAnimation(.easeOut(duration: 0.2)) {
+                messages = loaded
+                currentConversationId = id
+            }
+            persistMessages()
+        } catch {
+            #if DEBUG
+            print("CoachChatView: failed to load conversation - \(error.localizedDescription)")
+            #endif
+        }
+        isLoadingConversation = false
+    }
+
+    private func startNewChat() {
+        withAnimation(.easeOut(duration: 0.2)) {
+            messages = []
+            currentConversationId = nil
+            headerVisible = false
+            chipsVisible = false
+        }
+        // Re-trigger empty state animations
+        withAnimation(.spring(response: 0.7, dampingFraction: 0.75).delay(0.1)) {
+            headerVisible = true
+        }
+        withAnimation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.3)) {
+            chipsVisible = true
+        }
     }
 
     // MARK: - Coach Avatar
@@ -693,8 +772,11 @@ struct CoachChatView: View {
             }
 
             do {
-                let result = try await ChatService.shared.send(message: text, history: messages)
+                let result = try await ChatService.shared.send(message: text, history: messages, conversationId: currentConversationId)
                 loadingTask.cancel()
+                if let newId = result.conversationId {
+                    currentConversationId = newId
+                }
                 let coachMessage = ChatMessage(role: "assistant", content: result.reply)
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
                     isLoading = false
