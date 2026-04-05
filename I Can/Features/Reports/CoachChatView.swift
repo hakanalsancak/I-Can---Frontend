@@ -20,7 +20,7 @@ struct CoachChatView: View {
     @FocusState private var isInputFocused: Bool
 
     private let coachGradient = [Color(hex: "0EA5E9"), Color(hex: "22C55E")]
-    private let dailyLimit = 7
+    private let dailyLimit = 15
 
     private var isPremium: Bool { SubscriptionService.shared.isPremium }
 
