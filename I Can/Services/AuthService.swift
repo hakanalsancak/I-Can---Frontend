@@ -9,6 +9,7 @@ final class AuthService {
     var currentUser: User?
     private(set) var isAuthenticated = TokenManager.shared.isAuthenticated
     var hasCompletedOnboarding: Bool { currentUser?.onboardingCompleted ?? false }
+    var justCompletedOnboarding = false
 
     func register(email: String, password: String, fullName: String?, activate: Bool = true) async throws {
         let request = RegisterRequest(email: email, password: password, fullName: fullName)
@@ -94,6 +95,7 @@ final class AuthService {
             APIEndpoints.Auth.onboarding, method: "PUT", body: request
         )
         currentUser = user
+        justCompletedOnboarding = true
     }
 
     func loadProfile() async throws {

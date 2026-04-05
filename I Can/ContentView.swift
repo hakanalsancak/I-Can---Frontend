@@ -4,6 +4,7 @@ struct ContentView: View {
     @State private var authService = AuthService.shared
     @State private var isLoading = true
     @State private var showMaintenance = false
+    @State private var showPostOnboardingSubscription = false
     @State private var logoScale: CGFloat = 0.8
     @State private var logoOpacity: Double = 0
     @Environment(\.colorScheme) private var colorScheme
@@ -21,6 +22,9 @@ struct ContentView: View {
                     OnboardingView(startAtStep: .sportSelection)
                 } else {
                     MainTabView()
+                        .fullScreenCover(isPresented: $showPostOnboardingSubscription) {
+                            SubscriptionView()
+                        }
                 }
             }
             .opacity(showingSplash ? 0 : 1)
@@ -45,6 +49,14 @@ struct ContentView: View {
             if newValue {
                 Task {
                     try? await SubscriptionService.shared.checkStatus()
+                }
+            }
+        }
+        .onChange(of: authService.hasCompletedOnboarding) { _, newValue in
+            if newValue && authService.justCompletedOnboarding {
+                authService.justCompletedOnboarding = false
+                if !SubscriptionService.shared.isPremium {
+                    showPostOnboardingSubscription = true
                 }
             }
         }
