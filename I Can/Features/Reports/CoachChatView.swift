@@ -16,6 +16,7 @@ struct CoachChatView: View {
     @State private var currentConversationId: String? = nil
     @State private var showHistory = false
     @State private var isLoadingConversation = false
+    @State private var appearedMessageIDs: Set<UUID> = []
     @FocusState private var isInputFocused: Bool
 
     private let coachGradient = [Color(hex: "0EA5E9"), Color(hex: "22C55E")]
@@ -31,31 +32,7 @@ struct CoachChatView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                PageHeader("AI Coach") {
-                    HStack(spacing: 16) {
-                        Button {
-                            HapticManager.impact(.light)
-                            startNewChat()
-                        } label: {
-                            Image(systemName: "square.and.pencil")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundStyle(
-                                    LinearGradient(colors: coachGradient, startPoint: .topLeading, endPoint: .bottomTrailing)
-                                )
-                        }
-
-                        Button {
-                            HapticManager.impact(.light)
-                            showHistory = true
-                        } label: {
-                            Image(systemName: "clock.arrow.circlepath")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundStyle(
-                                    LinearGradient(colors: coachGradient, startPoint: .topLeading, endPoint: .bottomTrailing)
-                                )
-                        }
-                    }
-                }
+                coachHeader
 
                 if isLoadingConversation {
                     VStack {
@@ -110,12 +87,84 @@ struct CoachChatView: View {
             .onAppear {
                 if messages.isEmpty {
                     messages = ChatService.shared.loadMessages()
+                    // Mark all loaded messages as already appeared (no animation)
+                    appearedMessageIDs = Set(messages.map(\.id))
                 }
                 restoreLimitState()
             }
             .onDisappear {
                 stopCountdown()
             }
+        }
+    }
+
+    // MARK: - Coach Header
+
+    private var coachHeader: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                // Coach avatar + status
+                ZStack(alignment: .bottomTrailing) {
+                    coachAvatar(size: 36)
+
+                    Circle()
+                        .fill(Color(hex: "22C55E"))
+                        .frame(width: 10, height: 10)
+                        .overlay(
+                            Circle()
+                                .strokeBorder(ColorTheme.background(colorScheme), lineWidth: 2)
+                        )
+                        .offset(x: 1, y: 1)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("AI Coach")
+                        .font(.system(size: 18, weight: .bold).width(.condensed))
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+
+                    Text("Active now")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(Color(hex: "22C55E"))
+                }
+
+                Spacer()
+
+                HStack(spacing: 14) {
+                    Button {
+                        HapticManager.impact(.light)
+                        startNewChat()
+                    } label: {
+                        Image(systemName: "square.and.pencil")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(
+                                LinearGradient(colors: coachGradient, startPoint: .topLeading, endPoint: .bottomTrailing)
+                            )
+                            .frame(width: 36, height: 36)
+                            .background(ColorTheme.cardBackground(colorScheme))
+                            .clipShape(Circle())
+                    }
+
+                    Button {
+                        HapticManager.impact(.light)
+                        showHistory = true
+                    } label: {
+                        Image(systemName: "clock.arrow.circlepath")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(
+                                LinearGradient(colors: coachGradient, startPoint: .topLeading, endPoint: .bottomTrailing)
+                            )
+                            .frame(width: 36, height: 36)
+                            .background(ColorTheme.cardBackground(colorScheme))
+                            .clipShape(Circle())
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+
+            Rectangle()
+                .fill(ColorTheme.secondaryText(colorScheme).opacity(0.08))
+                .frame(height: 0.5)
         }
     }
 
@@ -131,6 +180,7 @@ struct CoachChatView: View {
             withAnimation(.easeOut(duration: 0.2)) {
                 messages = loaded
                 currentConversationId = id
+                appearedMessageIDs = Set(loaded.map(\.id))
             }
             persistMessages()
         } catch {
@@ -147,8 +197,8 @@ struct CoachChatView: View {
             currentConversationId = nil
             headerVisible = false
             chipsVisible = false
+            appearedMessageIDs = []
         }
-        // Re-trigger empty state animations
         withAnimation(.spring(response: 0.7, dampingFraction: 0.75).delay(0.1)) {
             headerVisible = true
         }
@@ -165,7 +215,7 @@ struct CoachChatView: View {
             .scaledToFill()
             .frame(width: size, height: size)
             .clipShape(Circle())
-            .shadow(color: Color(hex: "0EA5E9").opacity(0.3), radius: size * 0.2, x: 0, y: size * 0.08)
+            .shadow(color: Color(hex: "0EA5E9").opacity(0.25), radius: size * 0.15, x: 0, y: size * 0.06)
     }
 
     // MARK: - Remaining Messages Banner
@@ -423,7 +473,7 @@ struct CoachChatView: View {
     private var emptyState: some View {
         ScrollView {
             VStack(spacing: 0) {
-                Spacer().frame(height: 50)
+                Spacer().frame(height: 40)
 
                 ZStack {
                     Circle()
@@ -445,11 +495,11 @@ struct CoachChatView: View {
                 }
 
                 VStack(spacing: 10) {
-                    Text("Your Personal Coach")
+                    Text("Your Elite Coach")
                         .font(.system(size: 26, weight: .heavy).width(.condensed))
                         .foregroundColor(ColorTheme.primaryText(colorScheme))
 
-                    Text("Ask me anything about your sport —\ntraining, tactics, recovery, mindset, nutrition.")
+                    Text("Training, tactics, recovery, mindset, nutrition.\nI know your data. Let's get to work.")
                         .font(.system(size: 15, weight: .medium).width(.condensed))
                         .foregroundColor(ColorTheme.secondaryText(colorScheme))
                         .multilineTextAlignment(.center)
@@ -460,10 +510,10 @@ struct CoachChatView: View {
                 .offset(y: headerVisible ? 0 : 12)
 
                 VStack(spacing: 10) {
-                    suggestionChip("How can I improve my shooting?", icon: "scope", delay: 0)
-                    suggestionChip("What should I eat before a game?", icon: "fork.knife", delay: 0.05)
-                    suggestionChip("How do I deal with pre-game nerves?", icon: "brain", delay: 0.1)
-                    suggestionChip("Create a recovery routine for me", icon: "heart.circle", delay: 0.15)
+                    suggestionChip("Review my recent training", icon: "chart.line.uptrend.xyaxis", delay: 0)
+                    suggestionChip("What should I focus on today?", icon: "scope", delay: 0.05)
+                    suggestionChip("Help me with pre-game prep", icon: "brain", delay: 0.1)
+                    suggestionChip("Build a recovery plan for me", icon: "heart.circle", delay: 0.15)
                 }
                 .padding(.top, 32)
             }
@@ -544,7 +594,7 @@ struct CoachChatView: View {
         GeometryReader { geometry in
         ScrollViewReader { proxy in
             ScrollView(showsIndicators: false) {
-                LazyVStack(spacing: 4) {
+                LazyVStack(spacing: 6) {
                     remainingBanner
 
                     ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
@@ -552,9 +602,12 @@ struct CoachChatView: View {
                         messageBubble(message, showAvatar: showAvatar, containerWidth: geometry.size.width)
                             .id(message.id)
                             .transition(.asymmetric(
-                                insertion: .opacity.combined(with: .offset(y: 12)).combined(with: .scale(scale: 0.97)),
+                                insertion: .opacity.combined(with: .offset(y: 16)).combined(with: .scale(scale: 0.96)),
                                 removal: .opacity
                             ))
+                            .onAppear {
+                                appearedMessageIDs.insert(message.id)
+                            }
                     }
 
                     if isLoading {
@@ -563,10 +616,10 @@ struct CoachChatView: View {
                             .transition(.opacity.combined(with: .offset(y: 8)))
                     }
                 }
-                .padding(.horizontal, 14)
+                .padding(.horizontal, 16)
                 .padding(.top, 12)
-                .padding(.bottom, 12)
-                .animation(.spring(response: 0.4, dampingFraction: 0.85), value: messages.count)
+                .padding(.bottom, 16)
+                .animation(.spring(response: 0.45, dampingFraction: 0.82), value: messages.count)
                 .animation(.easeOut(duration: 0.25), value: isLoading)
             }
             .onChange(of: messages.count) {
@@ -603,6 +656,8 @@ struct CoachChatView: View {
         return messages[index - 1].isUser
     }
 
+    // MARK: - Message Bubble
+
     private func messageBubble(_ message: ChatMessage, showAvatar: Bool, containerWidth: CGFloat = 350) -> some View {
         HStack(alignment: .bottom, spacing: 8) {
             if message.isUser {
@@ -611,42 +666,51 @@ struct CoachChatView: View {
 
             if !message.isUser {
                 if showAvatar {
-                    coachAvatar(size: 28)
+                    coachAvatar(size: 30)
                         .padding(.bottom, 2)
                 } else {
-                    Spacer().frame(width: 28)
+                    Spacer().frame(width: 30)
                 }
             }
 
-            VStack(alignment: message.isUser ? .trailing : .leading, spacing: 3) {
-                Text(message.content)
-                    .font(.system(size: 15.5, weight: .regular))
-                    .foregroundColor(message.isUser ? .white : ColorTheme.primaryText(colorScheme))
-                    .lineSpacing(4)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(
-                        Group {
-                            if message.isUser {
-                                LinearGradient(
-                                    colors: [Color(hex: "0EA5E9"), Color(hex: "0284C7")],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            } else {
-                                ColorTheme.cardBackground(colorScheme)
-                            }
+            VStack(alignment: message.isUser ? .trailing : .leading, spacing: 4) {
+                // Message content
+                Group {
+                    if message.isUser {
+                        Text(message.content)
+                            .font(.system(size: 16, weight: .regular))
+                            .foregroundColor(.white)
+                    } else {
+                        formattedCoachText(message.content)
+                    }
+                }
+                .lineSpacing(5)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(
+                    Group {
+                        if message.isUser {
+                            LinearGradient(
+                                colors: [Color(hex: "0EA5E9"), Color(hex: "0284C7")],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        } else {
+                            colorScheme == .dark
+                                ? Color(hex: "1E293B")
+                                : Color(hex: "F1F5F9")
                         }
-                    )
-                    .clipShape(ChatBubbleShape(isUser: message.isUser))
-                    .shadow(
-                        color: message.isUser
-                            ? Color(hex: "0EA5E9").opacity(0.2)
-                            : ColorTheme.cardShadow(colorScheme),
-                        radius: message.isUser ? 8 : 4,
-                        x: 0,
-                        y: 2
-                    )
+                    }
+                )
+                .clipShape(ChatBubbleShape(isUser: message.isUser))
+                .shadow(
+                    color: message.isUser
+                        ? Color(hex: "0EA5E9").opacity(0.15)
+                        : ColorTheme.cardShadow(colorScheme),
+                    radius: message.isUser ? 8 : 3,
+                    x: 0,
+                    y: 2
+                )
 
                 Text(message.timestamp, style: .time)
                     .font(.system(size: 10, weight: .medium))
@@ -654,15 +718,80 @@ struct CoachChatView: View {
                     .padding(.horizontal, 6)
                     .padding(.top, 1)
             }
-            .frame(maxWidth: containerWidth * 0.78, alignment: message.isUser ? .trailing : .leading)
+            .frame(maxWidth: containerWidth * 0.82, alignment: message.isUser ? .trailing : .leading)
         }
         .frame(maxWidth: .infinity, alignment: message.isUser ? .trailing : .leading)
-        .padding(.top, showAvatar && !message.isUser ? 12 : 2)
+        .padding(.top, showAvatar && !message.isUser ? 14 : 2)
+    }
+
+    /// Renders coach text with paragraph breaks and **bold** support
+    private func formattedCoachText(_ text: String) -> some View {
+        let paragraphs = text.components(separatedBy: "\n\n").filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+
+        return VStack(alignment: .leading, spacing: 10) {
+            ForEach(Array(paragraphs.enumerated()), id: \.offset) { _, paragraph in
+                let lines = paragraph.components(separatedBy: "\n")
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
+                        parseBoldText(line)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Parses **bold** markers in a line and returns styled Text
+    private func parseBoldText(_ line: String) -> Text {
+        let textColor = ColorTheme.primaryText(colorScheme)
+        var result = Text("")
+        var remaining = line[line.startIndex...]
+
+        while let boldStart = remaining.range(of: "**") {
+            // Add text before **
+            let before = remaining[remaining.startIndex..<boldStart.lowerBound]
+            if !before.isEmpty {
+                result = result + Text(String(before))
+                    .font(.system(size: 16, weight: .regular))
+                    .foregroundColor(textColor)
+            }
+
+            let afterOpen = remaining[boldStart.upperBound...]
+            if let boldEnd = afterOpen.range(of: "**") {
+                // Add bold text between ** and **
+                let boldContent = afterOpen[afterOpen.startIndex..<boldEnd.lowerBound]
+                result = result + Text(String(boldContent))
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(textColor)
+                remaining = afterOpen[boldEnd.upperBound...]
+            } else {
+                // No closing **, treat rest as normal text
+                result = result + Text(String(remaining[boldStart.lowerBound...]))
+                    .font(.system(size: 16, weight: .regular))
+                    .foregroundColor(textColor)
+                remaining = remaining[remaining.endIndex...]
+            }
+        }
+
+        // Add any remaining text
+        if !remaining.isEmpty {
+            result = result + Text(String(remaining))
+                .font(.system(size: 16, weight: .regular))
+                .foregroundColor(textColor)
+        }
+
+        // If the line was empty or had no bold markers, ensure font is set
+        if line.isEmpty {
+            return Text("")
+                .font(.system(size: 16, weight: .regular))
+                .foregroundColor(textColor)
+        }
+
+        return result
     }
 
     private var typingIndicator: some View {
         HStack(alignment: .bottom, spacing: 8) {
-            coachAvatar(size: 28)
+            coachAvatar(size: 30)
                 .padding(.bottom, 2)
 
             HStack(spacing: 6) {
@@ -672,14 +801,18 @@ struct CoachChatView: View {
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 14)
-            .background(ColorTheme.cardBackground(colorScheme))
+            .background(
+                colorScheme == .dark
+                    ? Color(hex: "1E293B")
+                    : Color(hex: "F1F5F9")
+            )
             .clipShape(ChatBubbleShape(isUser: false))
-            .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 4, x: 0, y: 2)
+            .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 3, x: 0, y: 2)
 
             Spacer()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.top, 12)
+        .padding(.top, 14)
     }
 
     // MARK: - Input Bar
@@ -687,7 +820,7 @@ struct CoachChatView: View {
     private var inputBar: some View {
         VStack(spacing: 0) {
             Rectangle()
-                .fill(ColorTheme.secondaryText(colorScheme).opacity(0.08))
+                .fill(ColorTheme.secondaryText(colorScheme).opacity(0.06))
                 .frame(height: 0.5)
 
             HStack(alignment: .bottom, spacing: 10) {
@@ -697,19 +830,27 @@ struct CoachChatView: View {
                         .foregroundColor(ColorTheme.primaryText(colorScheme))
                         .lineLimit(1...6)
                         .focused($isInputFocused)
-                        .padding(.horizontal, 16)
+                        .padding(.horizontal, 18)
                         .padding(.vertical, 12)
                 }
                 .background(ColorTheme.cardBackground(colorScheme))
-                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
                         .strokeBorder(
                             isInputFocused
                                 ? LinearGradient(colors: coachGradient, startPoint: .topLeading, endPoint: .bottomTrailing)
-                                : LinearGradient(colors: [Color.clear, Color.clear], startPoint: .top, endPoint: .bottom),
-                            lineWidth: 1.5
+                                : LinearGradient(
+                                    colors: [ColorTheme.secondaryText(colorScheme).opacity(0.15),
+                                             ColorTheme.secondaryText(colorScheme).opacity(0.1)],
+                                    startPoint: .top, endPoint: .bottom
+                                  ),
+                            lineWidth: isInputFocused ? 1.5 : 0.5
                         )
+                )
+                .shadow(
+                    color: isInputFocused ? Color(hex: "0EA5E9").opacity(0.08) : .clear,
+                    radius: 8, x: 0, y: 2
                 )
 
                 Button {
@@ -722,22 +863,23 @@ struct CoachChatView: View {
                                     ? AnyShapeStyle(LinearGradient(colors: coachGradient, startPoint: .topLeading, endPoint: .bottomTrailing))
                                     : AnyShapeStyle(ColorTheme.cardBackground(colorScheme))
                             )
-                            .frame(width: 40, height: 40)
+                            .frame(width: 42, height: 42)
                             .shadow(
                                 color: canSend ? Color(hex: "0EA5E9").opacity(0.3) : .clear,
-                                radius: 6, x: 0, y: 3
+                                radius: 8, x: 0, y: 3
                             )
 
                         Image(systemName: "arrow.up")
-                            .font(.system(size: 16, weight: .bold))
+                            .font(.system(size: 17, weight: .bold))
                             .foregroundColor(canSend ? .white : ColorTheme.tertiaryText(colorScheme))
                     }
+                    .scaleEffect(canSend ? 1.0 : 0.92)
                 }
                 .disabled(!canSend)
-                .animation(.easeOut(duration: 0.2), value: canSend)
+                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: canSend)
             }
             .padding(.horizontal, 14)
-            .padding(.vertical, 10)
+            .padding(.vertical, 12)
             .background(
                 ColorTheme.background(colorScheme)
                     .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: -2)
@@ -756,7 +898,7 @@ struct CoachChatView: View {
         guard !text.isEmpty, !isLoading, !limitReached else { return }
 
         let userMessage = ChatMessage(role: "user", content: text)
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+        withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
             messages.append(userMessage)
         }
         persistMessages()
@@ -778,7 +920,7 @@ struct CoachChatView: View {
                     currentConversationId = newId
                 }
                 let coachMessage = ChatMessage(role: "assistant", content: result.reply)
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
                     isLoading = false
                     messages.append(coachMessage)
                 }
@@ -786,7 +928,6 @@ struct CoachChatView: View {
                 if let remaining = result.remaining {
                     remainingMessages = remaining
                     if remaining <= 0 {
-                        // Next message will be blocked, calculate reset
                         let now = Date()
                         var utcCalendar = Calendar(identifier: .gregorian)
                         utcCalendar.timeZone = TimeZone(identifier: "UTC") ?? .gmt
@@ -802,8 +943,7 @@ struct CoachChatView: View {
                 loadingTask.cancel()
                 switch error {
                 case .dailyLimitExceeded(let resetDate):
-                    // Remove the user message we just added since it wasn't processed
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                    withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
                         isLoading = false
                         if let lastIdx = messages.indices.last, messages[lastIdx].isUser {
                             messages.removeLast()
@@ -818,9 +958,9 @@ struct CoachChatView: View {
                 default:
                     let errMsg = ChatMessage(
                         role: "assistant",
-                        content: "Sorry, I couldn't respond right now. Try again in a sec."
+                        content: "Couldn't get through right now. Give it another shot."
                     )
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                    withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
                         isLoading = false
                         messages.append(errMsg)
                     }
@@ -829,9 +969,9 @@ struct CoachChatView: View {
                 loadingTask.cancel()
                 let errMsg = ChatMessage(
                     role: "assistant",
-                    content: "Sorry, I couldn't respond right now. Try again in a sec."
+                    content: "Couldn't get through right now. Give it another shot."
                 )
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
                     isLoading = false
                     messages.append(errMsg)
                 }
@@ -846,7 +986,7 @@ struct ChatBubbleShape: Shape {
     let isUser: Bool
 
     func path(in rect: CGRect) -> Path {
-        let r: CGFloat = 18
+        let r: CGFloat = 20
         let tail: CGFloat = 6
         var path = Path()
 

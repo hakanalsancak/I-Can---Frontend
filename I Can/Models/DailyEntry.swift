@@ -1,20 +1,27 @@
 import Foundation
 
 struct EntryResponses: Codable {
-    // Training
+    // V2 Daily Log fields
+    var version: Int?
+    var training: TrainingData?
+    var nutrition: NutritionData?
+    var sleep: SleepData?
+    var completedSections: [String]?
+
+    // V1 Training
     var workedOn: [String]?
     var skillImproved: String?
     var hardestDrill: String?
     var commonMistake: String?
     var tomorrowFocus: String?
 
-    // Game stats (sport-specific)
+    // V1 Game stats (sport-specific)
     var gameStats: [String: Int]?
     var bestMoment: String?
     var biggestMistake: String?
     var improveNextGame: String?
 
-    // Rest day
+    // V1 Rest day
     var recoveryActivities: [String]?
     var sportStudy: String?
     var restTomorrowFocus: String?
@@ -65,6 +72,7 @@ struct DailyEntry: Codable, Identifiable {
         case "training": return "Training"
         case "game": return "Game"
         case "rest_day": return "Rest Day"
+        case "daily_log": return "Daily Log"
         case "other": return "Mixed Day"
         default: return activityType.capitalized
         }
@@ -75,6 +83,7 @@ struct DailyEntry: Codable, Identifiable {
         case "training": return "figure.run"
         case "game": return "trophy"
         case "rest_day": return "bed.double"
+        case "daily_log": return "chart.bar.fill"
         case "other": return "ellipsis.circle"
         default: return "questionmark"
         }

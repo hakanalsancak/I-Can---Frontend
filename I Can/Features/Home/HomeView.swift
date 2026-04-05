@@ -110,12 +110,14 @@ struct HomeView: View {
     @State private var quoteOpacity: Double = 1
     @State private var showSubscription = false
     @State private var showBreathing = false
-
-    @State private var showEntryDetail = false
-    @State private var editingEntry = false
-    @State private var heroAppeared = false
     @State private var showProfile = false
     @State private var profileImage: UIImage? = nil
+    @State private var heroAppeared = false
+
+    // Legacy entry flow support
+    @State private var showEntryDetail = false
+    @State private var editingEntry = false
+
     @Environment(\.colorScheme) private var colorScheme
 
     private let quoteTimer = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
@@ -130,11 +132,24 @@ struct HomeView: View {
                         mantraCard
                             .padding(.top, 16)
 
-                        heroEntryCard
+                        // DAILY LOG SECTION - PRIMARY FOCUS
+                        dailyLogSection
 
+                        // PROGRESS TRACKER
+                        progressTracker
+
+                        // PERFORMANCE DASHBOARD
+                        PerformanceDashboardView(
+                            weeklyData: viewModel.weeklyAnalytics,
+                            monthlyData: viewModel.monthlyAnalytics,
+                            isLoading: viewModel.isLoadingAnalytics
+                        )
+
+                        // STREAK SECTION
                         streakSection
 
-                        breatheSection
+                        // BREATHING - COMPACT
+                        compactBreatheCard
 
                         if SubscriptionService.shared.statusChecked && !SubscriptionService.shared.isPremium {
                             aiCoachPromo
@@ -148,6 +163,21 @@ struct HomeView: View {
             .navigationBarHidden(true)
             .refreshable { await viewModel.loadData() }
             .task { await viewModel.loadData() }
+            .sheet(isPresented: $viewModel.showTrainingLog) {
+                TrainingLogView(existingData: viewModel.todayTraining) { data in
+                    Task { await viewModel.submitTraining(data) }
+                }
+            }
+            .sheet(isPresented: $viewModel.showNutritionLog) {
+                NutritionLogView(existingData: viewModel.todayNutrition) { data in
+                    Task { await viewModel.submitNutrition(data) }
+                }
+            }
+            .sheet(isPresented: $viewModel.showSleepLog) {
+                SleepLogView(existingData: viewModel.todaySleep) { data in
+                    Task { await viewModel.submitSleep(data) }
+                }
+            }
             .fullScreenCover(isPresented: $viewModel.showDailyEntry, onDismiss: {
                 Task { await viewModel.loadData() }
             }) {
@@ -163,7 +193,6 @@ struct HomeView: View {
             }) {
                 SubscriptionView()
             }
-
             .fullScreenCover(isPresented: $showBreathing) {
                 BreathingExerciseView()
             }
@@ -322,13 +351,13 @@ struct HomeView: View {
     private var mantraCard: some View {
         VStack(spacing: 0) {
             Text(iCanQuotes[currentQuoteIndex])
-                .font(.system(size: 20, weight: .bold).width(.condensed))
+                .font(.system(size: 18, weight: .bold).width(.condensed))
                 .foregroundColor(ColorTheme.primaryText(colorScheme))
                 .multilineTextAlignment(.center)
                 .lineSpacing(4)
                 .opacity(quoteOpacity)
                 .id(currentQuoteIndex)
-                .frame(minHeight: 52)
+                .frame(minHeight: 44)
 
             if let mantra = AuthService.shared.currentUser?.mantra, !mantra.isEmpty {
                 HStack(spacing: 6) {
@@ -342,12 +371,12 @@ struct HomeView: View {
                         .fill(ColorTheme.accent)
                         .frame(width: 12, height: 2)
                 }
-                .padding(.top, 14)
+                .padding(.top, 12)
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 22)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 18)
         .background(
             ZStack {
                 ColorTheme.cardBackground(colorScheme)
@@ -358,12 +387,12 @@ struct HomeView: View {
                 )
             }
         )
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(ColorTheme.accent.opacity(0.12), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(ColorTheme.accent.opacity(0.1), lineWidth: 1)
         )
-        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
+        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 4, x: 0, y: 2)
     }
 
     private func rotateQuote() {
@@ -383,291 +412,241 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - Hero Entry Card
+    // MARK: - Daily Log Section
 
-    private var heroEntryCard: some View {
-        Button {
-            HapticManager.impact(.medium)
-            if viewModel.hasLoggedToday {
-                showEntryDetail = true
-            } else {
-                viewModel.showDailyEntry = true
+    private var dailyLogSection: some View {
+        VStack(spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("TODAY'S LOG")
+                        .font(.system(size: 11, weight: .heavy).width(.condensed))
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                    Text(Date().displayString)
+                        .font(.system(size: 12, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                }
+                Spacer()
+
+                // Completion badge
+                HStack(spacing: 4) {
+                    Text("\(viewModel.completionCount)/3")
+                        .font(.system(size: 13, weight: .heavy, design: .rounded))
+                        .foregroundColor(completionColor)
+                    Image(systemName: viewModel.completionCount == 3 ? "checkmark.circle.fill" : "circle.dashed")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(completionColor)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(completionColor.opacity(0.1))
+                .clipShape(Capsule())
             }
-        } label: {
-            if viewModel.hasLoggedToday {
-                loggedHero
-            } else {
-                notLoggedHero
+
+            // Section Cards
+            logSectionCard(
+                title: "Training",
+                icon: "figure.run",
+                color: ColorTheme.training,
+                gradient: ColorTheme.trainingGradient,
+                isCompleted: viewModel.hasTraining,
+                subtitle: trainingSubtitle
+            ) {
+                HapticManager.impact(.medium)
+                viewModel.showTrainingLog = true
+            }
+
+            logSectionCard(
+                title: "Nutrition",
+                icon: "leaf.fill",
+                color: ColorTheme.nutrition,
+                gradient: ColorTheme.nutritionGradient,
+                isCompleted: viewModel.hasNutrition,
+                subtitle: nutritionSubtitle
+            ) {
+                HapticManager.impact(.medium)
+                viewModel.showNutritionLog = true
+            }
+
+            logSectionCard(
+                title: "Sleep",
+                icon: "moon.zzz.fill",
+                color: ColorTheme.sleep,
+                gradient: ColorTheme.sleepGradient,
+                isCompleted: viewModel.hasSleep,
+                subtitle: sleepSubtitle
+            ) {
+                HapticManager.impact(.medium)
+                viewModel.showSleepLog = true
             }
         }
-        .buttonStyle(HeroButtonStyle())
         .scaleEffect(heroAppeared ? 1 : 0.96)
         .opacity(heroAppeared ? 1 : 0)
     }
 
-    private var notLoggedHero: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 0) {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(Color(hex: "F97316"))
-                            .frame(width: 8, height: 8)
-                        Text("NOT LOGGED")
-                            .font(.system(size: 11, weight: .heavy).width(.condensed))
-                            .foregroundColor(Color(hex: "F97316"))
-                    }
+    private var completionColor: Color {
+        switch viewModel.completionCount {
+        case 3: return Color(hex: "22C55E")
+        case 2: return ColorTheme.accent
+        case 1: return ColorTheme.training
+        default: return ColorTheme.tertiaryText(colorScheme)
+        }
+    }
 
-                    Text("Today's\nPerformance")
-                        .font(.system(size: 24, weight: .heavy).width(.condensed))
+    private var trainingSubtitle: String {
+        if let t = viewModel.todayTraining {
+            return "\(t.sessionCount) session\(t.sessionCount == 1 ? "" : "s") - \(t.totalDuration)min"
+        }
+        return "Log your training session"
+    }
+
+    private var nutritionSubtitle: String {
+        if let n = viewModel.todayNutrition {
+            return "\(n.mealsLogged) meals logged"
+        }
+        return "Track your meals"
+    }
+
+    private var sleepSubtitle: String {
+        if let s = viewModel.todaySleep {
+            return "\(s.durationFormatted) sleep"
+        }
+        return "Record your sleep"
+    }
+
+    private func logSectionCard(
+        title: String,
+        icon: String,
+        color: Color,
+        gradient: LinearGradient,
+        isCompleted: Bool,
+        subtitle: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                // Icon circle
+                ZStack {
+                    Circle()
+                        .fill(isCompleted ? AnyShapeStyle(gradient) : AnyShapeStyle(color.opacity(0.12)))
+                        .frame(width: 44, height: 44)
+
+                    Image(systemName: isCompleted ? "checkmark" : icon)
+                        .font(.system(size: isCompleted ? 16 : 18, weight: .bold))
+                        .foregroundColor(isCompleted ? .white : color)
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.system(size: 16, weight: .bold).width(.condensed))
                         .foregroundColor(ColorTheme.primaryText(colorScheme))
-                        .lineSpacing(2)
 
-                    Text("Track focus, effort & confidence")
-                        .font(.system(size: 13, weight: .medium).width(.condensed))
-                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                        .padding(.top, 2)
+                    Text(subtitle)
+                        .font(.system(size: 12, weight: .medium).width(.condensed))
+                        .foregroundColor(isCompleted ? color : ColorTheme.tertiaryText(colorScheme))
+                        .lineLimit(1)
                 }
 
                 Spacer()
 
-                ZStack {
-                    Circle()
-                        .fill(ColorTheme.accentGradient)
-                        .frame(width: 64, height: 64)
-                        .shadow(color: ColorTheme.accent.opacity(0.4), radius: 12, x: 0, y: 6)
-
-                    Image(systemName: "plus")
-                        .font(.system(size: 26, weight: .bold))
-                        .foregroundColor(.white)
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
-            .padding(.bottom, 18)
-
-            Rectangle()
-                .fill(ColorTheme.separator(colorScheme))
-                .frame(height: 1)
-                .padding(.horizontal, 16)
-
-            HStack(spacing: 0) {
-                metricPreview(icon: "scope", label: "Focus", color: Color(hex: "3B82F6"))
-                metricDivider
-                metricPreview(icon: "bolt.fill", label: "Effort", color: Color(hex: "F97316"))
-                metricDivider
-                metricPreview(icon: "shield.fill", label: "Confidence", color: Color(hex: "8B5CF6"))
-            }
-            .padding(.vertical, 14)
-            .padding(.horizontal, 12)
-
-            HStack(spacing: 5) {
-                Image(systemName: "clock.fill")
-                    .font(.system(size: 10, weight: .semibold))
-                Text("Under 2 minutes")
-                    .font(.system(size: 11, weight: .semibold).width(.condensed))
-            }
-            .foregroundColor(ColorTheme.tertiaryText(colorScheme))
-            .padding(.bottom, 14)
-        }
-        .background(ColorTheme.cardBackground(colorScheme))
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .strokeBorder(ColorTheme.accent.opacity(0.15), lineWidth: 1)
-        )
-        .shadow(color: ColorTheme.accent.opacity(colorScheme == .dark ? 0.08 : 0.12), radius: 16, x: 0, y: 6)
-    }
-
-    private var metricDivider: some View {
-        Rectangle()
-            .fill(ColorTheme.separator(colorScheme))
-            .frame(width: 1, height: 28)
-    }
-
-    private func metricPreview(icon: String, label: String, color: Color) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(color)
-            Text(label)
-                .font(.system(size: 13, weight: .semibold).width(.condensed))
-                .foregroundColor(ColorTheme.secondaryText(colorScheme))
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private var loggedHero: some View {
-        VStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 6) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(Color(hex: "22C55E"))
-                    Text("LOGGED TODAY")
-                        .font(.system(size: 11, weight: .heavy).width(.condensed))
-                        .foregroundColor(Color(hex: "22C55E"))
-                }
-
-                Text("Today's\nReflection")
-                    .font(.system(size: 24, weight: .heavy).width(.condensed))
-                    .foregroundColor(ColorTheme.primaryText(colorScheme))
-                    .lineSpacing(2)
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
-            .padding(.bottom, 18)
-
-            if let entry = viewModel.todayEntry {
-                Rectangle()
-                    .fill(ColorTheme.separator(colorScheme))
-                    .frame(height: 1)
-                    .padding(.horizontal, 16)
-
-                loggedHeroMetrics(entry: entry)
-                    .padding(.vertical, 14)
-                    .padding(.horizontal, 16)
-            }
-
-            HStack(spacing: 5) {
-                Image(systemName: "pencil")
-                    .font(.system(size: 10, weight: .semibold))
-                Text("Tap to view or update")
-                    .font(.system(size: 11, weight: .semibold).width(.condensed))
-            }
-            .foregroundColor(ColorTheme.tertiaryText(colorScheme))
-            .padding(.bottom, 14)
-        }
-        .background(ColorTheme.cardBackground(colorScheme))
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .strokeBorder(Color(hex: "22C55E").opacity(0.15), lineWidth: 1)
-        )
-        .shadow(color: Color(hex: "22C55E").opacity(colorScheme == .dark ? 0.06 : 0.1), radius: 16, x: 0, y: 6)
-    }
-
-    @ViewBuilder
-    private func loggedHeroMetrics(entry: DailyEntry) -> some View {
-        if let r = entry.responses {
-            switch entry.activityType {
-            case "training":
-                VStack(spacing: 10) {
-                    if let worked = r.workedOn, !worked.isEmpty {
-                        heroChipRow(chips: worked)
-                    }
-                    if let skill = r.skillImproved, !skill.isEmpty {
-                        heroMetricPill(label: "Improved", value: skill, color: Color(hex: "22C55E"))
-                    } else if let focus = r.focusLabel {
-                        heroMetricPill(label: "Focus", value: focus, color: Color(hex: "3B82F6"))
-                    }
-                }
-            case "game":
-                VStack(spacing: 10) {
-                    if let stats = r.gameStats, !stats.isEmpty {
-                        let topStats = stats.filter { $0.value > 0 }.prefix(3)
-                        if !topStats.isEmpty {
-                            HStack(spacing: 8) {
-                                ForEach(Array(topStats), id: \.key) { key, value in
-                                    heroMetricPill(
-                                        label: key.replacingOccurrences(of: "([A-Z])", with: " $1", options: .regularExpression).capitalized.trimmingCharacters(in: .whitespaces),
-                                        value: "\(value)",
-                                        color: Color(hex: "22C55E")
-                                    )
-                                }
-                            }
-                        }
-                    } else if let strongest = r.strongestAreas, !strongest.isEmpty {
-                        heroChipRow(chips: strongest)
-                    }
-                }
-            case "rest_day":
-                VStack(spacing: 10) {
-                    if let activities = r.recoveryActivities, !activities.isEmpty {
-                        heroChipRow(chips: activities)
-                    } else if let activities = r.restActivities, !activities.isEmpty {
-                        heroChipRow(chips: activities)
-                    }
-                    if let study = r.sportStudy, !study.isEmpty, study != "No" {
-                        heroMetricPill(label: "Sport Study", value: study, color: Color(hex: "3B82F6"))
-                    }
-                }
-            default:
-                numericMetricsRow(entry: entry)
-            }
-        } else {
-            numericMetricsRow(entry: entry)
-        }
-    }
-
-    private func heroMetricPill(label: String, value: String, color: Color) -> some View {
-        VStack(spacing: 3) {
-            Text(label.uppercased())
-                .font(.system(size: 9, weight: .heavy).width(.condensed))
-                .foregroundColor(ColorTheme.secondaryText(colorScheme))
-            Text(value)
-                .font(.system(size: 13, weight: .bold).width(.condensed))
-                .foregroundColor(color)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 10)
-        .background(color.opacity(0.08))
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-    }
-
-    private func heroChipRow(chips: [String]) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(chips, id: \.self) { chip in
-                    Text(chip)
-                        .font(.system(size: 11, weight: .semibold).width(.condensed))
-                        .foregroundColor(ColorTheme.accent)
+                // Status
+                if isCompleted {
+                    Text("DONE")
+                        .font(.system(size: 10, weight: .heavy).width(.condensed))
+                        .foregroundColor(color)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(ColorTheme.accent.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        .background(color.opacity(0.1))
+                        .clipShape(Capsule())
+                } else {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(ColorTheme.tertiaryText(colorScheme))
                 }
             }
+            .padding(14)
+            .background(ColorTheme.cardBackground(colorScheme))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(
+                        isCompleted ? color.opacity(0.2) : ColorTheme.separator(colorScheme),
+                        lineWidth: 1
+                    )
+            )
+            .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 4, x: 0, y: 2)
         }
+        .buttonStyle(LogCardButtonStyle())
     }
 
-    private func numericMetricsRow(entry: DailyEntry) -> some View {
-        HStack(spacing: 0) {
-            ratingColumn(label: "Focus", value: entry.focusRating, color: Color(hex: "3B82F6"))
-            ratingColumn(label: "Effort", value: entry.effortRating, color: Color(hex: "F97316"))
-            ratingColumn(label: "Confidence", value: entry.confidenceRating, color: Color(hex: "8B5CF6"))
-        }
-    }
+    // MARK: - Progress Tracker
 
-    private func ratingColumn(label: String, value: Int, color: Color) -> some View {
-        VStack(spacing: 6) {
-            Text("\(value)")
-                .font(.system(size: 26, weight: .heavy, design: .rounded))
-                .foregroundColor(ratingColor(value))
+    private var progressTracker: some View {
+        VStack(spacing: 10) {
+            HStack {
+                Text("DAILY PROGRESS")
+                    .font(.system(size: 10, weight: .heavy).width(.condensed))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                Spacer()
+                Text("\(viewModel.completionCount) of 3")
+                    .font(.system(size: 12, weight: .bold).width(.condensed))
+                    .foregroundColor(completionColor)
+            }
 
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(ColorTheme.elevatedBackground(colorScheme))
+                        .frame(height: 8)
+
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(
+                            LinearGradient(
+                                colors: progressGradientColors,
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(
+                            width: max(0, geo.size.width * CGFloat(viewModel.completionCount) / 3.0),
+                            height: 8
+                        )
+                        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: viewModel.completionCount)
+                }
+            }
+            .frame(height: 8)
+
+            // Section indicators
             HStack(spacing: 0) {
-                ForEach(0..<10, id: \.self) { i in
-                    RoundedRectangle(cornerRadius: 1)
-                        .fill(i < value ? color : color.opacity(0.12))
-                        .frame(height: 3)
-                }
+                progressDot(label: "Training", color: ColorTheme.training, done: viewModel.hasTraining)
+                Spacer()
+                progressDot(label: "Nutrition", color: ColorTheme.nutrition, done: viewModel.hasNutrition)
+                Spacer()
+                progressDot(label: "Sleep", color: ColorTheme.sleep, done: viewModel.hasSleep)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, 8)
-
-            Text(label)
-                .font(.system(size: 11, weight: .bold).width(.condensed))
-                .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                .textCase(.uppercase)
         }
-        .frame(maxWidth: .infinity)
+        .padding(16)
+        .background(ColorTheme.cardBackground(colorScheme))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
     }
 
-    private func ratingColor(_ value: Int) -> Color {
-        switch value {
-        case 8...10: return Color(hex: "22C55E")
-        case 5...7: return ColorTheme.accent
-        default: return Color(hex: "F97316")
+    private var progressGradientColors: [Color] {
+        switch viewModel.completionCount {
+        case 3: return [ColorTheme.accent, Color(hex: "22C55E")]
+        case 2: return [ColorTheme.accent, ColorTheme.accent]
+        case 1: return [ColorTheme.training, ColorTheme.training]
+        default: return [ColorTheme.tertiaryText(colorScheme)]
+        }
+    }
+
+    private func progressDot(label: String, color: Color, done: Bool) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: done ? "checkmark.circle.fill" : "circle")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(done ? color : ColorTheme.tertiaryText(colorScheme))
+            Text(label)
+                .font(.system(size: 10, weight: .semibold).width(.condensed))
+                .foregroundColor(done ? color : ColorTheme.tertiaryText(colorScheme))
         }
     }
 
@@ -691,52 +670,43 @@ struct HomeView: View {
     }
 
     private func streakCard(value: Int, label: String, icon: String, gradient: [Color]) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             ZStack {
                 Circle()
                     .fill(LinearGradient(colors: gradient, startPoint: .topLeading, endPoint: .bottomTrailing))
-                    .frame(width: 40, height: 40)
+                    .frame(width: 36, height: 36)
                 Image(systemName: icon)
-                    .font(.system(size: 16, weight: .bold))
+                    .font(.system(size: 14, weight: .bold))
                     .foregroundColor(.white)
             }
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 1) {
                 Text("\(value)")
-                    .font(.system(size: 24, weight: .heavy, design: .rounded))
+                    .font(.system(size: 22, weight: .heavy, design: .rounded))
                     .foregroundColor(ColorTheme.primaryText(colorScheme))
-
                 Text("\(label) streak")
-                    .font(.system(size: 11, weight: .bold).width(.condensed))
+                    .font(.system(size: 10, weight: .bold).width(.condensed))
                     .foregroundColor(ColorTheme.secondaryText(colorScheme))
                     .textCase(.uppercase)
             }
 
             Spacer()
         }
-        .padding(14)
+        .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(ColorTheme.cardBackground(colorScheme))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 4, x: 0, y: 2)
     }
 
-    // MARK: - AI Coach Promo
+    // MARK: - Compact Breathe Card
 
-    private var aiCoachPromo: some View {
-        AIReportPromoCard(style: .home) {
-            showSubscription = true
-        }
-    }
-
-    // MARK: - Breathe Section
-
-    private var breatheSection: some View {
+    private var compactBreatheCard: some View {
         Button {
             HapticManager.impact(.medium)
             showBreathing = true
         } label: {
-            VStack(spacing: 16) {
+            HStack(spacing: 14) {
                 ZStack {
                     Circle()
                         .fill(
@@ -746,60 +716,71 @@ struct HomeView: View {
                                 endPoint: .bottomTrailing
                             )
                         )
-                        .frame(width: 64, height: 64)
-                        .shadow(color: Color(hex: "3B82F6").opacity(0.35), radius: 12, x: 0, y: 6)
+                        .frame(width: 44, height: 44)
+                        .shadow(color: Color(hex: "3B82F6").opacity(0.25), radius: 8, x: 0, y: 4)
 
                     Image(systemName: "wind")
-                        .font(.system(size: 26, weight: .semibold))
+                        .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(.white)
                 }
 
-                VStack(spacing: 6) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text("Breathe")
-                        .font(.system(size: 20, weight: .heavy).width(.condensed))
+                        .font(.system(size: 16, weight: .bold).width(.condensed))
                         .foregroundColor(ColorTheme.primaryText(colorScheme))
 
                     Text("2-minute mental reset")
-                        .font(.system(size: 14, weight: .medium).width(.condensed))
+                        .font(.system(size: 12, weight: .medium).width(.condensed))
                         .foregroundColor(ColorTheme.secondaryText(colorScheme))
                 }
 
+                Spacer()
+
                 Text("START")
-                    .font(.system(size: 13, weight: .heavy).width(.condensed))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 32)
-                    .padding(.vertical, 10)
-                    .background(
-                        LinearGradient(
-                            colors: [Color(hex: "3B82F6"), Color(hex: "2563EB")],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
+                    .font(.system(size: 11, weight: .heavy).width(.condensed))
+                    .foregroundColor(Color(hex: "3B82F6"))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color(hex: "3B82F6").opacity(0.1))
                     .clipShape(Capsule())
-                    .shadow(color: Color(hex: "3B82F6").opacity(0.3), radius: 8, x: 0, y: 4)
             }
-            .padding(.vertical, 28)
-            .frame(maxWidth: .infinity)
+            .padding(14)
             .background(ColorTheme.cardBackground(colorScheme))
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .strokeBorder(Color(hex: "3B82F6").opacity(0.12), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(Color(hex: "3B82F6").opacity(0.1), lineWidth: 1)
             )
-            .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
+            .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 4, x: 0, y: 2)
         }
         .buttonStyle(.plain)
     }
+
+    // MARK: - AI Coach Promo
+
+    private var aiCoachPromo: some View {
+        AIReportPromoCard(style: .home) {
+            showSubscription = true
+        }
+    }
 }
 
-// MARK: - Hero Button Style
+// MARK: - Button Styles
 
 struct HeroButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
             .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+struct LogCardButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .opacity(configuration.isPressed ? 0.9 : 1.0)
+            .animation(.easeInOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 

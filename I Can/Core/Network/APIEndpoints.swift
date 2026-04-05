@@ -24,6 +24,7 @@ enum APIEndpoints {
     enum Entries {
         static let base = "/api/entries"
         static let insight = "/api/entries/insight"
+        static let analytics = "/api/entries/analytics"
         static func byDate(_ date: String) -> String { "/api/entries/\(date)" }
     }
 

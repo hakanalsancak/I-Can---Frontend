@@ -65,6 +65,22 @@ final class SubscriptionService {
             try await checkStatus()
             if isPremium {
                 await transaction.finish()
+
+                let isFreeTrial = transaction.offerType == .introductory
+                let planType = transaction.productID == Self.yearlyProductId ? "yearly" : "monthly"
+
+                if isFreeTrial {
+                    AnalyticsManager.log("free_trial_started", parameters: [
+                        "product_id": transaction.productID,
+                        "plan_type": planType
+                    ])
+                } else {
+                    AnalyticsManager.log("subscription_purchased", parameters: [
+                        "product_id": transaction.productID,
+                        "plan_type": planType
+                    ])
+                }
+
                 return true
             } else {
                 // Backend says not premium despite receipt verification — don't grant access

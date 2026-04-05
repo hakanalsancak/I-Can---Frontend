@@ -26,7 +26,11 @@ struct JournalView: View {
                                 showEntryDetail = true
                                 HapticManager.impact(.light)
                             } label: {
-                                EntryDetailView(entry: entry)
+                                if entry.isDailyLog {
+                                    DailyLogDetailCard(entry: entry)
+                                } else {
+                                    EntryDetailView(entry: entry)
+                                }
                             }
                             .buttonStyle(.plain)
                         } else {
@@ -51,8 +55,12 @@ struct JournalView: View {
             }
             .sheet(isPresented: $showEntryDetail) {
                 if let entry = viewModel.selectedEntry {
-                    TodayEntryDetailSheet(entry: entry) {
-                        showEditEntry = true
+                    if entry.isDailyLog {
+                        DailyLogDetailSheet(entry: entry)
+                    } else {
+                        TodayEntryDetailSheet(entry: entry) {
+                            showEditEntry = true
+                        }
                     }
                 }
             }
@@ -113,7 +121,8 @@ struct JournalView: View {
 
                 ForEach(viewModel.daysInMonth, id: \.timeIntervalSinceReferenceDate) { date in
                     let dateStr = date.apiDateString
-                    let hasEntry = viewModel.entryDates.contains(dateStr)
+                    let entry = viewModel.entries.first { $0.entryDate == dateStr }
+                    let hasEntry = entry != nil
                     let isSelected = date.apiDateString == viewModel.selectedDate.apiDateString
                     let isToday = Calendar.current.isDateInToday(date)
 
@@ -121,7 +130,7 @@ struct JournalView: View {
                         viewModel.selectDate(date)
                         HapticManager.selection()
                     } label: {
-                        VStack(spacing: 3) {
+                        VStack(spacing: 2) {
                             Text("\(Calendar.current.component(.day, from: date))")
                                 .font(.system(size: 15, weight: isToday || isSelected ? .semibold : .regular).width(.condensed))
                                 .foregroundColor(
@@ -130,9 +139,13 @@ struct JournalView: View {
                                     ColorTheme.primaryText(colorScheme)
                                 )
 
-                            Circle()
-                                .fill(hasEntry ? (isSelected ? .white.opacity(0.8) : ColorTheme.accent) : .clear)
-                                .frame(width: 5, height: 5)
+                            if hasEntry {
+                                calendarDot(entry: entry, isSelected: isSelected)
+                            } else {
+                                Circle()
+                                    .fill(Color.clear)
+                                    .frame(width: 5, height: 5)
+                            }
                         }
                         .frame(width: 36, height: 42)
                         .background(
@@ -150,6 +163,28 @@ struct JournalView: View {
         .background(ColorTheme.cardBackground(colorScheme))
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
+    }
+
+    @ViewBuilder
+    private func calendarDot(entry: DailyEntry?, isSelected: Bool) -> some View {
+        if let entry, entry.isDailyLog, let log = entry.dailyLogResponses {
+            // Show completion dots for daily logs
+            HStack(spacing: 2) {
+                Circle()
+                    .fill(log.hasTraining ? (isSelected ? .white.opacity(0.8) : ColorTheme.training) : Color.clear)
+                    .frame(width: 4, height: 4)
+                Circle()
+                    .fill(log.hasNutrition ? (isSelected ? .white.opacity(0.8) : ColorTheme.nutrition) : Color.clear)
+                    .frame(width: 4, height: 4)
+                Circle()
+                    .fill(log.hasSleep ? (isSelected ? .white.opacity(0.8) : ColorTheme.sleep) : Color.clear)
+                    .frame(width: 4, height: 4)
+            }
+        } else {
+            Circle()
+                .fill(isSelected ? .white.opacity(0.8) : ColorTheme.accent)
+                .frame(width: 5, height: 5)
+        }
     }
 
     private var noEntryCard: some View {

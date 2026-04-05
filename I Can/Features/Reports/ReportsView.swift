@@ -246,10 +246,16 @@ struct ReportsView: View {
                             .font(.system(size: 13, weight: .medium).width(.condensed))
                             .foregroundColor(ColorTheme.secondaryText(colorScheme))
                         Spacer()
-                        if !period.reportReady && period.isEligible {
-                            Text("Eligible")
-                                .font(.system(size: 12, weight: .bold).width(.condensed))
-                                .foregroundColor(Color(hex: "22C55E"))
+                        if !period.reportReady {
+                            if period.isEligible {
+                                Text("Eligible")
+                                    .font(.system(size: 12, weight: .bold).width(.condensed))
+                                    .foregroundColor(Color(hex: "22C55E"))
+                            } else {
+                                Text("Ineligible")
+                                    .font(.system(size: 12, weight: .bold).width(.condensed))
+                                    .foregroundColor(Color(hex: "EF4444"))
+                            }
                         }
                     }
                 }

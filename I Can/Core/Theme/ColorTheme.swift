@@ -15,6 +15,25 @@ enum ColorTheme {
         endPoint: .bottomTrailing
     )
 
+    // Section Colors
+    static let training = Color(hex: "F97316")
+    static let trainingGradient = LinearGradient(
+        colors: [Color(hex: "F97316"), Color(hex: "EA580C")],
+        startPoint: .topLeading, endPoint: .bottomTrailing
+    )
+
+    static let nutrition = Color(hex: "22C55E")
+    static let nutritionGradient = LinearGradient(
+        colors: [Color(hex: "22C55E"), Color(hex: "16A34A")],
+        startPoint: .topLeading, endPoint: .bottomTrailing
+    )
+
+    static let sleep = Color(hex: "8B5CF6")
+    static let sleepGradient = LinearGradient(
+        colors: [Color(hex: "8B5CF6"), Color(hex: "7C3AED")],
+        startPoint: .topLeading, endPoint: .bottomTrailing
+    )
+
     static func background(_ scheme: ColorScheme) -> Color {
         scheme == .dark ? Color(hex: "0A1628") : Color(hex: "EEF0F4")
     }
