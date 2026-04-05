@@ -599,16 +599,16 @@ struct TrainingLogView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
 
-            // Save button
+            // Save session button — adds to list so user can review or add more
             Button {
                 HapticManager.impact(.medium)
                 let session = inlineEditor.toSession()
-                sessions.append(session)
-                inlineEditor.reset()
-                // If this is the only session, save immediately
-                save()
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    sessions.append(session)
+                    inlineEditor.reset()
+                }
             } label: {
-                Text("SAVE TRAINING")
+                Text("SAVE SESSION")
                     .font(.system(size: 15, weight: .heavy).width(.condensed))
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)

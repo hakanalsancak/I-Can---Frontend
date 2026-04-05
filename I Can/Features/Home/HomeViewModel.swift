@@ -3,6 +3,8 @@ import Foundation
 @MainActor
 @Observable
 final class HomeViewModel {
+    static let shared = HomeViewModel()
+
     var streak: StreakInfo?
     var todayEntry: DailyEntry?
     var showDailyEntry = false
@@ -24,6 +26,9 @@ final class HomeViewModel {
     var showNutritionLog = false
     var showSleepLog = false
 
+    private var isSaving = false
+    private var hasLoadedInitially = false
+
     var hasLoggedToday: Bool { todayEntry != nil }
 
     var completionCount: Int { completedSections.count }
@@ -38,6 +43,7 @@ final class HomeViewModel {
         async let entryTask: () = loadTodayEntry()
         _ = await (streakTask, entryTask)
         isLoading = false
+        hasLoadedInitially = true
 
         if hasLoggedToday {
             NotificationService.shared.cancelStreakReminder()
@@ -47,6 +53,14 @@ final class HomeViewModel {
 
         // Load analytics in background
         await loadAnalytics()
+    }
+
+    /// Called when the home tab becomes visible again.
+    /// Skips if a save is in progress to avoid overwriting optimistic state,
+    /// or if we haven't done the initial load yet (`.task` handles that).
+    func refreshIfNeeded() async {
+        guard hasLoadedInitially, !isSaving else { return }
+        await loadTodayEntry()
     }
 
     private func loadStreak() async {
@@ -121,30 +135,54 @@ final class HomeViewModel {
     // MARK: - Section Submission
 
     func submitTraining(_ data: TrainingData) async {
+        let prevTraining = todayTraining
+        let prevSections = completedSections
+
         todayTraining = data
         if !completedSections.contains("training") {
             completedSections.append("training")
         }
-        await saveDailyLog()
+
+        if !(await saveDailyLog()) {
+            todayTraining = prevTraining
+            completedSections = prevSections
+        }
     }
 
     func submitNutrition(_ data: NutritionData) async {
+        let prevNutrition = todayNutrition
+        let prevSections = completedSections
+
         todayNutrition = data
         if !completedSections.contains("nutrition") {
             completedSections.append("nutrition")
         }
-        await saveDailyLog()
+
+        if !(await saveDailyLog()) {
+            todayNutrition = prevNutrition
+            completedSections = prevSections
+        }
     }
 
     func submitSleep(_ data: SleepData) async {
+        let prevSleep = todaySleep
+        let prevSections = completedSections
+
         todaySleep = data
         if !completedSections.contains("sleep") {
             completedSections.append("sleep")
         }
-        await saveDailyLog()
+
+        if !(await saveDailyLog()) {
+            todaySleep = prevSleep
+            completedSections = prevSections
+        }
     }
 
-    private func saveDailyLog() async {
+    /// Returns true on success, false on failure.
+    private func saveDailyLog() async -> Bool {
+        isSaving = true
+        defer { isSaving = false }
         do {
             let response = try await DailyLogService.shared.submitDailyLog(
                 date: Date().apiDateString,
@@ -159,8 +197,9 @@ final class HomeViewModel {
 
             // Refresh analytics after save
             await loadAnalytics()
+            return true
         } catch {
-            // Revert on failure
+            return false
         }
     }
 
@@ -172,4 +211,6 @@ final class HomeViewModel {
         parseDailyLogData(from: response.entry)
         NotificationService.shared.cancelStreakReminder()
     }
+
+    private init() {}
 }

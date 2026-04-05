@@ -105,7 +105,8 @@ private let iCanQuotes: [String] = [
 ]
 
 struct HomeView: View {
-    @State private var viewModel = HomeViewModel()
+    @Bindable private var viewModel = HomeViewModel.shared
+    @Binding var selectedTab: Int
     @State private var currentQuoteIndex = Int.random(in: 0..<iCanQuotes.count)
     @State private var quoteOpacity: Double = 1
     @State private var showSubscription = false
@@ -212,6 +213,11 @@ struct HomeView: View {
                     heroAppeared = true
                 }
                 loadProfileImage()
+            }
+            .onChange(of: selectedTab) { _, newTab in
+                if newTab == 0 {
+                    Task { await viewModel.refreshIfNeeded() }
+                }
             }
             .sheet(isPresented: $showProfile, onDismiss: {
                 loadProfileImage()
