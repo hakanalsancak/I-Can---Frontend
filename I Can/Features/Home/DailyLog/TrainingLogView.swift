@@ -246,7 +246,7 @@ struct TrainingLogView: View {
 
                         Button {
                             HapticManager.impact(.light)
-                            withAnimation(.easeInOut(duration: 0.25)) {
+                            _ = withAnimation(.easeInOut(duration: 0.25)) {
                                 sessions.remove(at: index)
                             }
                         } label: {

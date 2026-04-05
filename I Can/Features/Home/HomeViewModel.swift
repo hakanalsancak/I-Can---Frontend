@@ -114,8 +114,8 @@ final class HomeViewModel {
 
     func loadAnalytics() async {
         isLoadingAnalytics = true
-        async let weekTask = loadWeeklyAnalytics()
-        async let monthTask = loadMonthlyAnalytics()
+        async let weekTask: Void = loadWeeklyAnalytics()
+        async let monthTask: Void = loadMonthlyAnalytics()
         _ = await (weekTask, monthTask)
         isLoadingAnalytics = false
     }

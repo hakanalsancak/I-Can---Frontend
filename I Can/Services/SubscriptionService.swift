@@ -66,7 +66,7 @@ final class SubscriptionService {
             if isPremium {
                 await transaction.finish()
 
-                let isFreeTrial = transaction.offerType == .introductory
+                let isFreeTrial = transaction.offer?.type == .introductory
                 let planType = transaction.productID == Self.yearlyProductId ? "yearly" : "monthly"
 
                 if isFreeTrial {

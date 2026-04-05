@@ -9,6 +9,14 @@ struct ReportsView: View {
 
     private let countdownTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
+    private var userName: String {
+        AuthService.shared.currentUser?.fullName?.components(separatedBy: " ").first ?? "Athlete"
+    }
+
+    private var userSport: String {
+        AuthService.shared.currentUser?.sport.capitalized ?? "your sport"
+    }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -20,7 +28,9 @@ struct ReportsView: View {
                             premiumContent
                         } else {
                             lockedHeroSection
-                            featureShowcase
+                            previewReportsSection
+                            whatYouGetSection
+                            lockedCTASection
                         }
                     }
                     .padding(.horizontal, 20)
@@ -385,40 +395,20 @@ struct ReportsView: View {
 
     private var lockedHeroSection: some View {
         VStack(spacing: 20) {
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color(hex: "7C3AED").opacity(0.15), Color(hex: "4F46E5").opacity(0.08)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 88, height: 88)
-
-                Image(systemName: "brain.head.profile")
-                    .font(.system(size: 38, weight: .medium))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [Color(hex: "8B5CF6"), Color(hex: "4F46E5")],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            }
-
-            VStack(spacing: 8) {
-                Text("Your AI Performance Coach")
+            // Personalized header
+            VStack(spacing: 6) {
+                Text("\(userName), Your Insights Await")
                     .font(Typography.title2)
                     .foregroundColor(ColorTheme.primaryText(colorScheme))
                     .multilineTextAlignment(.center)
 
-                Text("Get personalized coaching insights\nfrom your daily entries")
+                Text("See what premium athletes get after every training session")
                     .font(Typography.subheadline)
                     .foregroundColor(ColorTheme.secondaryText(colorScheme))
                     .multilineTextAlignment(.center)
                     .lineSpacing(2)
             }
+            .padding(.top, 8)
 
             Button {
                 HapticManager.impact(.medium)
@@ -427,7 +417,7 @@ struct ReportsView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "sparkles")
                         .font(.system(size: 14, weight: .bold))
-                    Text("Upgrade to Premium")
+                    Text("Unlock All Reports")
                         .font(.system(size: 16, weight: .bold).width(.condensed))
                 }
                 .foregroundColor(.white)
@@ -444,94 +434,376 @@ struct ReportsView: View {
                 .shadow(color: Color(hex: "7C3AED").opacity(0.35), radius: 12, x: 0, y: 6)
             }
         }
-        .padding(.vertical, 24)
-        .padding(.horizontal, 20)
-        .background(ColorTheme.cardBackground(colorScheme))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
     }
 
-    // MARK: - Feature Showcase (Non-Premium)
+    // MARK: - Preview Reports (Blurred Teasers)
 
-    private var featureShowcase: some View {
-        VStack(spacing: 12) {
-            Text("WHAT YOU'LL GET")
-                .sectionHeader(colorScheme)
-
-            featureCard(
-                icon: "sparkles",
-                iconColors: ["42AAB1", "358A90"],
-                title: "Daily Log Insights",
-                description: "Get a personalized AI coaching insight every time you submit your daily performance log."
-            )
-
-            featureCard(
+    private var previewReportsSection: some View {
+        VStack(spacing: 18) {
+            // Weekly preview
+            lockedReportPreview(
+                title: "WEEKLY REPORT",
                 icon: "chart.bar.fill",
-                iconColors: ["7C3AED", "4F46E5"],
-                title: "Weekly Reports",
-                description: "Detailed analysis of your training patterns, mental state, and performance trends every week."
+                iconColor: Color(hex: "8B5CF6"),
+                gradient: [Color(hex: "7C3AED"), Color(hex: "4F46E5")],
+                previewContent: weeklyPreviewCard
             )
 
-            featureCard(
+            // Monthly preview
+            lockedReportPreview(
+                title: "MONTHLY REPORT",
                 icon: "chart.line.uptrend.xyaxis",
-                iconColors: ["2563EB", "1D4ED8"],
-                title: "Monthly Deep Dives",
-                description: "Comprehensive monthly reviews covering strengths, areas to improve, and consistency tracking."
+                iconColor: Color(hex: "2563EB"),
+                gradient: [Color(hex: "2563EB"), Color(hex: "1D4ED8")],
+                previewContent: monthlyPreviewCard
             )
 
-            featureCard(
+            // Yearly preview
+            lockedReportPreview(
+                title: "YEARLY REPORT",
                 icon: "star.fill",
-                iconColors: ["F59E0B", "D97706"],
-                title: "Yearly Reviews",
-                description: "Full year performance analysis covering your growth, patterns, and transformation over time."
-            )
-
-            featureCard(
-                icon: "target",
-                iconColors: ["22C55E", "16A34A"],
-                title: "Goal-Based Coaching",
-                description: "AI analyzes your daily entries and provides actionable coaching recommendations."
-            )
-
-            featureCard(
-                icon: "brain",
-                iconColors: ["F97316", "EA580C"],
-                title: "Mental Pattern Analysis",
-                description: "Uncover patterns in your focus, confidence, and effort to build a stronger mental game."
+                iconColor: Color(hex: "F59E0B"),
+                gradient: [Color(hex: "F59E0B"), Color(hex: "D97706")],
+                previewContent: yearlyPreviewCard
             )
         }
     }
 
-    private func featureCard(icon: String, iconColors: [String], title: String, description: String) -> some View {
-        HStack(alignment: .top, spacing: 14) {
-            Image(systemName: icon)
-                .font(.system(size: 18, weight: .medium))
-                .foregroundColor(.white)
-                .frame(width: 40, height: 40)
-                .background(
-                    LinearGradient(
-                        colors: iconColors.map { Color(hex: $0) },
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 4) {
+    private func lockedReportPreview(
+        title: String,
+        icon: String,
+        iconColor: Color,
+        gradient: [Color],
+        previewContent: some View
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(iconColor)
                 Text(title)
-                    .font(Typography.headline)
-                    .foregroundColor(ColorTheme.primaryText(colorScheme))
-                Text(description)
-                    .font(Typography.footnote)
-                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                    .lineSpacing(2)
+                    .sectionHeader(colorScheme)
+                Spacer()
+                HStack(spacing: 4) {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 10, weight: .bold))
+                    Text("PREMIUM")
+                        .font(.system(size: 10, weight: .heavy).width(.condensed))
+                }
+                .foregroundColor(Color(hex: "EAB308"))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color(hex: "EAB308").opacity(0.1))
+                .clipShape(Capsule())
+            }
+
+            // Blurred preview
+            ZStack {
+                previewContent
+                    .blur(radius: 6)
+                    .allowsHitTesting(false)
+
+                // Lock overlay
+                VStack(spacing: 10) {
+                    ZStack {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: gradient,
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 48, height: 48)
+                            .shadow(color: gradient[0].opacity(0.3), radius: 8, x: 0, y: 4)
+
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(.white)
+                    }
+
+                    Text("Unlock with Premium")
+                        .font(.system(size: 14, weight: .bold).width(.condensed))
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .onTapGesture {
+                HapticManager.impact(.light)
+                showSubscription = true
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: - Preview Card Content (Simulated Report Data)
+
+    private var weeklyPreviewCard: some View {
+        VStack(spacing: 12) {
+            // Simulated summary
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Weekly Summary")
+                    .font(.system(size: 15, weight: .bold).width(.condensed))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+
+                Text("Your training consistency has been strong this week with 5 out of 7 sessions logged. Focus levels peaked mid-week during tactical sessions.")
+                    .font(.system(size: 13, weight: .regular).width(.condensed))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                    .lineSpacing(3)
+            }
+
+            // Simulated metrics row
+            HStack(spacing: 0) {
+                previewMetric(label: "Focus", value: "8.2", trend: "+0.5")
+                previewMetric(label: "Effort", value: "8.7", trend: "+0.3")
+                previewMetric(label: "Confidence", value: "7.4", trend: "+1.1")
+            }
+
+            // Simulated strengths
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Key Strengths")
+                    .font(.system(size: 14, weight: .bold).width(.condensed))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(Color(hex: "22C55E"))
+                    Text("Training consistency improving week over week")
+                        .font(.system(size: 13, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                }
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(Color(hex: "22C55E"))
+                    Text("Sleep quality directly boosting performance scores")
+                        .font(.system(size: 13, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                }
+            }
+        }
         .padding(16)
         .background(ColorTheme.cardBackground(colorScheme))
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
+        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
+    }
+
+    private var monthlyPreviewCard: some View {
+        VStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Monthly Deep Dive")
+                    .font(.system(size: 15, weight: .bold).width(.condensed))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+
+                Text("This month showed a significant improvement in mental resilience. Your pre-game focus scores jumped 15% compared to last month.")
+                    .font(.system(size: 13, weight: .regular).width(.condensed))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                    .lineSpacing(3)
+            }
+
+            // Simulated progress bars
+            VStack(spacing: 8) {
+                previewProgressRow(label: "Consistency", value: 0.82, color: Color(hex: "22C55E"))
+                previewProgressRow(label: "Mental Growth", value: 0.71, color: Color(hex: "2563EB"))
+                previewProgressRow(label: "Performance", value: 0.68, color: Color(hex: "F59E0B"))
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Coach Recommendation")
+                    .font(.system(size: 14, weight: .bold).width(.condensed))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+                Text("Focus on visualization exercises before competition days. Your data shows a clear correlation between pre-game mental prep and peak performance.")
+                    .font(.system(size: 13, weight: .medium).width(.condensed))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                    .lineSpacing(3)
+            }
+        }
+        .padding(16)
+        .background(ColorTheme.cardBackground(colorScheme))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
+    }
+
+    private var yearlyPreviewCard: some View {
+        VStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Year in Review")
+                    .font(.system(size: 15, weight: .bold).width(.condensed))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+
+                Text("A year of dedicated growth. You logged 247 sessions, maintained a 85% consistency rate, and your mental performance scores improved by 32%.")
+                    .font(.system(size: 13, weight: .regular).width(.condensed))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                    .lineSpacing(3)
+            }
+
+            // Simulated year stats
+            HStack(spacing: 0) {
+                previewMetric(label: "Sessions", value: "247", trend: nil)
+                previewMetric(label: "Streak", value: "43d", trend: nil)
+                previewMetric(label: "Growth", value: "+32%", trend: nil)
+            }
+        }
+        .padding(16)
+        .background(ColorTheme.cardBackground(colorScheme))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
+    }
+
+    private func previewMetric(label: String, value: String, trend: String?) -> some View {
+        VStack(spacing: 4) {
+            Text(value)
+                .font(.system(size: 20, weight: .heavy, design: .rounded).width(.condensed))
+                .foregroundColor(ColorTheme.primaryText(colorScheme))
+            if let trend {
+                Text(trend)
+                    .font(.system(size: 12, weight: .bold).width(.condensed))
+                    .foregroundColor(Color(hex: "22C55E"))
+            }
+            Text(label)
+                .font(.system(size: 12, weight: .medium).width(.condensed))
+                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func previewProgressRow(label: String, value: Double, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(label)
+                    .font(.system(size: 13, weight: .medium).width(.condensed))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                Spacer()
+                Text("\(Int(value * 100))%")
+                    .font(.system(size: 13, weight: .bold).width(.condensed))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.06))
+                        .frame(height: 6)
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(color)
+                        .frame(width: geo.size.width * value, height: 6)
+                }
+            }
+            .frame(height: 6)
+        }
+    }
+
+    // MARK: - What You Get Section
+
+    private var whatYouGetSection: some View {
+        VStack(spacing: 14) {
+            Text("HOW AI REPORTS WORK")
+                .sectionHeader(colorScheme)
+
+            VStack(spacing: 0) {
+                stepRow(
+                    number: "1",
+                    icon: "pencil.and.list.clipboard",
+                    title: "Log Your Training",
+                    description: "Record your daily sessions, nutrition, and sleep",
+                    color: Color(hex: "F97316"),
+                    isLast: false
+                )
+                stepRow(
+                    number: "2",
+                    icon: "brain.head.profile",
+                    title: "AI Analyzes Patterns",
+                    description: "Your coach finds trends across all your data",
+                    color: Color(hex: "8B5CF6"),
+                    isLast: false
+                )
+                stepRow(
+                    number: "3",
+                    icon: "doc.text.magnifyingglass",
+                    title: "Get Actionable Insights",
+                    description: "Receive personalized reports with specific coaching",
+                    color: Color(hex: "22C55E"),
+                    isLast: true
+                )
+            }
+            .padding(16)
+            .background(ColorTheme.cardBackground(colorScheme))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
+        }
+    }
+
+    private func stepRow(number: String, icon: String, title: String, description: String, color: Color, isLast: Bool) -> some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .top, spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(color)
+                        .frame(width: 32, height: 32)
+                    Text(number)
+                        .font(.system(size: 14, weight: .heavy, design: .rounded))
+                        .foregroundColor(.white)
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.system(size: 15, weight: .bold).width(.condensed))
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    Text(description)
+                        .font(.system(size: 13, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                }
+                .padding(.top, 2)
+
+                Spacer()
+            }
+            .padding(.vertical, 12)
+
+            if !isLast {
+                HStack(spacing: 0) {
+                    Rectangle()
+                        .fill(ColorTheme.separator(colorScheme))
+                        .frame(width: 1, height: 1)
+                        .padding(.leading, 16)
+                    Spacer()
+                }
+            }
+        }
+    }
+
+    // MARK: - Bottom CTA
+
+    private var lockedCTASection: some View {
+        VStack(spacing: 14) {
+            Text("Your entries are building up. Unlock AI reports to see what your data reveals about your \(userSport) performance.")
+                .font(.system(size: 14, weight: .medium).width(.condensed))
+                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                .multilineTextAlignment(.center)
+                .lineSpacing(3)
+
+            Button {
+                HapticManager.impact(.medium)
+                showSubscription = true
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "crown.fill")
+                        .font(.system(size: 14, weight: .bold))
+                    Text("Get Premium")
+                        .font(.system(size: 16, weight: .bold).width(.condensed))
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(
+                    LinearGradient(
+                        colors: [Color(hex: "EAB308"), Color(hex: "D97706")],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .shadow(color: Color(hex: "EAB308").opacity(0.35), radius: 12, x: 0, y: 6)
+            }
+        }
     }
 }
 
