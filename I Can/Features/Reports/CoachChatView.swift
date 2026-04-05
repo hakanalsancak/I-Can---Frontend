@@ -17,6 +17,9 @@ struct CoachChatView: View {
     @State private var showHistory = false
     @State private var isLoadingConversation = false
     @State private var appearedMessageIDs: Set<UUID> = []
+    @State private var streamingMessageID: UUID? = nil
+    @State private var streamingDisplayText: String = ""
+    @State private var streamingTask: Task<Void, Never>? = nil
     @FocusState private var isInputFocused: Bool
 
     private let coachGradient = [Color(hex: "0EA5E9"), Color(hex: "22C55E")]
@@ -94,6 +97,7 @@ struct CoachChatView: View {
             }
             .onDisappear {
                 stopCountdown()
+                streamingTask?.cancel()
             }
         }
     }
@@ -192,6 +196,9 @@ struct CoachChatView: View {
     }
 
     private func startNewChat() {
+        streamingTask?.cancel()
+        streamingMessageID = nil
+        streamingDisplayText = ""
         withAnimation(.easeOut(duration: 0.2)) {
             messages = []
             currentConversationId = nil
@@ -644,6 +651,15 @@ struct CoachChatView: View {
                     }
                 }
             }
+            .onChange(of: streamingDisplayText) {
+                // Scroll every ~5 words during streaming (throttle)
+                if let id = streamingMessageID,
+                   streamingDisplayText.filter({ $0 == " " }).count % 5 == 0 {
+                    withAnimation(.easeOut(duration: 0.15)) {
+                        proxy.scrollTo(id, anchor: .bottom)
+                    }
+                }
+            }
         }
         }
     }
@@ -674,14 +690,15 @@ struct CoachChatView: View {
             }
 
             VStack(alignment: message.isUser ? .trailing : .leading, spacing: 4) {
-                // Message content
+                // Message content — use streaming text if this message is currently being revealed
                 Group {
                     if message.isUser {
                         Text(message.content)
                             .font(.system(size: 16, weight: .regular))
                             .foregroundColor(.white)
                     } else {
-                        formattedCoachText(message.content)
+                        let displayText = message.id == streamingMessageID ? streamingDisplayText : message.content
+                        formattedCoachText(displayText)
                     }
                 }
                 .lineSpacing(5)
@@ -887,8 +904,10 @@ struct CoachChatView: View {
         }
     }
 
+    private var isStreaming: Bool { streamingMessageID != nil }
+
     private var canSend: Bool {
-        !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isLoading
+        !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isLoading && !isStreaming
     }
 
     // MARK: - Send
@@ -920,11 +939,14 @@ struct CoachChatView: View {
                     currentConversationId = newId
                 }
                 let coachMessage = ChatMessage(role: "assistant", content: result.reply)
+                // Prepare streaming state BEFORE appending so the full text never flashes
+                streamingMessageID = coachMessage.id
+                streamingDisplayText = ""
                 withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
                     isLoading = false
                     messages.append(coachMessage)
                 }
-                persistMessages()
+                startStreamingReveal(for: coachMessage)
                 if let remaining = result.remaining {
                     remainingMessages = remaining
                     if remaining <= 0 {
@@ -977,6 +999,71 @@ struct CoachChatView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Streaming Reveal
+
+    private func startStreamingReveal(for message: ChatMessage) {
+        streamingTask?.cancel()
+        streamingMessageID = message.id
+        streamingDisplayText = ""
+
+        let fullText = message.content
+        // Split into words preserving whitespace/newlines
+        let words = splitIntoTokens(fullText)
+
+        streamingTask = Task { @MainActor in
+            for i in words.indices {
+                guard !Task.isCancelled else { break }
+                streamingDisplayText += words[i]
+
+                // Adaptive speed: faster for short words, slight pause after punctuation
+                let word = words[i].trimmingCharacters(in: .whitespaces)
+                let delay: UInt64
+                if word.last == "." || word.last == "?" || word.last == "!" {
+                    delay = 60_000_000 // 60ms after sentence endings
+                } else if word.last == "," || word.last == ":" {
+                    delay = 40_000_000 // 40ms after commas/colons
+                } else {
+                    delay = 25_000_000 // 25ms default per word
+                }
+                try? await Task.sleep(nanoseconds: delay)
+            }
+
+            // Streaming done — finalize
+            streamingMessageID = nil
+            streamingDisplayText = ""
+            persistMessages()
+        }
+    }
+
+    /// Splits text into words while keeping whitespace/newlines attached
+    private func splitIntoTokens(_ text: String) -> [String] {
+        var tokens: [String] = []
+        var current = ""
+        var inWhitespace = false
+
+        for char in text {
+            if char == " " || char == "\n" {
+                if !inWhitespace && !current.isEmpty {
+                    tokens.append(current)
+                    current = ""
+                }
+                current.append(char)
+                inWhitespace = true
+            } else {
+                if inWhitespace {
+                    tokens.append(current)
+                    current = ""
+                    inWhitespace = false
+                }
+                current.append(char)
+            }
+        }
+        if !current.isEmpty {
+            tokens.append(current)
+        }
+        return tokens
     }
 }
 
