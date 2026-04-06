@@ -53,6 +53,11 @@ enum APIEndpoints {
         static func deleteConversation(_ id: String) -> String { "/api/chat/conversations/\(id)" }
     }
 
+    enum JournalNotes {
+        static let base = "/api/journal-notes"
+        static func byDate(_ date: String) -> String { "/api/journal-notes/\(date)" }
+    }
+
     enum Feedback {
         static let base = "/api/feedback"
     }

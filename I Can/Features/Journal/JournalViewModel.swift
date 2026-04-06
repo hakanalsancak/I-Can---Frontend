@@ -9,6 +9,12 @@ final class JournalViewModel {
     var isLoading = false
     var currentMonth: Date = Date()
 
+    // Journal notes
+    var notes: [String: String] = [:] // [dateStr: content]
+    var selectedNote: String = ""
+    var isSavingNote = false
+    private var noteDebounceTask: Task<Void, Never>?
+
     private var loadTask: Task<Void, Never>?
 
     var entryDates: Set<String> {
@@ -52,15 +58,28 @@ final class JournalViewModel {
             else { return }
 
             do {
-                let fetched = try await EntryService.shared.getEntries(
+                async let entriesTask = EntryService.shared.getEntries(
                     startDate: firstDay.apiDateString,
                     endDate: lastDay.apiDateString,
                     limit: 31
                 )
+                async let notesTask = JournalNoteService.shared.getNotes(
+                    start: firstDay.apiDateString,
+                    end: lastDay.apiDateString
+                )
+
+                let (fetched, fetchedNotes) = try await (entriesTask, notesTask)
                 guard !Task.isCancelled else { return }
+
                 entries = fetched
+                notes = Dictionary(
+                    fetchedNotes.map { ($0.noteDate, $0.content) },
+                    uniquingKeysWith: { _, last in last }
+                )
+
                 let dateStr = selectedDate.apiDateString
                 selectedEntry = entries.first { $0.entryDate == dateStr }
+                selectedNote = notes[dateStr] ?? ""
             } catch {
                 guard !Task.isCancelled else { return }
                 entries = []
@@ -73,6 +92,41 @@ final class JournalViewModel {
         selectedDate = date
         let dateStr = date.apiDateString
         selectedEntry = entries.first { $0.entryDate == dateStr }
+        selectedNote = notes[dateStr] ?? ""
+    }
+
+    func updateNote(_ text: String) {
+        selectedNote = text
+        let dateStr = selectedDate.apiDateString
+        notes[dateStr] = text
+
+        // Debounce save: wait 1.5s after user stops typing
+        noteDebounceTask?.cancel()
+        noteDebounceTask = Task {
+            try? await Task.sleep(for: .seconds(1.5))
+            guard !Task.isCancelled else { return }
+            await saveNote(date: dateStr, content: text)
+        }
+    }
+
+    /// Force-save the current note immediately (e.g. on disappear)
+    func flushNote() {
+        noteDebounceTask?.cancel()
+        let dateStr = selectedDate.apiDateString
+        let content = selectedNote
+        Task {
+            await saveNote(date: dateStr, content: content)
+        }
+    }
+
+    private func saveNote(date: String, content: String) async {
+        isSavingNote = true
+        defer { isSavingNote = false }
+        do {
+            _ = try await JournalNoteService.shared.saveNote(date: date, content: content)
+        } catch {
+            // Silent fail — note is still in local state
+        }
     }
 
     func previousMonth() {

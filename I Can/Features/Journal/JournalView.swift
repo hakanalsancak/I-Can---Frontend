@@ -5,6 +5,7 @@ struct JournalView: View {
     @State private var showSubscription = false
     @State private var showEntryDetail = false
     @State private var showEditEntry = false
+    @FocusState private var isNoteFocused: Bool
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -36,6 +37,9 @@ struct JournalView: View {
                         } else {
                             noEntryCard
                         }
+
+                        // Note of the Day
+                        noteSection
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 16)
@@ -43,8 +47,10 @@ struct JournalView: View {
                 }
             }
             .background(ColorTheme.background(colorScheme).ignoresSafeArea())
+            .onTapGesture { isNoteFocused = false }
             .navigationBarHidden(true)
             .task { viewModel.loadEntries() }
+            .onDisappear { viewModel.flushNote() }
             .onChange(of: viewModel.currentMonth) { _, _ in
                 viewModel.loadEntries()
             }
@@ -185,6 +191,67 @@ struct JournalView: View {
                 .fill(isSelected ? .white.opacity(0.8) : ColorTheme.accent)
                 .frame(width: 5, height: 5)
         }
+    }
+
+    // MARK: - Note of the Day
+
+    private var noteSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: "note.text")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(ColorTheme.accent)
+                Text("Note of the Day")
+                    .font(.system(size: 15, weight: .bold).width(.condensed))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+
+                Spacer()
+
+                if viewModel.isSavingNote {
+                    ProgressView()
+                        .scaleEffect(0.7)
+                }
+            }
+
+            Text("Your private space -- not shared with AI or reports.")
+                .font(.system(size: 11, weight: .medium).width(.condensed))
+                .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+
+            TextField("Write something about your day...", text: Binding(
+                get: { viewModel.selectedNote },
+                set: { viewModel.updateNote($0) }
+            ), axis: .vertical)
+                .font(.system(size: 14, weight: .regular).width(.condensed))
+                .foregroundColor(ColorTheme.primaryText(colorScheme))
+                .lineLimit(3...10)
+                .focused($isNoteFocused)
+                .padding(12)
+                .background(ColorTheme.elevatedBackground(colorScheme))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+            if isNoteFocused {
+                Button {
+                    isNoteFocused = false
+                    viewModel.flushNote()
+                    HapticManager.impact(.light)
+                } label: {
+                    Text("SAVE")
+                        .font(.system(size: 13, weight: .heavy).width(.condensed))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(ColorTheme.accentGradient)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+                .animation(.easeInOut(duration: 0.2), value: isNoteFocused)
+            }
+        }
+        .padding(16)
+        .background(ColorTheme.cardBackground(colorScheme))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
     }
 
     private var noEntryCard: some View {
