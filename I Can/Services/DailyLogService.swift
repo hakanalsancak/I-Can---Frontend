@@ -2,6 +2,22 @@ import Foundation
 
 // MARK: - Analytics Response
 
+struct AnalyticsSessionData: Codable {
+    let type: String
+    let duration: Int
+    let intensity: String
+}
+
+struct AnalyticsNutritionDetail: Codable {
+    let mealsLogged: Int
+    let breakfast: Bool
+    let lunch: Bool
+    let dinner: Bool
+    let snacks: Bool
+    let drinks: Bool
+    let mealRating: Int
+}
+
 struct AnalyticsDailyData: Codable {
     let date: String
     let completion: Int
@@ -9,6 +25,28 @@ struct AnalyticsDailyData: Codable {
     let nutrition: Bool
     let sleep: Bool
     let sleepHours: Double?
+    let trainingSessions: [AnalyticsSessionData]?
+    let trainingDuration: Int?
+    let nutritionDetail: AnalyticsNutritionDetail?
+}
+
+struct AnalyticsTrainingSummary: Codable {
+    let totalSessions: Int
+    let totalDuration: Int
+    let avgDuration: Int
+    let typeBreakdown: [String: Int]
+    let intensityBreakdown: [String: Int]
+}
+
+struct AnalyticsNutritionSummary: Codable {
+    let daysLogged: Int
+    let avgMealsPerDay: Double
+    let avgMealRating: Double
+    let breakfastRate: Int
+    let lunchRate: Int
+    let dinnerRate: Int
+    let snacksRate: Int
+    let drinksRate: Int
 }
 
 struct AnalyticsResponse: Codable {
@@ -23,6 +61,8 @@ struct AnalyticsResponse: Codable {
     let avgSleepHours: Double?
     let avgCompletion: Int
     let consistencyPercent: Int
+    let trainingSummary: AnalyticsTrainingSummary?
+    let nutritionSummary: AnalyticsNutritionSummary?
     let dailyData: [AnalyticsDailyData]
 }
 
