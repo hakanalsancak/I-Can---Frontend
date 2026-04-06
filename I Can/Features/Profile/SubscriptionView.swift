@@ -11,6 +11,7 @@ struct SubscriptionView: View {
     @State private var isGuest = AuthService.shared.currentUser?.isGuest ?? false
     @State private var showAccountUpgrade = false
     @State private var selectedProduct: Product?
+    @State private var trialEligibility: [String: Bool] = [:]
     @State private var appearAnimation = false
     @State private var pulseScale: CGFloat = 1.0
     @State private var shimmerPhase: CGFloat = -1
@@ -266,13 +267,13 @@ struct SubscriptionView: View {
 
     private var ctaButtonText: String {
         let product = selectedProduct ?? products.sorted(by: { productOrder($0) < productOrder($1) }).first
-        let hasTrial = product?.subscription?.introductoryOffer != nil
-        return hasTrial ? "Start Free Trial" : "Get Premium Now"
+        guard let product else { return "Get Premium Now" }
+        return isTrialEligible(product) ? "Start Free Trial" : "Get Premium Now"
     }
 
     private func planCard(product: Product) -> some View {
         let isYearly = product.id == SubscriptionService.yearlyProductId
-        let hasTrial = product.subscription?.introductoryOffer != nil
+        let hasTrial = isTrialEligible(product)
         let isSelected = (selectedProduct?.id ?? products.sorted(by: { productOrder($0) < productOrder($1) }).first?.id) == product.id
 
         return Button {
@@ -573,7 +574,11 @@ struct SubscriptionView: View {
     // MARK: - Helpers
 
     private var anyProductHasTrial: Bool {
-        products.contains { $0.subscription?.introductoryOffer != nil }
+        products.contains { trialEligibility[$0.id] == true }
+    }
+
+    private func isTrialEligible(_ product: Product) -> Bool {
+        trialEligibility[product.id] == true
     }
 
     private func productOrder(_ product: Product) -> Int {
@@ -583,6 +588,12 @@ struct SubscriptionView: View {
     private func loadProducts() async {
         do {
             products = try await SubscriptionService.shared.loadProducts()
+            for product in products {
+                if let subscription = product.subscription {
+                    let eligible = await subscription.isEligibleForIntroOffer
+                    trialEligibility[product.id] = eligible
+                }
+            }
         } catch {
             errorMessage = "Could not load subscription options"
         }
