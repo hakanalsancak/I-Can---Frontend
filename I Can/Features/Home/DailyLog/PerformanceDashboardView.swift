@@ -410,132 +410,66 @@ struct PerformanceDashboardView: View {
                     .foregroundColor(ColorTheme.nutrition)
             }
 
-            // Top-level stats
-            HStack(spacing: 10) {
-                miniStat(
-                    value: String(format: "%.1f", summary.avgMealsPerDay),
-                    label: "Avg Meals/Day",
-                    color: ColorTheme.nutrition
-                )
-                miniStat(
-                    value: "\(summary.daysLogged)",
-                    label: "Days Tracked",
-                    color: ColorTheme.nutrition
-                )
-            }
+            // Average health score ring
+            HStack(spacing: 20) {
+                healthScoreRing(score: summary.avgHealthScore, size: 90, lineWidth: 8)
 
-            // Daily meals logged chart
-            let nutritionDays = data.dailyData.compactMap { item -> (String, Int)? in
-                guard let detail = item.nutritionDetail else { return nil }
-                return (shortDayLabel(item.date), detail.mealsLogged)
-            }
-
-            if !nutritionDays.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("MEALS PER DAY")
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("AVG HEALTH SCORE")
                         .font(.system(size: 9, weight: .heavy).width(.condensed))
                         .foregroundColor(ColorTheme.tertiaryText(colorScheme))
 
-                    Chart(nutritionDays, id: \.0) { day, meals in
-                        BarMark(
-                            x: .value("Day", day),
-                            y: .value("Meals", meals)
-                        )
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: mealCountColors(meals),
-                                startPoint: .bottom,
-                                endPoint: .top
-                            )
-                        )
-                        .cornerRadius(4)
-                    }
-                    .chartYScale(domain: 0...3)
-                    .chartYAxis {
-                        AxisMarks(values: [0, 1, 2, 3]) { value in
-                            AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4]))
-                                .foregroundStyle(ColorTheme.separator(colorScheme))
-                            AxisValueLabel {
-                                Text("\(value.as(Int.self) ?? 0)")
-                                    .font(.system(size: 9, weight: .medium).width(.condensed))
-                                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
-                            }
+                    Text(healthScoreLabel(summary.avgHealthScore))
+                        .font(.system(size: 14, weight: .bold).width(.condensed))
+                        .foregroundColor(healthScoreColor(summary.avgHealthScore))
+
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(String(format: "%.1f", summary.avgMealsPerDay))
+                                .font(Typography.number(14))
+                                .foregroundColor(ColorTheme.primaryText(colorScheme))
+                            Text("Meals/Day")
+                                .font(.system(size: 8, weight: .bold).width(.condensed))
+                                .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                                .textCase(.uppercase)
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("\(summary.daysLogged)")
+                                .font(Typography.number(14))
+                                .foregroundColor(ColorTheme.primaryText(colorScheme))
+                            Text("Days")
+                                .font(.system(size: 8, weight: .bold).width(.condensed))
+                                .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                                .textCase(.uppercase)
                         }
                     }
-                    .chartXAxis {
-                        AxisMarks { value in
-                            AxisValueLabel {
-                                Text(value.as(String.self) ?? "")
-                                    .font(.system(size: 9, weight: .medium).width(.condensed))
-                                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
-                            }
-                        }
-                    }
-                    .frame(height: 110)
                 }
+
+                Spacer()
             }
 
-            // Daily meal health rating
-            let ratingDays = data.dailyData.compactMap { item -> (String, Int)? in
+            // Daily health scores as mini rings
+            let scoreDays = data.dailyData.compactMap { item -> (String, Int)? in
                 guard let detail = item.nutritionDetail else { return nil }
-                return (shortDayLabel(item.date), detail.mealRating)
+                return (shortDayLabel(item.date), detail.healthScore)
             }
 
-            if !ratingDays.isEmpty {
+            if !scoreDays.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("DAILY MEAL RATING")
-                            .font(.system(size: 9, weight: .heavy).width(.condensed))
-                            .foregroundColor(ColorTheme.tertiaryText(colorScheme))
-                        Spacer()
-                        Text(String(format: "%.1f avg", summary.avgMealRating))
-                            .font(.system(size: 11, weight: .bold).width(.condensed))
-                            .foregroundColor(mealRatingColor(summary.avgMealRating))
-                    }
+                    Text("DAILY SCORES")
+                        .font(.system(size: 9, weight: .heavy).width(.condensed))
+                        .foregroundColor(ColorTheme.tertiaryText(colorScheme))
 
-                    Chart(ratingDays, id: \.0) { day, rating in
-                        BarMark(
-                            x: .value("Day", day),
-                            y: .value("Rating", rating)
-                        )
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: mealRatingBarColors(rating),
-                                startPoint: .bottom,
-                                endPoint: .top
-                            )
-                        )
-                        .cornerRadius(4)
-                    }
-                    .chartYScale(domain: 0...10)
-                    .chartYAxis {
-                        AxisMarks(values: [0, 2, 4, 6, 8, 10]) { value in
-                            AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4]))
-                                .foregroundStyle(ColorTheme.separator(colorScheme))
-                            AxisValueLabel {
-                                Text("\(value.as(Int.self) ?? 0)")
-                                    .font(.system(size: 9, weight: .medium).width(.condensed))
-                                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
-                            }
-                        }
-                    }
-                    .chartXAxis {
-                        AxisMarks { value in
-                            AxisValueLabel {
-                                Text(value.as(String.self) ?? "")
-                                    .font(.system(size: 9, weight: .medium).width(.condensed))
-                                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
-                            }
-                        }
-                    }
-                    .frame(height: 120)
-
-                    // Rating scale legend
                     HStack(spacing: 0) {
-                        ratingLegendItem(label: "Poor", range: "1-3", color: Color(hex: "EF4444"))
-                        ratingLegendItem(label: "Fair", range: "4-5", color: Color(hex: "F59E0B"))
-                        ratingLegendItem(label: "Good", range: "6-7", color: ColorTheme.accent)
-                        ratingLegendItem(label: "Great", range: "8-10", color: Color(hex: "22C55E"))
+                        ForEach(scoreDays, id: \.0) { day, score in
+                            VStack(spacing: 4) {
+                                healthScoreRing(score: score, size: 38, lineWidth: 4)
+                                Text(day)
+                                    .font(.system(size: 9, weight: .medium).width(.condensed))
+                                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
                     }
                 }
             }
@@ -585,6 +519,15 @@ struct PerformanceDashboardView: View {
                 .background(ColorTheme.elevatedBackground(colorScheme))
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
+
+            // Score legend
+            HStack(spacing: 0) {
+                scoreLegendItem(label: "Poor", range: "1-30", color: Color(hex: "EF4444"))
+                scoreLegendItem(label: "Fair", range: "31-50", color: Color(hex: "F59E0B"))
+                scoreLegendItem(label: "Good", range: "51-70", color: ColorTheme.accent)
+                scoreLegendItem(label: "Great", range: "71-85", color: Color(hex: "22C55E"))
+                scoreLegendItem(label: "Elite", range: "86+", color: Color(hex: "10B981"))
+            }
         }
         .padding(16)
         .background(ColorTheme.cardBackground(colorScheme))
@@ -592,22 +535,37 @@ struct PerformanceDashboardView: View {
         .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
     }
 
-    // MARK: - Nutrition Sub-Components
+    // MARK: - Health Score Ring
 
-    private func ratingLegendItem(label: String, range: String, color: Color) -> some View {
-        VStack(spacing: 2) {
+    private func healthScoreRing(score: Int, size: CGFloat, lineWidth: CGFloat) -> some View {
+        let progress = Double(score) / 100.0
+        let color = healthScoreColor(score)
+
+        return ZStack {
             Circle()
-                .fill(color)
-                .frame(width: 6, height: 6)
-            Text(label)
-                .font(.system(size: 8, weight: .bold).width(.condensed))
-                .foregroundColor(ColorTheme.secondaryText(colorScheme))
-            Text(range)
-                .font(.system(size: 7, weight: .medium).width(.condensed))
-                .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                .stroke(color.opacity(0.15), lineWidth: lineWidth)
+
+            Circle()
+                .trim(from: 0, to: progress)
+                .stroke(
+                    AngularGradient(
+                        colors: [color.opacity(0.6), color],
+                        center: .center,
+                        startAngle: .degrees(0),
+                        endAngle: .degrees(360 * progress)
+                    ),
+                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
+                )
+                .rotationEffect(.degrees(-90))
+
+            Text("\(score)")
+                .font(Typography.number(size > 60 ? 22 : 12))
+                .foregroundColor(color)
         }
-        .frame(maxWidth: .infinity)
+        .frame(width: size, height: size)
     }
+
+    // MARK: - Nutrition Sub-Components
 
     private func mealColumnHeader(_ label: String, color: Color) -> some View {
         Text(label)
@@ -620,6 +578,21 @@ struct PerformanceDashboardView: View {
             .fill(filled ? color : ColorTheme.separator(colorScheme))
             .frame(width: 8, height: 8)
             .frame(width: 36)
+    }
+
+    private func scoreLegendItem(label: String, range: String, color: Color) -> some View {
+        VStack(spacing: 2) {
+            Circle()
+                .fill(color)
+                .frame(width: 6, height: 6)
+            Text(label)
+                .font(.system(size: 8, weight: .bold).width(.condensed))
+                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+            Text(range)
+                .font(.system(size: 7, weight: .medium).width(.condensed))
+                .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+        }
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Shared Mini Stat
@@ -678,28 +651,19 @@ struct PerformanceDashboardView: View {
         }
     }
 
-    private func mealCountColors(_ count: Int) -> [Color] {
-        switch count {
-        case 3: return [ColorTheme.nutrition, Color(hex: "22C55E")]
-        case 2: return [ColorTheme.nutrition, ColorTheme.nutrition.opacity(0.7)]
-        case 1: return [Color(hex: "F59E0B"), Color(hex: "F59E0B").opacity(0.7)]
-        default: return [ColorTheme.separator(colorScheme), ColorTheme.separator(colorScheme)]
-        }
-    }
-
-    private func mealRatingColor(_ rating: Double) -> Color {
-        if rating >= 8 { return Color(hex: "22C55E") }
-        if rating >= 6 { return ColorTheme.accent }
-        if rating >= 4 { return Color(hex: "F59E0B") }
+    private func healthScoreColor(_ score: Int) -> Color {
+        if score >= 86 { return Color(hex: "10B981") }
+        if score >= 71 { return Color(hex: "22C55E") }
+        if score >= 51 { return ColorTheme.accent }
+        if score >= 31 { return Color(hex: "F59E0B") }
         return Color(hex: "EF4444")
     }
 
-    private func mealRatingBarColors(_ rating: Int) -> [Color] {
-        switch rating {
-        case 8...10: return [Color(hex: "22C55E"), Color(hex: "22C55E").opacity(0.7)]
-        case 6...7: return [ColorTheme.accent, ColorTheme.accent.opacity(0.7)]
-        case 4...5: return [Color(hex: "F59E0B"), Color(hex: "F59E0B").opacity(0.7)]
-        default: return [Color(hex: "EF4444"), Color(hex: "EF4444").opacity(0.7)]
-        }
+    private func healthScoreLabel(_ score: Int) -> String {
+        if score >= 86 { return "Elite" }
+        if score >= 71 { return "Great" }
+        if score >= 51 { return "Good" }
+        if score >= 31 { return "Fair" }
+        return "Poor"
     }
 }

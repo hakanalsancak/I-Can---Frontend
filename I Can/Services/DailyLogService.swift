@@ -15,7 +15,7 @@ struct AnalyticsNutritionDetail: Codable {
     let dinner: Bool
     let snacks: Bool
     let drinks: Bool
-    let mealRating: Int
+    let healthScore: Int
 }
 
 struct AnalyticsDailyData: Codable {
@@ -41,7 +41,7 @@ struct AnalyticsTrainingSummary: Codable {
 struct AnalyticsNutritionSummary: Codable {
     let daysLogged: Int
     let avgMealsPerDay: Double
-    let avgMealRating: Double
+    let avgHealthScore: Int
     let breakfastRate: Int
     let lunchRate: Int
     let dinnerRate: Int
