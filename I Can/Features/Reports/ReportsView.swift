@@ -24,6 +24,8 @@ struct ReportsView: View {
 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 24) {
+                        reportsDescription
+
                         if SubscriptionService.shared.isPremium {
                             premiumContent
                         } else {
@@ -91,6 +93,31 @@ struct ReportsView: View {
         } else {
             return String(format: "%02dh %02dm %02ds", hours, minutes, seconds)
         }
+    }
+
+    // MARK: - Reports Description
+
+    private var reportsDescription: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "person.text.rectangle.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(Color(hex: "8B5CF6"))
+                Text("Your Personal Performance Agent")
+                    .font(.system(size: 16, weight: .bold).width(.condensed))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+            }
+
+            Text("Think of this as your private analyst. Based on everything you log — training, nutrition, sleep, and mindset — your AI coach writes detailed reports breaking down your progress, spotting patterns you might miss, and giving you actionable next steps. Reports are generated automatically at the end of each week, month, and year.")
+                .font(.system(size: 13, weight: .medium).width(.condensed))
+                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(16)
+        .background(ColorTheme.cardBackground(colorScheme))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
     }
 
     // MARK: - Premium Content
