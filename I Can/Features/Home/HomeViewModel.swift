@@ -9,6 +9,7 @@ final class HomeViewModel {
     var todayEntry: DailyEntry?
     var showDailyEntry = false
     var isLoading = false
+    var saveError: String?
 
     // Daily Log state
     var todayTraining: TrainingData?
@@ -183,6 +184,7 @@ final class HomeViewModel {
     private func saveDailyLog() async -> Bool {
         isSaving = true
         defer { isSaving = false }
+        saveError = nil
         do {
             let response = try await DailyLogService.shared.submitDailyLog(
                 date: Date().apiDateString,
@@ -199,6 +201,7 @@ final class HomeViewModel {
             await loadAnalytics()
             return true
         } catch {
+            saveError = "Failed to save. Please try again."
             return false
         }
     }

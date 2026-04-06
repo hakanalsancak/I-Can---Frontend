@@ -164,6 +164,14 @@ struct HomeView: View {
             .navigationBarHidden(true)
             .refreshable { await viewModel.loadData() }
             .task { await viewModel.loadData() }
+            .alert("Save Error", isPresented: Binding<Bool>(
+                get: { viewModel.saveError != nil },
+                set: { if !$0 { viewModel.saveError = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(viewModel.saveError ?? "")
+            }
             .sheet(isPresented: $viewModel.showTrainingLog) {
                 TrainingLogView(existingData: viewModel.todayTraining) { data in
                     Task { await viewModel.submitTraining(data) }
