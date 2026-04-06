@@ -21,6 +21,7 @@ final class SubscriptionService {
         )
         subscriptionStatus = status
         isPremium = status.isPremium
+        AnalyticsManager.updateSubscriptionProperties(status: status)
     }
 
     func verifyReceipt(transactionId: String, productId: String, originalTransactionId: String?, jwsRepresentation: String) async throws {
@@ -35,6 +36,7 @@ final class SubscriptionService {
         )
         subscriptionStatus = status
         isPremium = status.isPremium
+        AnalyticsManager.updateSubscriptionProperties(status: status)
     }
 
     func loadProducts() async throws -> [Product] {
@@ -170,6 +172,8 @@ final class SubscriptionService {
         isPremium = false
         statusChecked = false
         subscriptionStatus = nil
+        AnalyticsManager.setUserProperty(nil, forName: "subscription_tier")
+        AnalyticsManager.setUserProperty(nil, forName: "subscription_status")
     }
 
     private init() {}
