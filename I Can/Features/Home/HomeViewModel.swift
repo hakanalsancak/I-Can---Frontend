@@ -46,11 +46,11 @@ final class HomeViewModel {
         isLoading = false
         hasLoadedInitially = true
 
-        if hasLoggedToday {
-            NotificationService.shared.cancelStreakReminder()
-        } else {
-            NotificationService.shared.scheduleStreakReminder()
-        }
+        let frequency = AuthService.shared.currentUser?.notificationFrequency ?? 1
+        NotificationService.shared.scheduleAllNotifications(
+            frequency: frequency,
+            hasLoggedToday: hasLoggedToday
+        )
 
         // Load analytics in background
         await loadAnalytics()

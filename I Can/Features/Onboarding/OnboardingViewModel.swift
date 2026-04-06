@@ -247,6 +247,10 @@ final class OnboardingViewModel {
                 primaryGoal: selectedPrimaryGoal.isEmpty ? nil : selectedPrimaryGoal,
                 username: username.trimmingCharacters(in: .whitespaces).isEmpty ? nil : username.trimmingCharacters(in: .whitespaces).lowercased()
             )
+            NotificationService.shared.scheduleAllNotifications(
+                frequency: notificationFrequency,
+                hasLoggedToday: false
+            )
         }
     }
 }

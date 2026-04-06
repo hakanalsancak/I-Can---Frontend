@@ -449,6 +449,11 @@ struct SettingsView: View {
             try await NotificationService.shared.updatePreferences(
                 frequency: Int(notificationFrequency)
             )
+            let hasLogged = HomeViewModel.shared.hasLoggedToday
+            NotificationService.shared.scheduleAllNotifications(
+                frequency: Int(notificationFrequency),
+                hasLoggedToday: hasLogged
+            )
             dismiss()
         } catch {
             saveError = "Failed to save settings. Please try again."
