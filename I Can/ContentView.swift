@@ -4,6 +4,7 @@ struct ContentView: View {
     @State private var authService = AuthService.shared
     @State private var isLoading = true
     @State private var showMaintenance = false
+    @State private var showForceUpdate = false
     @State private var showPostOnboardingSubscription = false
     @State private var logoScale: CGFloat = 0.8
     @State private var logoOpacity: Double = 0
@@ -34,6 +35,12 @@ struct ContentView: View {
                     .transition(.opacity)
             }
 
+            if showForceUpdate {
+                ForceUpdateView()
+                    .transition(.opacity)
+                    .zIndex(11)
+            }
+
             if showMaintenance {
                 ServerMaintenanceView(onRetry: { await retryConnection() })
                     .transition(.opacity)
@@ -42,6 +49,7 @@ struct ContentView: View {
         }
         .animation(.easeInOut(duration: 0.4), value: showingSplash)
         .animation(.easeInOut(duration: 0.3), value: showMaintenance)
+        .animation(.easeInOut(duration: 0.3), value: showForceUpdate)
         .task {
             await loadInitialState()
         }
@@ -95,7 +103,22 @@ struct ContentView: View {
         }
     }
 
+    private func checkForceUpdate() async {
+        guard let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String else { return }
+        let endpoint = "\(APIEndpoints.App.version)?current=\(currentVersion)"
+        struct VersionResponse: Decodable { let minVersion: String; let forceUpdate: Bool }
+        do {
+            let response: VersionResponse = try await APIClient.shared.request(endpoint, authenticated: false)
+            showForceUpdate = response.forceUpdate
+        } catch {
+            // Don't block the app if version check fails
+        }
+    }
+
     private func loadInitialState() async {
+        await checkForceUpdate()
+        if showForceUpdate { return }
+
         if authService.isAuthenticated {
             do {
                 try await authService.loadProfile()

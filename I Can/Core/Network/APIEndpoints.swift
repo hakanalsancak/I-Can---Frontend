@@ -76,4 +76,8 @@ enum APIEndpoints {
         static let deviceToken = "/api/notifications/device-token"
     }
 
+    enum App {
+        static let version = "/api/app/version"
+    }
+
 }
