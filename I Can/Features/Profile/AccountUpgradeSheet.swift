@@ -115,7 +115,7 @@ struct AccountUpgradeSheet: View {
                 }
                 .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
                 .frame(height: 50)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .cornerRadius(14)
 
                 Button {
                     Task { await handleGoogleLink() }
@@ -177,7 +177,7 @@ struct AccountUpgradeSheet: View {
                 }
                 .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
                 .frame(height: 50)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .cornerRadius(14)
 
                 Button {
                     signInVM.pendingGoogleSignIn = true

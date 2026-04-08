@@ -96,7 +96,7 @@ struct AccountCreationView: View {
                     }
                     .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
                     .frame(height: 54)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .cornerRadius(14)
 
                     Button {
                         Task { await viewModel.signInWithGoogle() }

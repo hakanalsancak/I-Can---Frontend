@@ -11,6 +11,15 @@ enum APIError: LocalizedError {
     case networkError(Error)
     case decodingError(Error)
 
+    /// Network or server errors that should NOT force a sign-out when they
+    /// occur during token refresh — the server may just be temporarily down.
+    var isRetryable: Bool {
+        switch self {
+        case .networkError, .serverError: return true
+        default: return false
+        }
+    }
+
     var errorDescription: String? {
         switch self {
         case .invalidURL: return "Invalid URL"

@@ -180,6 +180,10 @@ final class APIClient: @unchecked Sendable {
                     }
                     return try decoder.decode(T.self, from: retryData)
                 }
+            } catch let error as APIError where error.isRetryable {
+                // Network/server error during refresh — don't sign the user out,
+                // let the caller handle it (e.g. show maintenance screen).
+                throw error
             } catch {
                 throw APIError.unauthorized
             }
@@ -262,6 +266,8 @@ final class APIClient: @unchecked Sendable {
                     }
                     return try decoder.decode(T.self, from: retryData)
                 }
+            } catch let error as APIError where error.isRetryable {
+                throw error
             } catch {
                 throw APIError.unauthorized
             }
