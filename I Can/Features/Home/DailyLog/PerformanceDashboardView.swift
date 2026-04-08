@@ -22,11 +22,33 @@ struct PerformanceDashboardView: View {
     let isLoading: Bool
     @Environment(\.colorScheme) private var colorScheme
 
-    @State private var selectedPeriod = 0 // 0 = week, 1 = month
+    @State private var selectedPeriod = 1 // 0 = daily, 1 = week, 2 = month
+    @State private var selectedDayIndex = currentWeekdayIndex()
 
     private var currentData: AnalyticsResponse? {
-        selectedPeriod == 0 ? weeklyData : monthlyData
+        switch selectedPeriod {
+        case 0, 1: return weeklyData
+        case 2: return monthlyData
+        default: return weeklyData
+        }
     }
+
+    /// Returns the selected day's data when in daily mode
+    private var selectedDayData: AnalyticsDailyData? {
+        guard selectedPeriod == 0, let data = weeklyData else { return nil }
+        let sorted = data.dailyData.sorted { $0.date < $1.date }
+        guard selectedDayIndex < sorted.count else { return nil }
+        return sorted[selectedDayIndex]
+    }
+
+    /// Returns today's weekday index (0 = Monday, 6 = Sunday)
+    private static func currentWeekdayIndex() -> Int {
+        let weekday = Calendar.current.component(.weekday, from: Date())
+        // Calendar: 1=Sun, 2=Mon, ... 7=Sat -> convert to 0=Mon, 6=Sun
+        return weekday == 1 ? 6 : weekday - 2
+    }
+
+    private let dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
     var body: some View {
         VStack(spacing: 16) {
@@ -45,28 +67,57 @@ struct PerformanceDashboardView: View {
 
                 // Period Toggle
                 HStack(spacing: 0) {
-                    periodTab("Week", index: 0)
-                    periodTab("Month", index: 1)
+                    periodTab("Daily", index: 0)
+                    periodTab("Week", index: 1)
+                    periodTab("Month", index: 2)
                 }
                 .background(ColorTheme.elevatedBackground(colorScheme))
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
 
-            if let data = currentData {
-                // Stats Overview
+            // Day Selector (only in daily mode)
+            if selectedPeriod == 0 {
+                daySelectorRow
+            }
+
+            if selectedPeriod == 0 {
+                // Daily mode - show selected day's data
+                if let dayData = selectedDayData {
+                    dailyStatsOverview(dayData)
+
+                    if dayData.training, let duration = dayData.trainingDuration {
+                        dailyTrainingSection(dayData, duration: duration)
+                    }
+
+                    if dayData.nutrition, let detail = dayData.nutritionDetail {
+                        dailyNutritionSection(detail)
+                    }
+
+                    if dayData.sleep, let hours = dayData.sleepHours {
+                        dailySleepSection(hours)
+                    }
+
+                    if !dayData.training && !dayData.nutrition && !dayData.sleep {
+                        noDataView(message: "No data logged for \(dayLabels[selectedDayIndex])")
+                    }
+                } else if isLoading {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, minHeight: 100)
+                } else {
+                    noDataView(message: "No data for \(dayLabels[selectedDayIndex])")
+                }
+            } else if let data = currentData {
+                // Weekly / Monthly mode
                 statsOverview(data)
 
-                // Training Analytics
                 if data.trainingSessions > 0, let summary = data.trainingSummary {
-                    trainingAnalyticsSection(data, summary: summary)
+                    trainingSection(data, summary: summary)
                 }
 
-                // Nutrition Analytics
                 if data.nutritionDays > 0, let summary = data.nutritionSummary {
-                    nutritionAnalyticsSection(data, summary: summary)
+                    nutritionSection(data, summary: summary)
                 }
 
-                // Sleep Chart
                 if data.sleepDays > 0 {
                     sleepChart(data)
                 }
@@ -74,18 +125,24 @@ struct PerformanceDashboardView: View {
                 ProgressView()
                     .frame(maxWidth: .infinity, minHeight: 100)
             } else {
-                VStack(spacing: 8) {
-                    Image(systemName: "chart.bar.xaxis")
-                        .font(.system(size: 28))
-                        .foregroundColor(ColorTheme.tertiaryText(colorScheme))
-                    Text("Start logging to see your data")
-                        .font(.system(size: 14, weight: .medium).width(.condensed))
-                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                }
-                .frame(maxWidth: .infinity, minHeight: 100)
-                .padding(.vertical, 20)
+                noDataView(message: "Start logging to see your data")
             }
         }
+    }
+
+    // MARK: - No Data
+
+    private func noDataView(message: String) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: "chart.bar.xaxis")
+                .font(.system(size: 28))
+                .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+            Text(message)
+                .font(.system(size: 14, weight: .medium).width(.condensed))
+                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+        }
+        .frame(maxWidth: .infinity, minHeight: 100)
+        .padding(.vertical, 20)
     }
 
     // MARK: - Period Tab
@@ -98,9 +155,9 @@ struct PerformanceDashboardView: View {
             }
         } label: {
             Text(label)
-                .font(.system(size: 12, weight: .bold).width(.condensed))
+                .font(.system(size: 11, weight: .bold).width(.condensed))
                 .foregroundColor(selectedPeriod == index ? .white : ColorTheme.secondaryText(colorScheme))
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 12)
                 .padding(.vertical, 7)
                 .background(
                     selectedPeriod == index
@@ -112,7 +169,267 @@ struct PerformanceDashboardView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Stats Overview
+    // MARK: - Day Selector
+
+    private var daySelectorRow: some View {
+        HStack(spacing: 0) {
+            ForEach(0..<7, id: \.self) { index in
+                Button {
+                    HapticManager.selection()
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        selectedDayIndex = index
+                    }
+                } label: {
+                    VStack(spacing: 4) {
+                        Text(dayLabels[index])
+                            .font(.system(size: 11, weight: .bold).width(.condensed))
+                            .foregroundColor(
+                                selectedDayIndex == index
+                                    ? .white
+                                    : ColorTheme.secondaryText(colorScheme)
+                            )
+
+                        // Activity dot
+                        if let data = weeklyData {
+                            let sorted = data.dailyData.sorted { $0.date < $1.date }
+                            if index < sorted.count {
+                                let day = sorted[index]
+                                Circle()
+                                    .fill(dayHasData(day)
+                                        ? (selectedDayIndex == index ? Color.white.opacity(0.8) : ColorTheme.accent)
+                                        : Color.clear
+                                    )
+                                    .frame(width: 4, height: 4)
+                            } else {
+                                Circle().fill(Color.clear).frame(width: 4, height: 4)
+                            }
+                        } else {
+                            Circle().fill(Color.clear).frame(width: 4, height: 4)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(
+                        selectedDayIndex == index
+                            ? AnyShapeStyle(ColorTheme.accentGradient)
+                            : AnyShapeStyle(Color.clear)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(4)
+        .background(ColorTheme.elevatedBackground(colorScheme))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+
+    private func dayHasData(_ day: AnalyticsDailyData) -> Bool {
+        day.training || day.nutrition || day.sleep
+    }
+
+    // MARK: - Daily Stats Overview
+
+    private func dailyStatsOverview(_ day: AnalyticsDailyData) -> some View {
+        HStack(spacing: 10) {
+            statCard(
+                value: day.training ? "\(day.trainingDuration ?? 0)m" : "--",
+                label: "Training",
+                icon: "figure.run",
+                color: ColorTheme.training
+            )
+            statCard(
+                value: day.nutrition ? "\(day.nutritionDetail?.healthScore ?? 0)" : "--",
+                label: "Nutrition",
+                icon: "leaf.fill",
+                color: ColorTheme.nutrition
+            )
+            statCard(
+                value: day.sleepHours != nil ? String(format: "%.1fh", day.sleepHours!) : "--",
+                label: "Sleep",
+                icon: "moon.fill",
+                color: ColorTheme.sleep
+            )
+        }
+    }
+
+    // MARK: - Daily Training Section
+
+    private func dailyTrainingSection(_ day: AnalyticsDailyData, duration: Int) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("TRAINING")
+                    .font(.system(size: 10, weight: .heavy).width(.condensed))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                Spacer()
+                Text(formatDuration(duration))
+                    .font(.system(size: 11, weight: .bold).width(.condensed))
+                    .foregroundColor(ColorTheme.training)
+            }
+
+            if let sessions = day.trainingSessions, !sessions.isEmpty {
+                ForEach(sessions.indices, id: \.self) { i in
+                    let session = sessions[i]
+                    HStack(spacing: 10) {
+                        Image(systemName: trainingTypeIcon(session.type))
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(ColorTheme.training)
+                            .frame(width: 24)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(session.type.capitalized)
+                                .font(.system(size: 13, weight: .semibold).width(.condensed))
+                                .foregroundColor(ColorTheme.primaryText(colorScheme))
+                            Text("\(session.duration)min  \(session.intensity.capitalized)")
+                                .font(.system(size: 11, weight: .medium).width(.condensed))
+                                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                        }
+
+                        Spacer()
+
+                        Text(intensityBadge(session.intensity))
+                            .font(.system(size: 10, weight: .bold).width(.condensed))
+                            .foregroundColor(intensityColor(session.intensity))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(intensityColor(session.intensity).opacity(0.1))
+                            .clipShape(Capsule())
+                    }
+
+                    if i < sessions.count - 1 {
+                        Divider()
+                            .foregroundColor(ColorTheme.separator(colorScheme))
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .background(ColorTheme.cardBackground(colorScheme))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
+    }
+
+    // MARK: - Daily Nutrition Section
+
+    private func dailyNutritionSection(_ detail: AnalyticsNutritionDetail) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("NUTRITION")
+                    .font(.system(size: 10, weight: .heavy).width(.condensed))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                Spacer()
+                Text("\(detail.mealsLogged) meals")
+                    .font(.system(size: 11, weight: .bold).width(.condensed))
+                    .foregroundColor(ColorTheme.nutrition)
+            }
+
+            HStack(spacing: 16) {
+                healthScoreRing(score: detail.healthScore, size: 64, lineWidth: 6)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(healthScoreLabel(detail.healthScore))
+                        .font(.system(size: 14, weight: .bold).width(.condensed))
+                        .foregroundColor(healthScoreColor(detail.healthScore))
+
+                    HStack(spacing: 10) {
+                        mealIndicator("B", filled: detail.breakfast, color: Color(hex: "F59E0B"))
+                        mealIndicator("L", filled: detail.lunch, color: ColorTheme.nutrition)
+                        mealIndicator("D", filled: detail.dinner, color: Color(hex: "6366F1"))
+                        mealIndicator("S", filled: detail.snacks, color: ColorTheme.secondaryText(colorScheme))
+                        mealIndicator("W", filled: detail.drinks, color: ColorTheme.sleep)
+                    }
+                }
+
+                Spacer()
+            }
+        }
+        .padding(16)
+        .background(ColorTheme.cardBackground(colorScheme))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
+    }
+
+    private func mealIndicator(_ label: String, filled: Bool, color: Color) -> some View {
+        VStack(spacing: 3) {
+            Circle()
+                .fill(filled ? color : ColorTheme.separator(colorScheme))
+                .frame(width: 8, height: 8)
+            Text(label)
+                .font(.system(size: 8, weight: .bold).width(.condensed))
+                .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+        }
+    }
+
+    // MARK: - Daily Sleep Section
+
+    private func dailySleepSection(_ hours: Double) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("SLEEP")
+                    .font(.system(size: 10, weight: .heavy).width(.condensed))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                Spacer()
+                Text(sleepQualityLabel(hours))
+                    .font(.system(size: 11, weight: .bold).width(.condensed))
+                    .foregroundColor(sleepQualityColor(hours))
+            }
+
+            HStack(spacing: 16) {
+                // Hours display
+                VStack(spacing: 4) {
+                    Text(String(format: "%.1f", hours))
+                        .font(Typography.number(36))
+                        .foregroundColor(ColorTheme.sleep)
+                    Text("hours")
+                        .font(.system(size: 11, weight: .bold).width(.condensed))
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                        .textCase(.uppercase)
+                }
+
+                Spacer()
+
+                // Sleep bar visualization
+                VStack(alignment: .leading, spacing: 6) {
+                    sleepBar(label: "Your Sleep", value: hours, maxValue: 12, color: ColorTheme.sleep)
+                    sleepBar(label: "Ideal (7-9h)", value: 8, maxValue: 12, color: ColorTheme.nutrition.opacity(0.4))
+                }
+            }
+        }
+        .padding(16)
+        .background(ColorTheme.cardBackground(colorScheme))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
+    }
+
+    private func sleepBar(label: String, value: Double, maxValue: Double, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(label)
+                .font(.system(size: 9, weight: .bold).width(.condensed))
+                .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+
+            GeometryReader { geo in
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(color)
+                    .frame(width: max(4, geo.size.width * CGFloat(min(value, maxValue)) / CGFloat(maxValue)))
+            }
+            .frame(height: 8)
+        }
+    }
+
+    private func sleepQualityLabel(_ hours: Double) -> String {
+        if hours >= 8 { return "Excellent" }
+        if hours >= 7 { return "Good" }
+        if hours >= 6 { return "Fair" }
+        return "Poor"
+    }
+
+    private func sleepQualityColor(_ hours: Double) -> Color {
+        if hours >= 7 && hours <= 9 { return ColorTheme.nutrition }
+        if hours >= 6 { return ColorTheme.training }
+        return Color(hex: "EF4444")
+    }
+
+    // MARK: - Stats Overview (Weekly/Monthly)
 
     private func statsOverview(_ data: AnalyticsResponse) -> some View {
         HStack(spacing: 10) {
@@ -159,7 +476,204 @@ struct PerformanceDashboardView: View {
         .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 4, x: 0, y: 2)
     }
 
-    // MARK: - Sleep Chart
+    // MARK: - Training Section (Weekly/Monthly) - Simplified
+
+    private func trainingSection(_ data: AnalyticsResponse, summary: AnalyticsTrainingSummary) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("TRAINING")
+                    .font(.system(size: 10, weight: .heavy).width(.condensed))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                Spacer()
+                Text("\(summary.totalSessions) sessions")
+                    .font(.system(size: 11, weight: .bold).width(.condensed))
+                    .foregroundColor(ColorTheme.training)
+            }
+
+            // Duration stats
+            HStack(spacing: 10) {
+                miniStat(
+                    value: formatDuration(summary.totalDuration),
+                    label: "Total Time",
+                    color: ColorTheme.training
+                )
+                miniStat(
+                    value: "\(summary.avgDuration)m",
+                    label: "Avg Session",
+                    color: ColorTheme.training
+                )
+            }
+
+            // Duration bar chart
+            let trainingDays = data.dailyData.compactMap { item -> (String, Int)? in
+                guard let dur = item.trainingDuration, dur > 0 else { return nil }
+                return (shortDayLabel(item.date), dur)
+            }
+
+            if !trainingDays.isEmpty {
+                Chart(trainingDays, id: \.0) { day, duration in
+                    BarMark(
+                        x: .value("Day", day),
+                        y: .value("Minutes", duration)
+                    )
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [ColorTheme.training, ColorTheme.training.opacity(0.6)],
+                            startPoint: .bottom,
+                            endPoint: .top
+                        )
+                    )
+                    .cornerRadius(4)
+                }
+                .chartYAxis {
+                    AxisMarks { value in
+                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4]))
+                            .foregroundStyle(ColorTheme.separator(colorScheme))
+                        AxisValueLabel {
+                            Text("\(value.as(Int.self) ?? 0)m")
+                                .font(.system(size: 9, weight: .medium).width(.condensed))
+                                .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                        }
+                    }
+                }
+                .chartXAxis {
+                    AxisMarks { value in
+                        AxisValueLabel {
+                            Text(value.as(String.self) ?? "")
+                                .font(.system(size: 9, weight: .medium).width(.condensed))
+                                .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                        }
+                    }
+                }
+                .frame(height: 120)
+            }
+
+            // Intensity breakdown
+            if !summary.intensityBreakdown.isEmpty {
+                HStack(spacing: 8) {
+                    let order = ["low", "medium", "high", "max"]
+                    let total = summary.intensityBreakdown.values.reduce(0, +)
+                    ForEach(order, id: \.self) { level in
+                        if let count = summary.intensityBreakdown[level], count > 0 {
+                            let pct = total > 0 ? Int(round(Double(count) / Double(total) * 100)) : 0
+                            VStack(spacing: 3) {
+                                Text("\(pct)%")
+                                    .font(Typography.number(13))
+                                    .foregroundColor(intensityColor(level))
+                                Text(level.capitalized)
+                                    .font(.system(size: 9, weight: .bold).width(.condensed))
+                                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                                    .textCase(.uppercase)
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                    }
+                }
+                .padding(.vertical, 8)
+                .background(ColorTheme.elevatedBackground(colorScheme))
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            }
+        }
+        .padding(16)
+        .background(ColorTheme.cardBackground(colorScheme))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
+    }
+
+    // MARK: - Nutrition Section (Weekly/Monthly) - Simplified
+
+    private func nutritionSection(_ data: AnalyticsResponse, summary: AnalyticsNutritionSummary) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("NUTRITION")
+                    .font(.system(size: 10, weight: .heavy).width(.condensed))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                Spacer()
+                Text("\(summary.daysLogged) days logged")
+                    .font(.system(size: 11, weight: .bold).width(.condensed))
+                    .foregroundColor(ColorTheme.nutrition)
+            }
+
+            // Average health score ring
+            HStack(spacing: 20) {
+                healthScoreRing(score: summary.avgHealthScore, size: 90, lineWidth: 8)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("AVG HEALTH SCORE")
+                        .font(.system(size: 9, weight: .heavy).width(.condensed))
+                        .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+
+                    Text(healthScoreLabel(summary.avgHealthScore))
+                        .font(.system(size: 14, weight: .bold).width(.condensed))
+                        .foregroundColor(healthScoreColor(summary.avgHealthScore))
+
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(String(format: "%.1f", summary.avgMealsPerDay))
+                                .font(Typography.number(14))
+                                .foregroundColor(ColorTheme.primaryText(colorScheme))
+                            Text("Meals/Day")
+                                .font(.system(size: 8, weight: .bold).width(.condensed))
+                                .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                                .textCase(.uppercase)
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("\(summary.daysLogged)")
+                                .font(Typography.number(14))
+                                .foregroundColor(ColorTheme.primaryText(colorScheme))
+                            Text("Days")
+                                .font(.system(size: 8, weight: .bold).width(.condensed))
+                                .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                                .textCase(.uppercase)
+                        }
+                    }
+                }
+
+                Spacer()
+            }
+
+            // Daily health scores as mini rings
+            let scoreDays = data.dailyData.compactMap { item -> (String, Int)? in
+                guard let detail = item.nutritionDetail else { return nil }
+                return (shortDayLabel(item.date), detail.healthScore)
+            }
+
+            if !scoreDays.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("DAILY SCORES")
+                        .font(.system(size: 9, weight: .heavy).width(.condensed))
+                        .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+
+                    HStack(spacing: 0) {
+                        ForEach(scoreDays, id: \.0) { day, score in
+                            VStack(spacing: 4) {
+                                healthScoreRing(score: score, size: 38, lineWidth: 4)
+                                Text(day)
+                                    .font(.system(size: 9, weight: .medium).width(.condensed))
+                                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                    }
+                }
+            }
+
+            // Score legend
+            HStack(spacing: 0) {
+                scoreLegendItem(label: "Poor", range: "1-30", color: Color(hex: "EF4444"))
+                scoreLegendItem(label: "Fair", range: "31-50", color: Color(hex: "F59E0B"))
+                scoreLegendItem(label: "Good", range: "51-70", color: ColorTheme.accent)
+                scoreLegendItem(label: "Great", range: "71-85", color: Color(hex: "22C55E"))
+                scoreLegendItem(label: "Elite", range: "86+", color: Color(hex: "10B981"))
+            }
+        }
+        .padding(16)
+        .background(ColorTheme.cardBackground(colorScheme))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
+    }
+
+    // MARK: - Sleep Chart (Weekly/Monthly)
 
     private func sleepChart(_ data: AnalyticsResponse) -> some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -248,293 +762,6 @@ struct PerformanceDashboardView: View {
         .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
     }
 
-    // MARK: - Training Analytics
-
-    private func trainingAnalyticsSection(_ data: AnalyticsResponse, summary: AnalyticsTrainingSummary) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Text("TRAINING")
-                    .font(.system(size: 10, weight: .heavy).width(.condensed))
-                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                Spacer()
-                Text("\(summary.totalSessions) sessions")
-                    .font(.system(size: 11, weight: .bold).width(.condensed))
-                    .foregroundColor(ColorTheme.training)
-            }
-
-            // Duration & avg stats row
-            HStack(spacing: 10) {
-                miniStat(
-                    value: formatDuration(summary.totalDuration),
-                    label: "Total Time",
-                    color: ColorTheme.training
-                )
-                miniStat(
-                    value: "\(summary.avgDuration)m",
-                    label: "Avg Session",
-                    color: ColorTheme.training
-                )
-            }
-
-            // Daily training duration bar chart
-            let trainingDays = data.dailyData.compactMap { item -> (String, Int)? in
-                guard let dur = item.trainingDuration, dur > 0 else { return nil }
-                return (shortDayLabel(item.date), dur)
-            }
-
-            if !trainingDays.isEmpty {
-                Chart(trainingDays, id: \.0) { day, duration in
-                    BarMark(
-                        x: .value("Day", day),
-                        y: .value("Minutes", duration)
-                    )
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [ColorTheme.training, ColorTheme.training.opacity(0.6)],
-                            startPoint: .bottom,
-                            endPoint: .top
-                        )
-                    )
-                    .cornerRadius(4)
-                }
-                .chartYAxis {
-                    AxisMarks { value in
-                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4]))
-                            .foregroundStyle(ColorTheme.separator(colorScheme))
-                        AxisValueLabel {
-                            Text("\(value.as(Int.self) ?? 0)m")
-                                .font(.system(size: 9, weight: .medium).width(.condensed))
-                                .foregroundColor(ColorTheme.tertiaryText(colorScheme))
-                        }
-                    }
-                }
-                .chartXAxis {
-                    AxisMarks { value in
-                        AxisValueLabel {
-                            Text(value.as(String.self) ?? "")
-                                .font(.system(size: 9, weight: .medium).width(.condensed))
-                                .foregroundColor(ColorTheme.tertiaryText(colorScheme))
-                        }
-                    }
-                }
-                .frame(height: 120)
-            }
-
-            // Type breakdown
-            if !summary.typeBreakdown.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("SESSION TYPES")
-                        .font(.system(size: 9, weight: .heavy).width(.condensed))
-                        .foregroundColor(ColorTheme.tertiaryText(colorScheme))
-
-                    let sorted = summary.typeBreakdown.sorted { $0.value > $1.value }
-                    let maxCount = sorted.first?.value ?? 1
-
-                    ForEach(sorted, id: \.key) { type, count in
-                        HStack(spacing: 8) {
-                            Image(systemName: trainingTypeIcon(type))
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundColor(ColorTheme.training)
-                                .frame(width: 16)
-
-                            Text(type.capitalized)
-                                .font(.system(size: 12, weight: .semibold).width(.condensed))
-                                .foregroundColor(ColorTheme.primaryText(colorScheme))
-                                .frame(width: 70, alignment: .leading)
-
-                            GeometryReader { geo in
-                                RoundedRectangle(cornerRadius: 3)
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [ColorTheme.training, ColorTheme.training.opacity(0.5)],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        )
-                                    )
-                                    .frame(width: max(4, geo.size.width * CGFloat(count) / CGFloat(maxCount)))
-                            }
-                            .frame(height: 8)
-
-                            Text("\(count)")
-                                .font(Typography.number(12))
-                                .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                        }
-                        .frame(height: 20)
-                    }
-                }
-            }
-
-            // Intensity breakdown
-            if !summary.intensityBreakdown.isEmpty {
-                HStack(spacing: 8) {
-                    let order = ["low", "medium", "high", "max"]
-                    let total = summary.intensityBreakdown.values.reduce(0, +)
-                    ForEach(order, id: \.self) { level in
-                        if let count = summary.intensityBreakdown[level], count > 0 {
-                            let pct = total > 0 ? Int(round(Double(count) / Double(total) * 100)) : 0
-                            VStack(spacing: 3) {
-                                Text("\(pct)%")
-                                    .font(Typography.number(13))
-                                    .foregroundColor(intensityColor(level))
-                                Text(level.capitalized)
-                                    .font(.system(size: 9, weight: .bold).width(.condensed))
-                                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
-                                    .textCase(.uppercase)
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
-                    }
-                }
-                .padding(.vertical, 8)
-                .background(ColorTheme.elevatedBackground(colorScheme))
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            }
-        }
-        .padding(16)
-        .background(ColorTheme.cardBackground(colorScheme))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
-    }
-
-    // MARK: - Nutrition Analytics
-
-    private func nutritionAnalyticsSection(_ data: AnalyticsResponse, summary: AnalyticsNutritionSummary) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Text("NUTRITION")
-                    .font(.system(size: 10, weight: .heavy).width(.condensed))
-                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                Spacer()
-                Text("\(summary.daysLogged) days logged")
-                    .font(.system(size: 11, weight: .bold).width(.condensed))
-                    .foregroundColor(ColorTheme.nutrition)
-            }
-
-            // Average health score ring
-            HStack(spacing: 20) {
-                healthScoreRing(score: summary.avgHealthScore, size: 90, lineWidth: 8)
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("AVG HEALTH SCORE")
-                        .font(.system(size: 9, weight: .heavy).width(.condensed))
-                        .foregroundColor(ColorTheme.tertiaryText(colorScheme))
-
-                    Text(healthScoreLabel(summary.avgHealthScore))
-                        .font(.system(size: 14, weight: .bold).width(.condensed))
-                        .foregroundColor(healthScoreColor(summary.avgHealthScore))
-
-                    HStack(spacing: 12) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(String(format: "%.1f", summary.avgMealsPerDay))
-                                .font(Typography.number(14))
-                                .foregroundColor(ColorTheme.primaryText(colorScheme))
-                            Text("Meals/Day")
-                                .font(.system(size: 8, weight: .bold).width(.condensed))
-                                .foregroundColor(ColorTheme.tertiaryText(colorScheme))
-                                .textCase(.uppercase)
-                        }
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("\(summary.daysLogged)")
-                                .font(Typography.number(14))
-                                .foregroundColor(ColorTheme.primaryText(colorScheme))
-                            Text("Days")
-                                .font(.system(size: 8, weight: .bold).width(.condensed))
-                                .foregroundColor(ColorTheme.tertiaryText(colorScheme))
-                                .textCase(.uppercase)
-                        }
-                    }
-                }
-
-                Spacer()
-            }
-
-            // Daily health scores as mini rings
-            let scoreDays = data.dailyData.compactMap { item -> (String, Int)? in
-                guard let detail = item.nutritionDetail else { return nil }
-                return (shortDayLabel(item.date), detail.healthScore)
-            }
-
-            if !scoreDays.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("DAILY SCORES")
-                        .font(.system(size: 9, weight: .heavy).width(.condensed))
-                        .foregroundColor(ColorTheme.tertiaryText(colorScheme))
-
-                    HStack(spacing: 0) {
-                        ForEach(scoreDays, id: \.0) { day, score in
-                            VStack(spacing: 4) {
-                                healthScoreRing(score: score, size: 38, lineWidth: 4)
-                                Text(day)
-                                    .font(.system(size: 9, weight: .medium).width(.condensed))
-                                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
-                    }
-                }
-            }
-
-            // Daily meal breakdown (which meals each day)
-            let detailDays = data.dailyData.compactMap { item -> (String, AnalyticsNutritionDetail)? in
-                guard let detail = item.nutritionDetail else { return nil }
-                return (shortDayLabel(item.date), detail)
-            }
-
-            if !detailDays.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("DAILY BREAKDOWN")
-                        .font(.system(size: 9, weight: .heavy).width(.condensed))
-                        .foregroundColor(ColorTheme.tertiaryText(colorScheme))
-
-                    // Grid header
-                    HStack(spacing: 0) {
-                        Text("Day")
-                            .frame(width: 36, alignment: .leading)
-                        Spacer()
-                        mealColumnHeader("B", color: Color(hex: "F59E0B"))
-                        mealColumnHeader("L", color: ColorTheme.nutrition)
-                        mealColumnHeader("D", color: Color(hex: "6366F1"))
-                        mealColumnHeader("S", color: ColorTheme.secondaryText(colorScheme))
-                        mealColumnHeader("W", color: ColorTheme.sleep)
-                    }
-                    .font(.system(size: 9, weight: .heavy).width(.condensed))
-                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
-
-                    ForEach(detailDays, id: \.0) { day, detail in
-                        HStack(spacing: 0) {
-                            Text(day)
-                                .font(.system(size: 11, weight: .semibold).width(.condensed))
-                                .foregroundColor(ColorTheme.primaryText(colorScheme))
-                                .frame(width: 36, alignment: .leading)
-                            Spacer()
-                            mealDot(filled: detail.breakfast, color: Color(hex: "F59E0B"))
-                            mealDot(filled: detail.lunch, color: ColorTheme.nutrition)
-                            mealDot(filled: detail.dinner, color: Color(hex: "6366F1"))
-                            mealDot(filled: detail.snacks, color: ColorTheme.secondaryText(colorScheme))
-                            mealDot(filled: detail.drinks, color: ColorTheme.sleep)
-                        }
-                    }
-                }
-                .padding(12)
-                .background(ColorTheme.elevatedBackground(colorScheme))
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-            }
-
-            // Score legend
-            HStack(spacing: 0) {
-                scoreLegendItem(label: "Poor", range: "1-30", color: Color(hex: "EF4444"))
-                scoreLegendItem(label: "Fair", range: "31-50", color: Color(hex: "F59E0B"))
-                scoreLegendItem(label: "Good", range: "51-70", color: ColorTheme.accent)
-                scoreLegendItem(label: "Great", range: "71-85", color: Color(hex: "22C55E"))
-                scoreLegendItem(label: "Elite", range: "86+", color: Color(hex: "10B981"))
-            }
-        }
-        .padding(16)
-        .background(ColorTheme.cardBackground(colorScheme))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
-    }
-
     // MARK: - Health Score Ring
 
     private func healthScoreRing(score: Int, size: CGFloat, lineWidth: CGFloat) -> some View {
@@ -565,20 +792,7 @@ struct PerformanceDashboardView: View {
         .frame(width: size, height: size)
     }
 
-    // MARK: - Nutrition Sub-Components
-
-    private func mealColumnHeader(_ label: String, color: Color) -> some View {
-        Text(label)
-            .foregroundColor(color)
-            .frame(width: 36)
-    }
-
-    private func mealDot(filled: Bool, color: Color) -> some View {
-        Circle()
-            .fill(filled ? color : ColorTheme.separator(colorScheme))
-            .frame(width: 8, height: 8)
-            .frame(width: 36)
-    }
+    // MARK: - Sub-Components
 
     private func scoreLegendItem(label: String, range: String, color: Color) -> some View {
         VStack(spacing: 2) {
@@ -594,8 +808,6 @@ struct PerformanceDashboardView: View {
         }
         .frame(maxWidth: .infinity)
     }
-
-    // MARK: - Shared Mini Stat
 
     private func miniStat(value: String, label: String, color: Color) -> some View {
         VStack(spacing: 4) {
@@ -649,6 +861,10 @@ struct PerformanceDashboardView: View {
         case "max": return Color(hex: "EF4444")
         default: return ColorTheme.secondaryText(colorScheme)
         }
+    }
+
+    private func intensityBadge(_ level: String) -> String {
+        level.capitalized
     }
 
     private func healthScoreColor(_ score: Int) -> Color {
