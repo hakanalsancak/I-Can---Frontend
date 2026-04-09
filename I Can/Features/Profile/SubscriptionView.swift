@@ -237,7 +237,7 @@ struct SubscriptionView: View {
                 .padding(.horizontal, 20)
 
                 if anyProductHasTrial {
-                    Text("Free trial included. After the trial, your subscription will automatically renew at the price shown above unless cancelled at least 24 hours before the end of the trial period.")
+                    Text("7-day free trial included. After the trial, your subscription will automatically renew at the price shown above unless cancelled at least 24 hours before the end of the trial period.")
                         .font(.system(size: 11, weight: .regular).width(.condensed))
                         .foregroundColor(ColorTheme.tertiaryText(colorScheme))
                         .multilineTextAlignment(.center)
@@ -322,7 +322,7 @@ struct SubscriptionView: View {
                     }
                     HStack(spacing: 4) {
                         if hasTrial {
-                            Text("1-month free trial, then")
+                            Text("7-day free trial, then")
                                 .font(.system(size: 13, weight: .medium).width(.condensed))
                                 .foregroundColor(ColorTheme.secondaryText(colorScheme))
                         }
