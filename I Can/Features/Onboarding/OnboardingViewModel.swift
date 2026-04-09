@@ -112,6 +112,12 @@ final class OnboardingViewModel {
                 activate: skipCompleteOnboardingAfterSocialAuth
             )
             if skipCompleteOnboardingAfterSocialAuth || showLogin {
+                if showLogin && response.isNewUser == true {
+                    AuthService.shared.deactivatePendingSession()
+                    errorMessage = "This account is not registered yet. Please sign up first."
+                    isLoading = false
+                    return
+                }
                 AnalyticsManager.log("user_signed_in", parameters: ["method": "apple"])
                 AuthService.shared.activateSession()
             } else {
@@ -165,6 +171,12 @@ final class OnboardingViewModel {
                 activate: skipCompleteOnboardingAfterSocialAuth
             )
             if skipCompleteOnboardingAfterSocialAuth || showLogin {
+                if showLogin && response.isNewUser == true {
+                    AuthService.shared.deactivatePendingSession()
+                    errorMessage = "This account is not registered yet. Please sign up first."
+                    isLoading = false
+                    return
+                }
                 AnalyticsManager.log("user_signed_in", parameters: ["method": "google"])
                 AuthService.shared.activateSession()
             } else {
