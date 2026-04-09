@@ -36,9 +36,8 @@ struct PerformanceDashboardView: View {
     /// Returns the selected day's data when in daily mode
     private var selectedDayData: AnalyticsDailyData? {
         guard selectedPeriod == 0, let data = weeklyData else { return nil }
-        let sorted = data.dailyData.sorted { $0.date < $1.date }
-        guard selectedDayIndex < sorted.count else { return nil }
-        return sorted[selectedDayIndex]
+        guard selectedDayIndex < data.dailyData.count else { return nil }
+        return data.dailyData[selectedDayIndex]
     }
 
     /// Returns today's weekday index (0 = Monday, 6 = Sunday)
@@ -191,9 +190,8 @@ struct PerformanceDashboardView: View {
 
                         // Activity dot
                         if let data = weeklyData {
-                            let sorted = data.dailyData.sorted { $0.date < $1.date }
-                            if index < sorted.count {
-                                let day = sorted[index]
+                            if index < data.dailyData.count {
+                                let day = data.dailyData[index]
                                 Circle()
                                     .fill(dayHasData(day)
                                         ? (selectedDayIndex == index ? Color.white.opacity(0.8) : ColorTheme.accent)
@@ -504,49 +502,47 @@ struct PerformanceDashboardView: View {
                 )
             }
 
-            // Duration bar chart
-            let trainingDays = data.dailyData.compactMap { item -> (String, Int)? in
-                guard let dur = item.trainingDuration, dur > 0 else { return nil }
-                return (shortDayLabel(item.date), dur)
-            }
+            // Duration bar chart - all days in range
+            let allDays = allDaysInRange(data)
+            let trainingDays = allDays.map { (label: $0.label, duration: $0.data?.trainingDuration ?? 0) }
 
-            if !trainingDays.isEmpty {
-                Chart(trainingDays, id: \.0) { day, duration in
-                    BarMark(
-                        x: .value("Day", day),
-                        y: .value("Minutes", duration)
-                    )
-                    .foregroundStyle(
-                        LinearGradient(
+            Chart(trainingDays, id: \.label) { item in
+                BarMark(
+                    x: .value("Day", item.label),
+                    y: .value("Minutes", item.duration)
+                )
+                .foregroundStyle(
+                    item.duration > 0
+                        ? AnyShapeStyle(LinearGradient(
                             colors: [ColorTheme.training, ColorTheme.training.opacity(0.6)],
                             startPoint: .bottom,
                             endPoint: .top
-                        )
-                    )
-                    .cornerRadius(4)
-                }
-                .chartYAxis {
-                    AxisMarks { value in
-                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4]))
-                            .foregroundStyle(ColorTheme.separator(colorScheme))
-                        AxisValueLabel {
-                            Text("\(value.as(Int.self) ?? 0)m")
-                                .font(.system(size: 9, weight: .medium).width(.condensed))
-                                .foregroundColor(ColorTheme.tertiaryText(colorScheme))
-                        }
-                    }
-                }
-                .chartXAxis {
-                    AxisMarks { value in
-                        AxisValueLabel {
-                            Text(value.as(String.self) ?? "")
-                                .font(.system(size: 9, weight: .medium).width(.condensed))
-                                .foregroundColor(ColorTheme.tertiaryText(colorScheme))
-                        }
-                    }
-                }
-                .frame(height: 120)
+                        ))
+                        : AnyShapeStyle(ColorTheme.separator(colorScheme).opacity(0.3))
+                )
+                .cornerRadius(4)
             }
+            .chartYAxis {
+                AxisMarks { value in
+                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4]))
+                        .foregroundStyle(ColorTheme.separator(colorScheme))
+                    AxisValueLabel {
+                        Text("\(value.as(Int.self) ?? 0)m")
+                            .font(.system(size: 9, weight: .medium).width(.condensed))
+                            .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                    }
+                }
+            }
+            .chartXAxis {
+                AxisMarks { value in
+                    AxisValueLabel {
+                        Text(value.as(String.self) ?? "")
+                            .font(.system(size: 9, weight: .medium).width(.condensed))
+                            .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                    }
+                }
+            }
+            .frame(height: 120)
 
             // Intensity breakdown
             if !summary.intensityBreakdown.isEmpty {
@@ -632,28 +628,40 @@ struct PerformanceDashboardView: View {
                 Spacer()
             }
 
-            // Daily health scores as mini rings
-            let scoreDays = data.dailyData.compactMap { item -> (String, Int)? in
-                guard let detail = item.nutritionDetail else { return nil }
-                return (shortDayLabel(item.date), detail.healthScore)
-            }
+            // Daily health scores as mini rings - all days in range
+            let allNutritionDays = allDaysInRange(data)
 
-            if !scoreDays.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("DAILY SCORES")
-                        .font(.system(size: 9, weight: .heavy).width(.condensed))
-                        .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+            VStack(alignment: .leading, spacing: 8) {
+                Text("DAILY SCORES")
+                    .font(.system(size: 9, weight: .heavy).width(.condensed))
+                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
 
-                    HStack(spacing: 0) {
-                        ForEach(scoreDays, id: \.0) { day, score in
-                            VStack(spacing: 4) {
-                                healthScoreRing(score: score, size: 38, lineWidth: 4)
-                                Text(day)
-                                    .font(.system(size: 9, weight: .medium).width(.condensed))
-                                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                HStack(spacing: 0) {
+                    ForEach(allNutritionDays.indices, id: \.self) { i in
+                        let day = allNutritionDays[i]
+                        VStack(spacing: 4) {
+                            if let detail = day.data?.nutritionDetail {
+                                healthScoreRing(score: detail.healthScore, size: 38, lineWidth: 4)
+                            } else {
+                                // Empty placeholder ring
+                                ZStack {
+                                    Circle()
+                                        .stroke(ColorTheme.separator(colorScheme), lineWidth: 4)
+                                    Text("--")
+                                        .font(.system(size: 10, weight: .medium).width(.condensed))
+                                        .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                                }
+                                .frame(width: 38, height: 38)
                             }
-                            .frame(maxWidth: .infinity)
+                            Text(day.label)
+                                .font(.system(size: 9, weight: .medium).width(.condensed))
+                                .foregroundColor(
+                                    day.data?.nutritionDetail != nil
+                                        ? ColorTheme.secondaryText(colorScheme)
+                                        : ColorTheme.tertiaryText(colorScheme)
+                                )
                         }
+                        .frame(maxWidth: .infinity)
                     }
                 }
             }
@@ -689,39 +697,40 @@ struct PerformanceDashboardView: View {
                 }
             }
 
-            let sleepData = data.dailyData.compactMap { item -> (String, Double)? in
-                guard let hours = item.sleepHours else { return nil }
-                return (shortDayLabel(item.date), hours)
-            }
+            let allSleepDays = allDaysInRange(data)
+            let sleepChartData = allSleepDays.map { (label: $0.label, hours: $0.data?.sleepHours) }
 
-            Chart(sleepData, id: \.0) { day, hours in
-                LineMark(
-                    x: .value("Day", day),
-                    y: .value("Hours", hours)
-                )
-                .foregroundStyle(ColorTheme.sleep)
-                .lineStyle(StrokeStyle(lineWidth: 2.5))
-                .interpolationMethod(.catmullRom)
-
-                AreaMark(
-                    x: .value("Day", day),
-                    y: .value("Hours", hours)
-                )
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [ColorTheme.sleep.opacity(0.2), ColorTheme.sleep.opacity(0.02)],
-                        startPoint: .top,
-                        endPoint: .bottom
+            Chart(sleepChartData.indices, id: \.self) { i in
+                let item = sleepChartData[i]
+                if let hours = item.hours {
+                    LineMark(
+                        x: .value("Day", item.label),
+                        y: .value("Hours", hours)
                     )
-                )
-                .interpolationMethod(.catmullRom)
+                    .foregroundStyle(ColorTheme.sleep)
+                    .lineStyle(StrokeStyle(lineWidth: 2.5))
+                    .interpolationMethod(.catmullRom)
 
-                PointMark(
-                    x: .value("Day", day),
-                    y: .value("Hours", hours)
-                )
-                .foregroundStyle(ColorTheme.sleep)
-                .symbolSize(24)
+                    AreaMark(
+                        x: .value("Day", item.label),
+                        y: .value("Hours", hours)
+                    )
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [ColorTheme.sleep.opacity(0.2), ColorTheme.sleep.opacity(0.02)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .interpolationMethod(.catmullRom)
+
+                    PointMark(
+                        x: .value("Day", item.label),
+                        y: .value("Hours", hours)
+                    )
+                    .foregroundStyle(ColorTheme.sleep)
+                    .symbolSize(24)
+                }
             }
             .chartYScale(domain: 0...12)
             .chartYAxis {
@@ -825,6 +834,19 @@ struct PerformanceDashboardView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 
+    // MARK: - Full Range Helpers
+
+    /// Maps dailyData to labeled tuples. Backend already returns all days in range.
+    /// Weekly uses day-of-week labels (Mon-Sun), monthly uses date numbers (1, 2, ...).
+    private func allDaysInRange(_ data: AnalyticsResponse) -> [(label: String, data: AnalyticsDailyData?)] {
+        let isMonthly = data.period == "month"
+        return data.dailyData.map { item in
+            let label = isMonthly ? dayNumber(item.date) : shortDayLabel(item.date)
+            let hasData = item.training || item.nutrition || item.sleep
+            return (label, hasData ? item : nil)
+        }
+    }
+
     // MARK: - Helpers
 
     private func shortDayLabel(_ dateStr: String) -> String {
@@ -832,6 +854,12 @@ struct PerformanceDashboardView: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEE"
         return String(formatter.string(from: date).prefix(3))
+    }
+
+    private func dayNumber(_ dateStr: String) -> String {
+        guard let date = Date.fromAPIString(dateStr) else { return dateStr.suffix(2).description }
+        let day = Calendar.current.component(.day, from: date)
+        return "\(day)"
     }
 
     private func formatDuration(_ minutes: Int) -> String {
