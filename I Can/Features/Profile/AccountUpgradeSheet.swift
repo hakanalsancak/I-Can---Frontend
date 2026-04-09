@@ -11,6 +11,7 @@ struct AccountUpgradeSheet: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showSignInWarning = false
+    @State private var appleSignInHelper = AppleSignInHelper()
 
     var body: some View {
         NavigationStack {
@@ -103,19 +104,30 @@ struct AccountUpgradeSheet: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             VStack(spacing: 10) {
-                SignInWithAppleButton(.signUp) { request in
-                    request.requestedScopes = [.fullName, .email]
-                } onCompletion: { result in
-                    switch result {
-                    case .success(let authorization):
-                        Task { await handleAppleLink(with: authorization) }
-                    case .failure:
-                        errorMessage = "Apple Sign-In was cancelled"
+                Button {
+                    Task {
+                        do {
+                            let authorization = try await appleSignInHelper.signIn()
+                            await handleAppleLink(with: authorization)
+                        } catch let error as ASAuthorizationError where error.code == .canceled {
+                            // User cancelled
+                        } catch {
+                            errorMessage = "Apple Sign-In failed"
+                        }
                     }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "apple.logo")
+                            .font(.system(size: 20, weight: .medium))
+                        Text("Sign up with Apple")
+                            .font(.system(size: 16, weight: .semibold).width(.condensed))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 13)
+                    .background(colorScheme == .dark ? .white : .black)
+                    .foregroundColor(colorScheme == .dark ? .black : .white)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
-                .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-                .frame(height: 50)
-                .cornerRadius(14)
 
                 Button {
                     Task { await handleGoogleLink() }
@@ -164,20 +176,31 @@ struct AccountUpgradeSheet: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             VStack(spacing: 10) {
-                SignInWithAppleButton(.signIn) { request in
-                    request.requestedScopes = [.fullName, .email]
-                } onCompletion: { result in
-                    switch result {
-                    case .success(let authorization):
-                        signInVM.signInAuthorization = authorization
-                        showSignInWarning = true
-                    case .failure:
-                        errorMessage = "Apple Sign-In was cancelled"
+                Button {
+                    Task {
+                        do {
+                            let authorization = try await appleSignInHelper.signIn()
+                            signInVM.signInAuthorization = authorization
+                            showSignInWarning = true
+                        } catch let error as ASAuthorizationError where error.code == .canceled {
+                            // User cancelled
+                        } catch {
+                            errorMessage = "Apple Sign-In failed"
+                        }
                     }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "apple.logo")
+                            .font(.system(size: 20, weight: .medium))
+                        Text("Sign in with Apple")
+                            .font(.system(size: 16, weight: .semibold).width(.condensed))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 13)
+                    .background(colorScheme == .dark ? .white : .black)
+                    .foregroundColor(colorScheme == .dark ? .black : .white)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
-                .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-                .frame(height: 50)
-                .cornerRadius(14)
 
                 Button {
                     signInVM.pendingGoogleSignIn = true

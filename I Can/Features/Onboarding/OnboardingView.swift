@@ -121,6 +121,7 @@ struct OnboardingView: View {
                     removal: .move(edge: .leading).combined(with: .opacity)
                 ))
                 .animation(.easeInOut(duration: 0.35), value: viewModel.currentStep)
+                .animation(.easeInOut(duration: 0.35), value: viewModel.showLogin)
             }
         }
         .onAppear {

@@ -5,6 +5,7 @@ struct AccountCreationView: View {
     @Bindable var viewModel: OnboardingViewModel
     @Environment(\.colorScheme) private var colorScheme
     @State private var appeared = false
+    @State private var appleSignInHelper = AppleSignInHelper()
 
     private let benefits = [
         ("icloud.and.arrow.up", "Sync across all devices"),
@@ -84,19 +85,30 @@ struct AccountCreationView: View {
 
                 // MARK: - Sign In Buttons
                 VStack(spacing: 12) {
-                    SignInWithAppleButton(.signIn) { request in
-                        request.requestedScopes = [.fullName, .email]
-                    } onCompletion: { result in
-                        switch result {
-                        case .success(let authorization):
-                            Task { await viewModel.signInWithApple(authorization: authorization) }
-                        case .failure:
-                            viewModel.errorMessage = "Apple Sign-In was cancelled"
+                    Button {
+                        Task {
+                            do {
+                                let authorization = try await appleSignInHelper.signIn()
+                                await viewModel.signInWithApple(authorization: authorization)
+                            } catch let error as ASAuthorizationError where error.code == .canceled {
+                                // User cancelled
+                            } catch {
+                                viewModel.errorMessage = "Apple Sign-In failed"
+                            }
                         }
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "apple.logo")
+                                .font(.system(size: 20, weight: .medium))
+                            Text("Sign in with Apple")
+                                .font(.system(size: 16, weight: .semibold).width(.condensed))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 15)
+                        .background(colorScheme == .dark ? .white : .black)
+                        .foregroundColor(colorScheme == .dark ? .black : .white)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
-                    .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-                    .frame(height: 54)
-                    .cornerRadius(14)
 
                     Button {
                         Task { await viewModel.signInWithGoogle() }
