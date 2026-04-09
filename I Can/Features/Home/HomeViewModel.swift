@@ -20,6 +20,7 @@ final class HomeViewModel {
     // Analytics
     var weeklyAnalytics: AnalyticsResponse?
     var monthlyAnalytics: AnalyticsResponse?
+    var previousMonthAnalytics: AnalyticsResponse?
     var isLoadingAnalytics = false
 
     // Section sheets
@@ -117,7 +118,8 @@ final class HomeViewModel {
         isLoadingAnalytics = true
         async let weekTask: Void = loadWeeklyAnalytics()
         async let monthTask: Void = loadMonthlyAnalytics()
-        _ = await (weekTask, monthTask)
+        async let prevMonthTask: Void = loadPreviousMonthAnalytics()
+        _ = await (weekTask, monthTask, prevMonthTask)
         isLoadingAnalytics = false
     }
 
@@ -130,6 +132,12 @@ final class HomeViewModel {
     private func loadMonthlyAnalytics() async {
         do {
             monthlyAnalytics = try await DailyLogService.shared.getAnalytics(period: "month")
+        } catch {}
+    }
+
+    private func loadPreviousMonthAnalytics() async {
+        do {
+            previousMonthAnalytics = try await DailyLogService.shared.getAnalytics(period: "previous_month")
         } catch {}
     }
 

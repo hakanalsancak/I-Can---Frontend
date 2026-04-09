@@ -19,19 +19,15 @@ struct DailyChartData: Identifiable {
 struct PerformanceDashboardView: View {
     let weeklyData: AnalyticsResponse?
     let monthlyData: AnalyticsResponse?
+    let previousMonthData: AnalyticsResponse?
     let isLoading: Bool
     @Environment(\.colorScheme) private var colorScheme
 
     @State private var selectedPeriod = 1 // 0 = daily, 1 = week, 2 = month
     @State private var selectedDayIndex = currentWeekdayIndex()
 
-    private var currentData: AnalyticsResponse? {
-        switch selectedPeriod {
-        case 0, 1: return weeklyData
-        case 2: return monthlyData
-        default: return weeklyData
-        }
-    }
+    // Weekly sections now always use weeklyData directly
+    // Monthly has its own dedicated MonthlyDashboardView
 
     /// Returns the selected day's data when in daily mode
     private var selectedDayData: AnalyticsDailyData? {
@@ -105,8 +101,18 @@ struct PerformanceDashboardView: View {
                 } else {
                     noDataView(message: "No data for \(dayLabels[selectedDayIndex])")
                 }
-            } else if let data = currentData {
-                // Weekly / Monthly mode
+            } else if selectedPeriod == 2 {
+                // Monthly - premium dashboard
+                if let data = monthlyData {
+                    MonthlyDashboardView(data: data, previousData: previousMonthData)
+                } else if isLoading {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, minHeight: 100)
+                } else {
+                    noDataView(message: "Start logging to see your monthly report")
+                }
+            } else if let data = weeklyData {
+                // Weekly mode
                 statsOverview(data)
 
                 if data.trainingSessions > 0, let summary = data.trainingSummary {

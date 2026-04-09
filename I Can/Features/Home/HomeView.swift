@@ -143,6 +143,7 @@ struct HomeView: View {
                         PerformanceDashboardView(
                             weeklyData: viewModel.weeklyAnalytics,
                             monthlyData: viewModel.monthlyAnalytics,
+                            previousMonthData: viewModel.previousMonthAnalytics,
                             isLoading: viewModel.isLoadingAnalytics
                         )
 
