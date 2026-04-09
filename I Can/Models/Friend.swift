@@ -15,6 +15,8 @@ struct AthleteProfile: Codable, Identifiable {
     let longestStreak: Int?
     var friendStatus: String?
     var isFriend: Bool?
+    let height: Double?
+    let weight: Double?
 }
 
 struct FriendRequest: Codable, Identifiable {

@@ -259,11 +259,97 @@ struct AthleteProfileSheet: View {
 
     private func detailsSection(_ p: AthleteProfile) -> some View {
         VStack(spacing: 14) {
+            if (p.height != nil && p.height! > 0) || (p.weight != nil && p.weight! > 0) {
+                heightWeightCard(p)
+            }
             if let mantra = p.mantra, !mantra.isEmpty {
                 mantraCard(mantra)
             }
         }
         .padding(.horizontal, 20)
+    }
+
+    private func heightWeightCard(_ p: AthleteProfile) -> some View {
+        let pref = UnitPreference.shared
+        return HStack(spacing: 0) {
+            if let height = p.height, height > 0 {
+                VStack(spacing: 6) {
+                    Image(systemName: "ruler")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundColor(Color(hex: "06B6D4"))
+
+                    if pref.heightUnit == .cm {
+                        Text("\(Int(height))")
+                            .font(.system(size: 28, weight: .heavy, design: .rounded))
+                            .foregroundColor(ColorTheme.primaryText(colorScheme))
+                        Text("CM")
+                            .font(.system(size: 10, weight: .heavy, design: .rounded))
+                            .foregroundColor(ColorTheme.secondaryText(colorScheme).opacity(0.7))
+                            .tracking(0.8)
+                    } else {
+                        let fi = UnitPreference.cmToFeetInches(height)
+                        Text("\(fi.feet)'\(fi.inches)\"")
+                            .font(.system(size: 28, weight: .heavy, design: .rounded))
+                            .foregroundColor(ColorTheme.primaryText(colorScheme))
+                        Text("FT")
+                            .font(.system(size: 10, weight: .heavy, design: .rounded))
+                            .foregroundColor(ColorTheme.secondaryText(colorScheme).opacity(0.7))
+                            .tracking(0.8)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+            }
+
+            if p.height != nil && p.height! > 0 && p.weight != nil && p.weight! > 0 {
+                Rectangle()
+                    .fill(ColorTheme.separator(colorScheme))
+                    .frame(width: 1, height: 60)
+            }
+
+            if let weight = p.weight, weight > 0 {
+                VStack(spacing: 6) {
+                    Image(systemName: "scalemass")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundColor(Color(hex: "10B981"))
+
+                    if pref.weightUnit == .kg {
+                        Text("\(Int(weight))")
+                            .font(.system(size: 28, weight: .heavy, design: .rounded))
+                            .foregroundColor(ColorTheme.primaryText(colorScheme))
+                        Text("KG")
+                            .font(.system(size: 10, weight: .heavy, design: .rounded))
+                            .foregroundColor(ColorTheme.secondaryText(colorScheme).opacity(0.7))
+                            .tracking(0.8)
+                    } else {
+                        Text("\(Int(UnitPreference.kgToLbs(weight)))")
+                            .font(.system(size: 28, weight: .heavy, design: .rounded))
+                            .foregroundColor(ColorTheme.primaryText(colorScheme))
+                        Text("LBS")
+                            .font(.system(size: 10, weight: .heavy, design: .rounded))
+                            .foregroundColor(ColorTheme.secondaryText(colorScheme).opacity(0.7))
+                            .tracking(0.8)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .padding(.vertical, 20)
+        .background(
+            ZStack {
+                ColorTheme.cardBackground(colorScheme)
+                LinearGradient(
+                    colors: [Color(hex: "06B6D4").opacity(0.04), Color(hex: "10B981").opacity(0.04)],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            }
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(ColorTheme.separator(colorScheme).opacity(0.5), lineWidth: 1)
+        )
+        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 3)
     }
 
     private func mantraCard(_ mantra: String) -> some View {

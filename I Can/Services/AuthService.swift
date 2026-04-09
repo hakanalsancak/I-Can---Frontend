@@ -83,13 +83,15 @@ final class AuthService {
         fullName: String?, age: Int?, country: String? = nil,
         gender: String? = nil, team: String? = nil,
         competitionLevel: String? = nil, position: String? = nil,
-        primaryGoal: String? = nil, username: String? = nil
+        primaryGoal: String? = nil, username: String? = nil,
+        height: Double? = nil, weight: Double? = nil
     ) async throws {
         let request = OnboardingRequest(
             sport: sport, mantra: mantra, notificationFrequency: notificationFrequency,
             fullName: fullName, age: age, country: country,
             gender: gender, team: team, competitionLevel: competitionLevel,
-            position: position, primaryGoal: primaryGoal, username: username
+            position: position, primaryGoal: primaryGoal, username: username,
+            height: height, weight: weight
         )
         let user: User = try await APIClient.shared.request(
             APIEndpoints.Auth.onboarding, method: "PUT", body: request
@@ -116,6 +118,14 @@ final class AuthService {
         }
     }
 
+    func updatePrivacy(hideHeightWeight: Bool) async throws {
+        struct PrivacyUpdate: Encodable { let hideHeightWeight: Bool }
+        let user: User = try await APIClient.shared.request(
+            APIEndpoints.Auth.profile, method: "PUT", body: PrivacyUpdate(hideHeightWeight: hideHeightWeight)
+        )
+        currentUser = user
+    }
+
     func updateMantra(_ mantra: String) async throws {
         let body = ["mantra": mantra]
         let user: User = try await APIClient.shared.request(
@@ -130,7 +140,9 @@ final class AuthService {
         sport: String? = nil,
         team: String? = nil,
         position: String? = nil,
-        mantra: String? = nil
+        mantra: String? = nil,
+        height: Double? = nil,
+        weight: Double? = nil
     ) async throws {
         var body: [String: String] = [:]
         if let fullName { body["fullName"] = fullName }
@@ -139,6 +151,8 @@ final class AuthService {
         if let team { body["team"] = team }
         if let position { body["position"] = position }
         if let mantra { body["mantra"] = mantra }
+        if let height { body["height"] = String(height) }
+        if let weight { body["weight"] = String(weight) }
 
         guard !body.isEmpty else { return }
         let user: User = try await APIClient.shared.request(

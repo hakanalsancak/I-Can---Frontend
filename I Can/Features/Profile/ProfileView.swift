@@ -243,15 +243,25 @@ struct ProfileView: View {
     }
 
     private var infoBadges: some View {
-        HStack(spacing: 8) {
-            if let sport = viewModel.user?.sport {
-                infoBadge(icon: sportIcon(sport), text: sport.capitalized, color: sportColor(sport))
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                if let sport = viewModel.user?.sport {
+                    infoBadge(icon: sportIcon(sport), text: sport.capitalized, color: sportColor(sport))
+                }
+                if let position = viewModel.user?.position, !position.isEmpty {
+                    infoBadge(icon: "person.fill", text: position, color: Color(hex: "8B5CF6"))
+                }
+                if let team = viewModel.user?.team, !team.isEmpty {
+                    infoBadge(icon: "shield.fill", text: team, color: Color(hex: "3B82F6"))
+                }
             }
-            if let position = viewModel.user?.position, !position.isEmpty {
-                infoBadge(icon: "person.fill", text: position, color: Color(hex: "8B5CF6"))
-            }
-            if let team = viewModel.user?.team, !team.isEmpty {
-                infoBadge(icon: "shield.fill", text: team, color: Color(hex: "3B82F6"))
+            HStack(spacing: 8) {
+                if let height = viewModel.user?.height, height > 0 {
+                    infoBadge(icon: "ruler", text: UnitPreference.shared.formatHeightShort(height), color: Color(hex: "06B6D4"))
+                }
+                if let weight = viewModel.user?.weight, weight > 0 {
+                    infoBadge(icon: "scalemass", text: UnitPreference.shared.formatWeight(weight), color: Color(hex: "10B981"))
+                }
             }
         }
     }

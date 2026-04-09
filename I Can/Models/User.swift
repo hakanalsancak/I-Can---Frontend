@@ -18,6 +18,9 @@ struct User: Codable, Identifiable {
     var onboardingCompleted: Bool
     var createdAt: String?
     var profilePhotoUrl: String?
+    var height: Double?
+    var weight: Double?
+    var hideHeightWeight: Bool?
 
     var isGuest: Bool {
         guard let email = email else { return true }
@@ -65,4 +68,6 @@ struct OnboardingRequest: Encodable {
     let position: String?
     let primaryGoal: String?
     let username: String?
+    let height: Double?
+    let weight: Double?
 }

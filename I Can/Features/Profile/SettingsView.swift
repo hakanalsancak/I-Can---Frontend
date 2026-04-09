@@ -14,6 +14,7 @@ struct SettingsView: View {
     @State private var deleteError: String?
     @State private var showMailComposer = false
     @State private var saveError: String?
+    @State private var hideHeightWeight: Bool
 
     private var currentUsername: String {
         AuthService.shared.currentUser?.username ?? ""
@@ -26,6 +27,7 @@ struct SettingsView: View {
     init() {
         let user = AuthService.shared.currentUser
         _notificationFrequency = State(initialValue: Double(user?.notificationFrequency ?? 1))
+        _hideHeightWeight = State(initialValue: user?.hideHeightWeight ?? false)
     }
 
     var body: some View {
@@ -44,6 +46,8 @@ struct SettingsView: View {
 
                     appearanceSection
                     notificationSection
+                    privacySection
+                    unitsSection
                     contactSection
                     aboutSection
                     signOutSection
@@ -153,6 +157,115 @@ struct SettingsView: View {
                     .tint(ColorTheme.accent)
             }
             .padding(16)
+            .background(ColorTheme.cardBackground(colorScheme))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
+        }
+    }
+
+    // MARK: - Privacy
+
+    private var privacySection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionLabel("PRIVACY")
+
+            VStack(spacing: 0) {
+                Toggle(isOn: $hideHeightWeight) {
+                    HStack(spacing: 12) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(Color(hex: "8B5CF6").opacity(0.12))
+                                .frame(width: 36, height: 36)
+                            Image(systemName: "eye.slash.fill")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(Color(hex: "8B5CF6"))
+                        }
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Hide Height & Weight")
+                                .font(.system(size: 15, weight: .semibold).width(.condensed))
+                                .foregroundColor(ColorTheme.primaryText(colorScheme))
+                            Text("Friends won't see your height and weight")
+                                .font(.system(size: 11, weight: .medium).width(.condensed))
+                                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                        }
+                    }
+                }
+                .tint(ColorTheme.accent)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+            }
+            .background(ColorTheme.cardBackground(colorScheme))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
+        }
+    }
+
+    // MARK: - Units
+
+    @State private var unitPref = UnitPreference.shared
+
+    private var unitsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionLabel("UNITS")
+
+            VStack(spacing: 0) {
+                HStack(spacing: 12) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color(hex: "06B6D4").opacity(0.12))
+                            .frame(width: 36, height: 36)
+                        Image(systemName: "ruler")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(Color(hex: "06B6D4"))
+                    }
+
+                    Text("Height")
+                        .font(.system(size: 15, weight: .semibold).width(.condensed))
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+
+                    Spacer()
+
+                    Picker("", selection: $unitPref.heightUnit) {
+                        ForEach(HeightUnit.allCases, id: \.self) { unit in
+                            Text(unit.label).tag(unit)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 100)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+
+                Divider().padding(.leading, 64).opacity(0.4)
+
+                HStack(spacing: 12) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color(hex: "10B981").opacity(0.12))
+                            .frame(width: 36, height: 36)
+                        Image(systemName: "scalemass")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(Color(hex: "10B981"))
+                    }
+
+                    Text("Weight")
+                        .font(.system(size: 15, weight: .semibold).width(.condensed))
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+
+                    Spacer()
+
+                    Picker("", selection: $unitPref.weightUnit) {
+                        ForEach(WeightUnit.allCases, id: \.self) { unit in
+                            Text(unit.label).tag(unit)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 100)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+            }
             .background(ColorTheme.cardBackground(colorScheme))
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
@@ -446,6 +559,11 @@ struct SettingsView: View {
                 fullName: nil,
                 age: nil
             )
+            // Save privacy preference
+            let currentHide = AuthService.shared.currentUser?.hideHeightWeight ?? false
+            if hideHeightWeight != currentHide {
+                try await AuthService.shared.updatePrivacy(hideHeightWeight: hideHeightWeight)
+            }
             try await NotificationService.shared.updatePreferences(
                 frequency: Int(notificationFrequency)
             )

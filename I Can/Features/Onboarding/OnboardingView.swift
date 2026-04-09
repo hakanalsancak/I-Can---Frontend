@@ -40,6 +40,13 @@ struct OnboardingView: View {
                             onNext: { viewModel.nextStep() },
                             onBack: { viewModel.previousStep() }
                         )
+                    case .heightWeight:
+                        HeightWeightView(
+                            height: $viewModel.selectedHeight,
+                            weight: $viewModel.selectedWeight,
+                            onNext: { viewModel.nextStep() },
+                            onBack: { viewModel.previousStep() }
+                        )
                     case .nationalitySelection:
                         NationalitySelectionView(
                             country: $viewModel.selectedCountry,

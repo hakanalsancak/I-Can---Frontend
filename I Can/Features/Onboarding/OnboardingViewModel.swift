@@ -9,6 +9,7 @@ enum OnboardingStep: Int, CaseIterable {
     case nameEntry
     case ageSelection
     case genderSelection
+    case heightWeight
     case nationalitySelection
     case sportSelection
     case teamEntry
@@ -36,6 +37,8 @@ final class OnboardingViewModel {
     var selectedPosition: String = ""
     var selectedPrimaryGoal: String = ""
     var username: String = ""
+    var selectedHeight: Double = 175
+    var selectedWeight: Double = 70
     var mantra: String = ""
     var notificationFrequency: Int = 1
     var isLoading = false
@@ -245,7 +248,9 @@ final class OnboardingViewModel {
                 competitionLevel: selectedCompetitionLevel.isEmpty ? nil : selectedCompetitionLevel,
                 position: selectedPosition.isEmpty ? nil : selectedPosition,
                 primaryGoal: selectedPrimaryGoal.isEmpty ? nil : selectedPrimaryGoal,
-                username: username.trimmingCharacters(in: .whitespaces).isEmpty ? nil : username.trimmingCharacters(in: .whitespaces).lowercased()
+                username: username.trimmingCharacters(in: .whitespaces).isEmpty ? nil : username.trimmingCharacters(in: .whitespaces).lowercased(),
+                height: selectedHeight,
+                weight: selectedWeight
             )
             NotificationService.shared.scheduleAllNotifications(
                 frequency: notificationFrequency,

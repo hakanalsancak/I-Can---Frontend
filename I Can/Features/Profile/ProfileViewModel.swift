@@ -58,6 +58,8 @@ final class ProfileViewModel {
         team: String,
         position: String,
         mantra: String,
+        height: Double? = nil,
+        weight: Double? = nil,
         photo: UIImage?,
         removePhoto: Bool = false
     ) async -> Bool {
@@ -72,13 +74,18 @@ final class ProfileViewModel {
             let positionToSend = position != (currentUser?.position ?? "") ? position : nil
             let mantraToSend = mantra != (currentUser?.mantra ?? "") ? mantra : nil
 
+            let heightToSend = height != nil && height != (currentUser?.height ?? 0) ? height : nil
+            let weightToSend = weight != nil && weight != (currentUser?.weight ?? 0) ? weight : nil
+
             try await AuthService.shared.updateProfile(
                 fullName: nameToSend,
                 username: usernameToSend,
                 sport: sportToSend,
                 team: teamToSend,
                 position: positionToSend,
-                mantra: mantraToSend
+                mantra: mantraToSend,
+                height: heightToSend,
+                weight: weightToSend
             )
 
             if removePhoto {

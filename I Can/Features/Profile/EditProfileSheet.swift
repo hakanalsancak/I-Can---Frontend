@@ -13,6 +13,8 @@ struct EditProfileSheet: View {
     @State private var team: String
     @State private var position: String
     @State private var mantra: String
+    @State private var height: String
+    @State private var weight: String
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var editedImage: UIImage?
     @State private var usernameAvailable: Bool?
@@ -46,6 +48,26 @@ struct EditProfileSheet: View {
         _team = State(initialValue: user?.team ?? "")
         _position = State(initialValue: user?.position ?? "")
         _mantra = State(initialValue: user?.mantra ?? "")
+        let pref = UnitPreference.shared
+        if let h = user?.height, h > 0 {
+            if pref.heightUnit == .feet {
+                let fi = UnitPreference.cmToFeetInches(h)
+                _height = State(initialValue: "\(fi.feet)'\(fi.inches)")
+            } else {
+                _height = State(initialValue: "\(Int(h))")
+            }
+        } else {
+            _height = State(initialValue: "")
+        }
+        if let w = user?.weight, w > 0 {
+            if pref.weightUnit == .lbs {
+                _weight = State(initialValue: "\(Int(UnitPreference.kgToLbs(w)))")
+            } else {
+                _weight = State(initialValue: "\(Int(w))")
+            }
+        } else {
+            _weight = State(initialValue: "")
+        }
         _editedImage = State(initialValue: viewModel.profileImage)
     }
 
@@ -330,6 +352,46 @@ struct EditProfileSheet: View {
                 styledTextField("Team or club name", text: $team)
             }
 
+            HStack(spacing: 12) {
+                let hUnit = UnitPreference.shared.heightUnit
+                fieldGroup(title: "HEIGHT (\(hUnit == .cm ? "CM" : "FT"))") {
+                    TextField(hUnit == .cm ? "175" : "5'9\"", text: $height)
+                        .font(.system(size: 16, weight: .medium).width(.condensed))
+                        .keyboardType(hUnit == .cm ? .numberPad : .default)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 14)
+                        .background(ColorTheme.cardBackground(colorScheme))
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .strokeBorder(ColorTheme.separator(colorScheme), lineWidth: 1)
+                        )
+                        .onChange(of: height) { _, newValue in
+                            if hUnit == .cm {
+                                height = String(newValue.filter { $0.isNumber }.prefix(3))
+                            }
+                        }
+                }
+
+                let wUnit = UnitPreference.shared.weightUnit
+                fieldGroup(title: "WEIGHT (\(wUnit == .kg ? "KG" : "LBS"))") {
+                    TextField(wUnit == .kg ? "70" : "154", text: $weight)
+                        .font(.system(size: 16, weight: .medium).width(.condensed))
+                        .keyboardType(.numberPad)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 14)
+                        .background(ColorTheme.cardBackground(colorScheme))
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .strokeBorder(ColorTheme.separator(colorScheme), lineWidth: 1)
+                        )
+                        .onChange(of: weight) { _, newValue in
+                            weight = String(newValue.filter { $0.isNumber }.prefix(3))
+                        }
+                }
+            }
+
             fieldGroup(title: positionLabel) {
                 Button {
                     HapticManager.selection()
@@ -523,6 +585,31 @@ struct EditProfileSheet: View {
         }
     }
 
+    private func parseHeightToCm() -> Double? {
+        let trimmed = height.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return nil }
+        if UnitPreference.shared.heightUnit == .feet {
+            // Parse formats like "5'9", "5'9\"", "5 9"
+            let parts = trimmed.components(separatedBy: CharacterSet(charactersIn: "' \"")).filter { !$0.isEmpty }
+            if let ft = Int(parts.first ?? ""), parts.count >= 2, let inch = Int(parts[1]) {
+                return UnitPreference.feetInchesToCm(feet: ft, inches: inch)
+            } else if let ft = Int(parts.first ?? "") {
+                return UnitPreference.feetInchesToCm(feet: ft, inches: 0)
+            }
+            return nil
+        }
+        return Double(trimmed)
+    }
+
+    private func parseWeightToKg() -> Double? {
+        let trimmed = weight.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, let val = Double(trimmed) else { return nil }
+        if UnitPreference.shared.weightUnit == .lbs {
+            return UnitPreference.lbsToKg(val)
+        }
+        return val
+    }
+
     private func save() async {
         let photoDidChange = photoRemoved || photoChanged
         let success = await viewModel.saveProfile(
@@ -532,6 +619,8 @@ struct EditProfileSheet: View {
             team: team.trimmingCharacters(in: .whitespaces),
             position: position,
             mantra: mantra.trimmingCharacters(in: .whitespaces),
+            height: parseHeightToCm(),
+            weight: parseWeightToKg(),
             photo: photoDidChange ? editedImage : nil,
             removePhoto: photoRemoved
         )
