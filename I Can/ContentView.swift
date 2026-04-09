@@ -4,6 +4,7 @@ struct ContentView: View {
     @State private var authService = AuthService.shared
     @State private var isLoading = true
     @State private var showMaintenance = false
+    @State private var showNoInternet = false
     @State private var showForceUpdate = false
     @State private var showPostOnboardingSubscription = false
     @State private var logoScale: CGFloat = 0.8
@@ -41,6 +42,12 @@ struct ContentView: View {
                     .zIndex(11)
             }
 
+            if showNoInternet {
+                NoInternetView(onRetry: { await retryConnection() })
+                    .transition(.opacity)
+                    .zIndex(10)
+            }
+
             if showMaintenance {
                 ServerMaintenanceView(onRetry: { await retryConnection() })
                     .transition(.opacity)
@@ -48,6 +55,7 @@ struct ContentView: View {
             }
         }
         .animation(.easeInOut(duration: 0.4), value: showingSplash)
+        .animation(.easeInOut(duration: 0.3), value: showNoInternet)
         .animation(.easeInOut(duration: 0.3), value: showMaintenance)
         .animation(.easeInOut(duration: 0.3), value: showForceUpdate)
         .task {
@@ -75,10 +83,18 @@ struct ContentView: View {
             try await authService.loadProfile()
             try? await SubscriptionService.shared.checkStatus()
             showMaintenance = false
+            showNoInternet = false
         } catch {
             if case .unauthorized = error as? APIError {
                 authService.signOut()
                 showMaintenance = false
+                showNoInternet = false
+            } else if case .networkError = error as? APIError {
+                showNoInternet = true
+                showMaintenance = false
+            } else {
+                showMaintenance = true
+                showNoInternet = false
             }
         }
     }
@@ -125,9 +141,12 @@ struct ContentView: View {
                 await authService.setCountryIfNeeded()
                 try? await SubscriptionService.shared.checkStatus()
                 showMaintenance = false
+                showNoInternet = false
             } catch {
                 if case .unauthorized = error as? APIError {
                     authService.signOut()
+                } else if case .networkError = error as? APIError {
+                    showNoInternet = true
                 } else {
                     showMaintenance = true
                 }
