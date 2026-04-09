@@ -26,6 +26,13 @@ struct FriendRequest: Codable, Identifiable {
     let sender: AthleteProfile
 }
 
+struct SentFriendRequest: Codable, Identifiable {
+    let id: String
+    let receiverId: String
+    let createdAt: String?
+    let receiver: AthleteProfile
+}
+
 struct FriendActionResponse: Codable {
     let success: Bool
     let action: String?

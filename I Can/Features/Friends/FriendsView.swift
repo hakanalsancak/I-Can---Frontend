@@ -4,8 +4,13 @@ struct FriendsView: View {
     @State private var viewModel = FriendsViewModel()
     @State private var selectedProfile: AthleteProfile?
     @State private var searchFocused = false
+    @State private var requestsTab: RequestsTab = .received
     @Environment(\.colorScheme) private var colorScheme
     @FocusState private var isSearchFieldFocused: Bool
+
+    enum RequestsTab {
+        case received, sent
+    }
 
     var body: some View {
         NavigationStack {
@@ -20,7 +25,7 @@ struct FriendsView: View {
                         if !viewModel.searchText.isEmpty {
                             searchResultsSection
                         } else {
-                            if !viewModel.pendingRequests.isEmpty {
+                            if !viewModel.pendingRequests.isEmpty || !viewModel.sentRequests.isEmpty {
                                 requestsSection
                             }
                             friendsListSection
@@ -35,10 +40,12 @@ struct FriendsView: View {
             .onAppear { Task { await viewModel.loadAll() } }
             .refreshable { await viewModel.loadAll() }
             .sheet(item: $selectedProfile) { profile in
-                AthleteProfileSheet(athleteId: profile.id)
-                    .onAppear {
-                        AnalyticsManager.log("profile_viewed", parameters: ["athlete_id": profile.id])
-                    }
+                AthleteProfileSheet(athleteId: profile.id) {
+                    Task { await viewModel.removeFriend(profile) }
+                }
+                .onAppear {
+                    AnalyticsManager.log("profile_viewed", parameters: ["athlete_id": profile.id])
+                }
             }
             .alert("Error", isPresented: Binding(
                 get: { viewModel.errorMessage != nil },
@@ -156,32 +163,118 @@ struct FriendsView: View {
 
     private var requestsSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 8) {
-                Text("FRIEND REQUESTS")
-                    .font(.system(size: 11, weight: .heavy).width(.condensed))
-                    .foregroundColor(ColorTheme.secondaryText(colorScheme).opacity(0.7))
-                    .tracking(1.2)
-
-                Text("\(viewModel.pendingRequests.count)")
-                    .font(.system(size: 11, weight: .heavy, design: .rounded))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(ColorTheme.accent)
-                    .clipShape(Capsule())
-            }
-            .padding(.horizontal, 20)
-
-            ForEach(viewModel.pendingRequests) { request in
-                FriendRequestCard(
-                    request: request,
-                    colorScheme: colorScheme,
-                    onAccept: { Task { await viewModel.acceptRequest(request) } },
-                    onDecline: { Task { await viewModel.declineRequest(request) } }
-                ) {
-                    selectedProfile = request.sender
-                }
+            Text("FRIEND REQUESTS")
+                .font(.system(size: 11, weight: .heavy).width(.condensed))
+                .foregroundColor(ColorTheme.secondaryText(colorScheme).opacity(0.7))
+                .tracking(1.2)
                 .padding(.horizontal, 20)
+
+            requestsTabPicker
+                .padding(.horizontal, 20)
+
+            if requestsTab == .received {
+                receivedRequestsList
+            } else {
+                sentRequestsList
+            }
+        }
+    }
+
+    private var requestsTabPicker: some View {
+        HStack(spacing: 0) {
+            requestsTabButton(
+                title: "Received",
+                count: viewModel.pendingRequests.count,
+                isSelected: requestsTab == .received
+            ) {
+                withAnimation(.easeInOut(duration: 0.2)) { requestsTab = .received }
+            }
+
+            requestsTabButton(
+                title: "Sent",
+                count: viewModel.sentRequests.count,
+                isSelected: requestsTab == .sent
+            ) {
+                withAnimation(.easeInOut(duration: 0.2)) { requestsTab = .sent }
+            }
+        }
+        .background(ColorTheme.cardBackground(colorScheme))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(ColorTheme.separator(colorScheme).opacity(0.5), lineWidth: 0.5)
+        )
+    }
+
+    private func requestsTabButton(title: String, count: Int, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Text(title)
+                    .font(.system(size: 14, weight: .bold).width(.condensed))
+
+                if count > 0 {
+                    Text("\(count)")
+                        .font(.system(size: 11, weight: .heavy, design: .rounded))
+                        .foregroundColor(isSelected ? .white : ColorTheme.secondaryText(colorScheme))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 2)
+                        .background(isSelected ? ColorTheme.accent : ColorTheme.separator(colorScheme).opacity(0.5))
+                        .clipShape(Capsule())
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 11)
+            .foregroundColor(isSelected ? ColorTheme.primaryText(colorScheme) : ColorTheme.secondaryText(colorScheme))
+            .background(isSelected ? ColorTheme.elevatedBackground(colorScheme) : .clear)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .padding(2)
+    }
+
+    private var receivedRequestsList: some View {
+        Group {
+            if viewModel.pendingRequests.isEmpty {
+                Text("No received requests")
+                    .font(.system(size: 14, weight: .medium).width(.condensed))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme).opacity(0.6))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 20)
+            } else {
+                ForEach(viewModel.pendingRequests) { request in
+                    FriendRequestCard(
+                        request: request,
+                        colorScheme: colorScheme,
+                        onAccept: { Task { await viewModel.acceptRequest(request) } },
+                        onDecline: { Task { await viewModel.declineRequest(request) } }
+                    ) {
+                        selectedProfile = request.sender
+                    }
+                    .padding(.horizontal, 20)
+                }
+            }
+        }
+    }
+
+    private var sentRequestsList: some View {
+        Group {
+            if viewModel.sentRequests.isEmpty {
+                Text("No sent requests")
+                    .font(.system(size: 14, weight: .medium).width(.condensed))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme).opacity(0.6))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 20)
+            } else {
+                ForEach(viewModel.sentRequests) { request in
+                    SentRequestCard(
+                        request: request,
+                        colorScheme: colorScheme,
+                        onCancel: { Task { await viewModel.cancelSentRequest(request) } }
+                    ) {
+                        selectedProfile = request.receiver
+                    }
+                    .padding(.horizontal, 20)
+                }
             }
         }
     }
@@ -480,6 +573,63 @@ private struct FriendRequestCard: View {
                 .strokeBorder(ColorTheme.accent.opacity(0.15), lineWidth: 1)
         )
         .shadow(color: ColorTheme.accent.opacity(0.08), radius: 10, x: 0, y: 4)
+    }
+}
+
+// MARK: - Sent Request Card
+
+private struct SentRequestCard: View {
+    let request: SentFriendRequest
+    let colorScheme: ColorScheme
+    let onCancel: () -> Void
+    let onTap: () -> Void
+
+    var body: some View {
+        HStack(spacing: 14) {
+            RingAvatar(name: request.receiver.fullName, photoUrl: request.receiver.profilePhotoUrl, size: 48, colorScheme: colorScheme)
+                .onTapGesture { onTap() }
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(request.receiver.fullName ?? "Athlete")
+                    .font(.system(size: 16, weight: .bold).width(.condensed))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+
+                if let username = request.receiver.username {
+                    Text("@\(username)")
+                        .font(.system(size: 13, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.accent.opacity(0.8))
+                }
+            }
+            .onTapGesture { onTap() }
+
+            Spacer()
+
+            Button {
+                HapticManager.impact(.light)
+                onCancel()
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .bold))
+                    Text("Cancel")
+                }
+                .font(.system(size: 12, weight: .bold).width(.condensed))
+                .foregroundColor(.red.opacity(0.9))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(.red.opacity(0.1))
+                .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(16)
+        .background(ColorTheme.cardBackground(colorScheme))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(ColorTheme.separator(colorScheme).opacity(0.5), lineWidth: 0.5)
+        )
+        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 3)
     }
 }
 

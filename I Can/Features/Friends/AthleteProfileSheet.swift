@@ -2,12 +2,14 @@ import SwiftUI
 
 struct AthleteProfileSheet: View {
     let athleteId: String
+    var onRemoveFriend: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @State private var profile: AthleteProfile?
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var glowPhase: CGFloat = 0
+    @State private var showRemoveConfirmation = false
 
     var body: some View {
         NavigationStack {
@@ -25,6 +27,10 @@ struct AthleteProfileSheet: View {
                             badgesRow(profile)
                             statsRow(profile)
                             detailsSection(profile)
+
+                            if profile.isFriend == true, onRemoveFriend != nil {
+                                removeFriendButton
+                            }
                         }
                         .padding(.top, 24)
                         .padding(.bottom, 48)
@@ -61,7 +67,44 @@ struct AthleteProfileSheet: View {
                 }
             }
             .task { await loadProfile() }
+            .alert("Remove Friend", isPresented: $showRemoveConfirmation) {
+                Button("Cancel", role: .cancel) {}
+                Button("Remove", role: .destructive) {
+                    onRemoveFriend?()
+                    dismiss()
+                }
+            } message: {
+                Text("Are you sure you want to remove \(profile?.fullName ?? "this friend") from your friends?")
+            }
         }
+    }
+
+    // MARK: - Remove Friend Button
+
+    private var removeFriendButton: some View {
+        Button {
+            HapticManager.impact(.medium)
+            showRemoveConfirmation = true
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "person.badge.minus")
+                    .font(.system(size: 15, weight: .semibold))
+                Text("Remove Friend")
+                    .font(.system(size: 15, weight: .bold).width(.condensed))
+            }
+            .foregroundColor(.red)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(.red.opacity(0.1))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(.red.opacity(0.2), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 20)
+        .padding(.top, 4)
     }
 
     // MARK: - Profile Header

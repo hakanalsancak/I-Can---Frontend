@@ -33,6 +33,7 @@ enum APIEndpoints {
         static let search = "/api/friends/search"
         static let checkUsername = "/api/friends/check-username"
         static let requests = "/api/friends/requests"
+        static let sentRequests = "/api/friends/requests/sent"
         static let sendRequest = "/api/friends/request"
         static func respondRequest(_ id: String) -> String { "/api/friends/request/\(id)" }
         static func cancelRequest(_ id: String) -> String { "/api/friends/request/\(id)" }

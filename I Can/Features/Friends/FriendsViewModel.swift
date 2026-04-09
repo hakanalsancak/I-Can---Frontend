@@ -5,6 +5,7 @@ import Foundation
 final class FriendsViewModel {
     var friends: [AthleteProfile] = []
     var pendingRequests: [FriendRequest] = []
+    var sentRequests: [SentFriendRequest] = []
     var searchResults: [AthleteProfile] = []
     var searchText: String = ""
     var isLoading = false
@@ -19,11 +20,13 @@ final class FriendsViewModel {
         isLoading = true
         async let friendsTask = FriendService.shared.getFriends()
         async let requestsTask = FriendService.shared.getPendingRequests()
+        async let sentTask = FriendService.shared.getSentRequests()
 
         do {
-            let (f, r) = try await (friendsTask, requestsTask)
+            let (f, r, s) = try await (friendsTask, requestsTask, sentTask)
             friends = f
             pendingRequests = r
+            sentRequests = s
         } catch {
             if !Task.isCancelled && (error as? URLError)?.code != .cancelled {
                 errorMessage = error.localizedDescription
@@ -89,6 +92,15 @@ final class FriendsViewModel {
         do {
             _ = try await FriendService.shared.respondToRequest(id: request.id, action: "decline")
             pendingRequests.removeAll { $0.id == request.id }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func cancelSentRequest(_ request: SentFriendRequest) async {
+        do {
+            try await FriendService.shared.cancelRequest(id: request.id)
+            sentRequests.removeAll { $0.id == request.id }
         } catch {
             errorMessage = error.localizedDescription
         }
