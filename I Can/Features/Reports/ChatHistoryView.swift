@@ -10,6 +10,15 @@ struct ChatHistoryView: View {
     @State private var total = 0
     @State private var errorMessage: String?
 
+    // Rename state
+    @State private var renamingConversation: Conversation?
+    @State private var renameText = ""
+    @State private var showRenameAlert = false
+
+    // Delete confirmation state
+    @State private var deletingConversation: Conversation?
+    @State private var showDeleteConfirmation = false
+
     var onSelectConversation: (String) -> Void
     var onNewChat: () -> Void
 
@@ -31,6 +40,29 @@ struct ChatHistoryView: View {
         .background(ColorTheme.background(colorScheme).ignoresSafeArea())
         .task {
             await loadConversations(reset: true)
+        }
+        .alert("Rename Conversation", isPresented: $showRenameAlert) {
+            TextField("Conversation name", text: $renameText)
+            Button("Cancel", role: .cancel) {
+                renamingConversation = nil
+            }
+            Button("Save") {
+                if let conversation = renamingConversation {
+                    Task { await renameConversation(conversation, newTitle: renameText) }
+                }
+            }
+        }
+        .alert("Delete Conversation", isPresented: $showDeleteConfirmation) {
+            Button("Cancel", role: .cancel) {
+                deletingConversation = nil
+            }
+            Button("Delete", role: .destructive) {
+                if let conversation = deletingConversation {
+                    Task { await deleteConversation(conversation) }
+                }
+            }
+        } message: {
+            Text("Are you sure you want to delete this conversation? This cannot be undone.")
         }
     }
 
@@ -169,6 +201,44 @@ struct ChatHistoryView: View {
                             Label("Delete", systemImage: "trash")
                         }
                     }
+                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                        Button {
+                            Task { await togglePin(conversation) }
+                        } label: {
+                            Label(
+                                conversation.isPinned ? "Unpin" : "Pin",
+                                systemImage: conversation.isPinned ? "pin.slash.fill" : "pin.fill"
+                            )
+                        }
+                        .tint(Color(hex: "F59E0B"))
+                    }
+                    .contextMenu {
+                        Button {
+                            renamingConversation = conversation
+                            renameText = conversation.title ?? ""
+                            showRenameAlert = true
+                        } label: {
+                            Label("Rename", systemImage: "pencil")
+                        }
+
+                        Button {
+                            Task { await togglePin(conversation) }
+                        } label: {
+                            Label(
+                                conversation.isPinned ? "Unpin" : "Pin",
+                                systemImage: conversation.isPinned ? "pin.slash" : "pin"
+                            )
+                        }
+
+                        Divider()
+
+                        Button(role: .destructive) {
+                            deletingConversation = conversation
+                            showDeleteConfirmation = true
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
             }
 
             if hasMore && !isLoading {
@@ -227,6 +297,12 @@ struct ChatHistoryView: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
+                        if conversation.isPinned {
+                            Image(systemName: "pin.fill")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundColor(Color(hex: "F59E0B"))
+                        }
+
                         Text(conversation.title ?? "New Conversation")
                             .font(.system(size: 15, weight: .semibold).width(.condensed))
                             .foregroundColor(ColorTheme.primaryText(colorScheme))
@@ -295,6 +371,47 @@ struct ChatHistoryView: View {
         await loadConversations(reset: false)
     }
 
+    private func renameConversation(_ conversation: Conversation, newTitle: String) async {
+        let trimmed = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        do {
+            try await ChatService.shared.renameConversation(conversation.id, title: trimmed)
+            if let index = conversations.firstIndex(where: { $0.id == conversation.id }) {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    conversations[index].title = trimmed
+                }
+            }
+            HapticManager.impact(.light)
+        } catch {
+            #if DEBUG
+            print("ChatHistoryView: failed to rename conversation - \(error.localizedDescription)")
+            #endif
+        }
+        renamingConversation = nil
+    }
+
+    private func togglePin(_ conversation: Conversation) async {
+        do {
+            let isPinned = try await ChatService.shared.togglePin(conversation.id)
+            if let index = conversations.firstIndex(where: { $0.id == conversation.id }) {
+                withAnimation(.easeOut(duration: 0.25)) {
+                    conversations[index].isPinned = isPinned
+                    // Re-sort: pinned first, then by updatedAt
+                    conversations.sort { a, b in
+                        if a.isPinned != b.isPinned { return a.isPinned }
+                        return a.updatedAt > b.updatedAt
+                    }
+                }
+            }
+            HapticManager.impact(.light)
+        } catch {
+            #if DEBUG
+            print("ChatHistoryView: failed to toggle pin - \(error.localizedDescription)")
+            #endif
+        }
+    }
+
     private func deleteConversation(_ conversation: Conversation) async {
         do {
             try await ChatService.shared.deleteConversation(conversation.id)
@@ -308,6 +425,7 @@ struct ChatHistoryView: View {
             print("ChatHistoryView: failed to delete conversation - \(error.localizedDescription)")
             #endif
         }
+        deletingConversation = nil
     }
 
     // MARK: - Helpers

@@ -50,16 +50,37 @@ struct ChatResponse: Decodable {
 
 struct Conversation: Identifiable, Codable {
     let id: String
-    let title: String?
+    var title: String?
     let lastMessage: String?
     let messageCount: Int
+    var isPinned: Bool
     let createdAt: Date
     let updatedAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, lastMessage, messageCount, isPinned, createdAt, updatedAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        title = try container.decodeIfPresent(String.self, forKey: .title)
+        lastMessage = try container.decodeIfPresent(String.self, forKey: .lastMessage)
+        messageCount = try container.decode(Int.self, forKey: .messageCount)
+        isPinned = try container.decodeIfPresent(Bool.self, forKey: .isPinned) ?? false
+        createdAt = try container.decode(Date.self, forKey: .createdAt)
+        updatedAt = try container.decode(Date.self, forKey: .updatedAt)
+    }
 }
 
 struct ConversationsResponse: Decodable {
     let conversations: [Conversation]
     let total: Int
+}
+
+struct TogglePinResponse: Decodable {
+    let success: Bool
+    let isPinned: Bool
 }
 
 struct MessagesResponse: Decodable {

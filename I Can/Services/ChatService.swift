@@ -42,8 +42,25 @@ final class ChatService {
         return try await APIClient.shared.request(endpoint)
     }
 
+    func renameConversation(_ id: String, title: String) async throws {
+        let body = ["title": title]
+        let _: [String: Bool] = try await APIClient.shared.request(
+            APIEndpoints.Chat.renameConversation(id),
+            method: "PATCH",
+            body: body
+        )
+    }
+
+    func togglePin(_ id: String) async throws -> Bool {
+        let response: TogglePinResponse = try await APIClient.shared.request(
+            APIEndpoints.Chat.togglePin(id),
+            method: "PATCH"
+        )
+        return response.isPinned
+    }
+
     func deleteConversation(_ id: String) async throws {
-        let _: [String: String] = try await APIClient.shared.request(
+        let _: [String: Bool] = try await APIClient.shared.request(
             APIEndpoints.Chat.deleteConversation(id),
             method: "DELETE"
         )
