@@ -78,6 +78,11 @@ struct PerformanceDashboardView: View {
             if selectedPeriod == 0 {
                 // Daily mode - show selected day's data
                 if let dayData = selectedDayData {
+                    // Overall daily score
+                    if dayData.training || dayData.nutrition || dayData.sleep {
+                        dailyScoreCard(dayData)
+                    }
+
                     dailyStatsOverview(dayData)
 
                     if dayData.training, let duration = dayData.trainingDuration {
@@ -232,6 +237,45 @@ struct PerformanceDashboardView: View {
         day.training || day.nutrition || day.sleep
     }
 
+    // MARK: - Daily Score Card
+
+    private func dailyScoreCard(_ day: AnalyticsDailyData) -> some View {
+        let score = MonthlyScoreEngine.dailyScore(for: day)
+        let color = healthScoreColor(score)
+        let label = healthScoreLabel(score)
+
+        return HStack(spacing: 14) {
+            // Score ring
+            ZStack {
+                Circle()
+                    .stroke(color.opacity(0.15), lineWidth: 6)
+                Circle()
+                    .trim(from: 0, to: Double(score) / 100.0)
+                    .stroke(color, style: StrokeStyle(lineWidth: 6, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                Text("\(score)")
+                    .font(Typography.number(20))
+                    .foregroundColor(color)
+            }
+            .frame(width: 56, height: 56)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("DAILY SCORE")
+                    .font(.system(size: 9, weight: .heavy).width(.condensed))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                Text(label)
+                    .font(.system(size: 16, weight: .bold).width(.condensed))
+                    .foregroundColor(color)
+            }
+
+            Spacer()
+        }
+        .padding(14)
+        .background(ColorTheme.cardBackground(colorScheme))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
+    }
+
     // MARK: - Daily Stats Overview
 
     private func dailyStatsOverview(_ day: AnalyticsDailyData) -> some View {
@@ -330,18 +374,13 @@ struct PerformanceDashboardView: View {
             HStack(spacing: 16) {
                 healthScoreRing(score: detail.healthScore, size: 64, lineWidth: 6)
 
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(healthScoreLabel(detail.healthScore))
                         .font(.system(size: 14, weight: .bold).width(.condensed))
                         .foregroundColor(healthScoreColor(detail.healthScore))
-
-                    HStack(spacing: 10) {
-                        mealIndicator("B", filled: detail.breakfast, color: Color(hex: "F59E0B"))
-                        mealIndicator("L", filled: detail.lunch, color: ColorTheme.nutrition)
-                        mealIndicator("D", filled: detail.dinner, color: Color(hex: "6366F1"))
-                        mealIndicator("S", filled: detail.snacks, color: ColorTheme.secondaryText(colorScheme))
-                        mealIndicator("W", filled: detail.drinks, color: ColorTheme.sleep)
-                    }
+                    Text("\(detail.mealsLogged) meals logged")
+                        .font(.system(size: 12, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
                 }
 
                 Spacer()
@@ -550,31 +589,6 @@ struct PerformanceDashboardView: View {
             }
             .frame(height: 120)
 
-            // Intensity breakdown
-            if !summary.intensityBreakdown.isEmpty {
-                HStack(spacing: 8) {
-                    let order = ["low", "medium", "high", "max"]
-                    let total = summary.intensityBreakdown.values.reduce(0, +)
-                    ForEach(order, id: \.self) { level in
-                        if let count = summary.intensityBreakdown[level], count > 0 {
-                            let pct = total > 0 ? Int(round(Double(count) / Double(total) * 100)) : 0
-                            VStack(spacing: 3) {
-                                Text("\(pct)%")
-                                    .font(Typography.number(13))
-                                    .foregroundColor(intensityColor(level))
-                                Text(level.capitalized)
-                                    .font(.system(size: 9, weight: .bold).width(.condensed))
-                                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
-                                    .textCase(.uppercase)
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
-                    }
-                }
-                .padding(.vertical, 8)
-                .background(ColorTheme.elevatedBackground(colorScheme))
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            }
         }
         .padding(16)
         .background(ColorTheme.cardBackground(colorScheme))
