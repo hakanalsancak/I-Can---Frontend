@@ -14,14 +14,30 @@
 		A4880CD52F63B76500D02B78 /* FirebaseAnalyticsIdentitySupport in Frameworks */ = {isa = PBXBuildFile; productRef = A4880CD42F63B76500D02B78 /* FirebaseAnalyticsIdentitySupport */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		A4A173BD2F894807009A5D2D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A48432482F5B8DB1000540C4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A484324F2F5B8DB1000540C4;
+			remoteInfo = "I Can";
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		A48432502F5B8DB1000540C4 /* I Can.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "I Can.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A4A173B92F894807009A5D2D /* I CanTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "I CanTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		A48432522F5B8DB1000540C4 /* I Can */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "I Can";
+			sourceTree = "<group>";
+		};
+		A4A173BA2F894807009A5D2D /* I CanTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "I CanTests";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -39,6 +55,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A4A173B62F894807009A5D2D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -46,6 +69,7 @@
 			isa = PBXGroup;
 			children = (
 				A48432522F5B8DB1000540C4 /* I Can */,
+				A4A173BA2F894807009A5D2D /* I CanTests */,
 				A48432512F5B8DB1000540C4 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -54,6 +78,7 @@
 			isa = PBXGroup;
 			children = (
 				A48432502F5B8DB1000540C4 /* I Can.app */,
+				A4A173B92F894807009A5D2D /* I CanTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -88,6 +113,29 @@
 			productReference = A48432502F5B8DB1000540C4 /* I Can.app */;
 			productType = "com.apple.product-type.application";
 		};
+		A4A173B82F894807009A5D2D /* I CanTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A4A173BF2F894807009A5D2D /* Build configuration list for PBXNativeTarget "I CanTests" */;
+			buildPhases = (
+				A4A173B52F894807009A5D2D /* Sources */,
+				A4A173B62F894807009A5D2D /* Frameworks */,
+				A4A173B72F894807009A5D2D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A4A173BE2F894807009A5D2D /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A4A173BA2F894807009A5D2D /* I CanTests */,
+			);
+			name = "I CanTests";
+			packageProductDependencies = (
+			);
+			productName = "I CanTests";
+			productReference = A4A173B92F894807009A5D2D /* I CanTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -100,6 +148,10 @@
 				TargetAttributes = {
 					A484324F2F5B8DB1000540C4 = {
 						CreatedOnToolsVersion = 26.2;
+					};
+					A4A173B82F894807009A5D2D = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = A484324F2F5B8DB1000540C4;
 					};
 				};
 			};
@@ -122,12 +174,20 @@
 			projectRoot = "";
 			targets = (
 				A484324F2F5B8DB1000540C4 /* I Can */,
+				A4A173B82F894807009A5D2D /* I CanTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		A484324E2F5B8DB1000540C4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A4A173B72F894807009A5D2D /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -144,7 +204,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A4A173B52F894807009A5D2D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A4A173BE2F894807009A5D2D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A484324F2F5B8DB1000540C4 /* I Can */;
+			targetProxy = A4A173BD2F894807009A5D2D /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		A48432592F5B8DB1000540C4 /* Debug */ = {
@@ -365,6 +440,53 @@
 			};
 			name = Release;
 		};
+		A4A173C02F894807009A5D2D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = APJ26357AN;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.hakanalsancak.I-CanTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/I Can.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/I Can";
+			};
+			name = Debug;
+		};
+		A4A173C12F894807009A5D2D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = APJ26357AN;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.hakanalsancak.I-CanTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/I Can.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/I Can";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -382,6 +504,15 @@
 			buildConfigurations = (
 				A484325C2F5B8DB1000540C4 /* Debug */,
 				A484325D2F5B8DB1000540C4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A4A173BF2F894807009A5D2D /* Build configuration list for PBXNativeTarget "I CanTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A4A173C02F894807009A5D2D /* Debug */,
+				A4A173C12F894807009A5D2D /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
