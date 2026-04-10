@@ -36,8 +36,9 @@ final class JournalViewModel {
         let calendar = Calendar.current
         guard let firstDay = calendar.date(from: calendar.dateComponents([.year, .month], from: currentMonth))
         else { return 0 }
-        let weekday = calendar.component(.weekday, from: firstDay)
-        return (weekday - calendar.firstWeekday + 7) % 7
+        let weekday = calendar.component(.weekday, from: firstDay) // 1=Sun, 2=Mon, ..., 7=Sat
+        // Monday-based: Mon=0, Tue=1, ..., Sun=6
+        return (weekday - 2 + 7) % 7
     }
 
     var monthYearString: String {

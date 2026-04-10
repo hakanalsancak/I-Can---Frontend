@@ -110,7 +110,7 @@ struct JournalView: View {
                 }
             }
 
-            let weekdays = ["S", "M", "T", "W", "T", "F", "S"]
+            let weekdays = ["M", "T", "W", "T", "F", "S", "S"]
             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 6) {
                 ForEach(0..<7, id: \.self) { i in
                     Text(weekdays[i])
