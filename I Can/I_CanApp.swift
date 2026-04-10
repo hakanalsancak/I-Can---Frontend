@@ -3,7 +3,7 @@ import Firebase
 
 // MARK: - Jailbreak Detection
 
-private func isDeviceJailbroken() -> Bool {
+private nonisolated func isDeviceJailbroken() -> Bool {
 #if targetEnvironment(simulator)
     return false
 #else
