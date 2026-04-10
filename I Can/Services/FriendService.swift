@@ -2,6 +2,11 @@ import Foundation
 
 final class FriendService {
     static let shared = FriendService()
+
+    private var cachedFriends: [AthleteProfile] = []
+    private var friendsFetchedAt: Date?
+    private let cacheMaxAge: TimeInterval = 60
+
     private init() {}
 
     func searchUsers(query: String) async throws -> [AthleteProfile] {
@@ -29,8 +34,20 @@ final class FriendService {
         return try await APIClient.shared.request(APIEndpoints.Friends.checkUsername + "?username=\(encoded)", authenticated: false)
     }
 
-    func getFriends() async throws -> [AthleteProfile] {
-        try await APIClient.shared.request(APIEndpoints.Friends.base)
+    func getFriends(forceRefresh: Bool = false) async throws -> [AthleteProfile] {
+        if !forceRefresh,
+           let fetchedAt = friendsFetchedAt, Date().timeIntervalSince(fetchedAt) < cacheMaxAge,
+           !cachedFriends.isEmpty {
+            return cachedFriends
+        }
+        let friends: [AthleteProfile] = try await APIClient.shared.request(APIEndpoints.Friends.base)
+        cachedFriends = friends
+        friendsFetchedAt = Date()
+        return friends
+    }
+
+    func invalidateFriendsCache() {
+        friendsFetchedAt = nil
     }
 
     func getPendingRequests() async throws -> [FriendRequest] {
@@ -43,28 +60,34 @@ final class FriendService {
 
     func sendFriendRequest(receiverId: String) async throws -> SendFriendRequestResponse {
         let body = ["receiverId": receiverId]
-        return try await APIClient.shared.request(
+        let result: SendFriendRequestResponse = try await APIClient.shared.request(
             APIEndpoints.Friends.sendRequest, method: "POST", body: body
         )
+        invalidateFriendsCache()
+        return result
     }
 
     func respondToRequest(id: String, action: String) async throws -> FriendActionResponse {
         let body = ["action": action]
-        return try await APIClient.shared.request(
+        let result: FriendActionResponse = try await APIClient.shared.request(
             APIEndpoints.Friends.respondRequest(id), method: "PUT", body: body
         )
+        invalidateFriendsCache()
+        return result
     }
 
     func cancelRequest(id: String) async throws {
         let _: FriendActionResponse = try await APIClient.shared.request(
             APIEndpoints.Friends.cancelRequest(id), method: "DELETE"
         )
+        invalidateFriendsCache()
     }
 
     func removeFriend(id: String) async throws {
         let _: FriendActionResponse = try await APIClient.shared.request(
             APIEndpoints.Friends.remove(id), method: "DELETE"
         )
+        invalidateFriendsCache()
     }
 
     func getFriendProfile(id: String) async throws -> AthleteProfile {

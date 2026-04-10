@@ -37,7 +37,7 @@ struct I_CanApp: App {
     #endif
 
     @State private var appearanceManager = AppearanceManager.shared
-    @State private var showJailbreakWarning = isDeviceJailbroken()
+    @State private var showJailbreakWarning = false
 
     init() {
         FirebaseApp.configure()
@@ -51,6 +51,9 @@ struct I_CanApp: App {
                 }
                 .preferredColorScheme(appearanceManager.current.colorScheme)
                 .task {
+                    if await Task.detached(priority: .utility, operation: { isDeviceJailbroken() }).value {
+                        showJailbreakWarning = true
+                    }
                     await SubscriptionService.shared.syncEntitlements()
                     await SubscriptionService.shared.listenForTransactions()
                 }

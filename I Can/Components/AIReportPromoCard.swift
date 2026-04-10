@@ -20,9 +20,13 @@ struct AIReportPromoCard: View {
         }
         .buttonStyle(.plain)
         .onAppear {
+            shimmerOffset = -1
             withAnimation(.linear(duration: 3).repeatForever(autoreverses: false)) {
                 shimmerOffset = 2
             }
+        }
+        .onDisappear {
+            shimmerOffset = -1
         }
     }
 

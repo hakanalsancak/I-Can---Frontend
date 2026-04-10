@@ -5,13 +5,25 @@ import Foundation
 final class EntryService {
     static let shared = EntryService()
 
+    private var cachedEntries: [DailyEntry] = []
+    private var entriesFetchedAt: Date?
+    private let cacheMaxAge: TimeInterval = 60
+
     func submitEntry(_ request: EntrySubmitRequest) async throws -> EntrySubmitResponse {
-        try await APIClient.shared.request(
+        entriesFetchedAt = nil // Invalidate cache after new submission
+        return try await APIClient.shared.request(
             APIEndpoints.Entries.base, method: "POST", body: request
         )
     }
 
-    func getEntries(startDate: String? = nil, endDate: String? = nil, limit: Int = 30) async throws -> [DailyEntry] {
+    func getEntries(startDate: String? = nil, endDate: String? = nil, limit: Int = 30, forceRefresh: Bool = false) async throws -> [DailyEntry] {
+        // Return cached data for default (no date filter) requests within cache window
+        if !forceRefresh, startDate == nil, endDate == nil, limit == 30,
+           let fetchedAt = entriesFetchedAt, Date().timeIntervalSince(fetchedAt) < cacheMaxAge,
+           !cachedEntries.isEmpty {
+            return cachedEntries
+        }
+
         var endpoint = APIEndpoints.Entries.base + "?limit=\(limit)"
         if let start = startDate?.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
             endpoint += "&startDate=\(start)"
@@ -20,6 +32,13 @@ final class EntryService {
             endpoint += "&endDate=\(end)"
         }
         let response: EntriesResponse = try await APIClient.shared.request(endpoint)
+
+        // Cache only default requests
+        if startDate == nil, endDate == nil, limit == 30 {
+            cachedEntries = response.entries
+            entriesFetchedAt = Date()
+        }
+
         return response.entries
     }
 

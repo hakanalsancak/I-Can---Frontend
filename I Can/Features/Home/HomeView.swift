@@ -121,7 +121,7 @@ struct HomeView: View {
 
     @Environment(\.colorScheme) private var colorScheme
 
-    private let quoteTimer = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
+    @State private var quoteTask: Task<Void, Never>?
 
     var body: some View {
         NavigationStack {
@@ -214,14 +214,21 @@ struct HomeView: View {
                     }
                 }
             }
-            .onReceive(quoteTimer) { _ in
-                rotateQuote()
-            }
             .onAppear {
+                quoteTask = Task {
+                    while !Task.isCancelled {
+                        try? await Task.sleep(for: .seconds(5))
+                        if !Task.isCancelled { rotateQuote() }
+                    }
+                }
                 withAnimation(.easeOut(duration: 0.6).delay(0.1)) {
                     heroAppeared = true
                 }
                 loadProfileImage()
+            }
+            .onDisappear {
+                quoteTask?.cancel()
+                quoteTask = nil
             }
             .onChange(of: selectedTab) { _, newTab in
                 if newTab == 0 {
