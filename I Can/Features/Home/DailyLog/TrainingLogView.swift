@@ -50,6 +50,10 @@ struct TrainingLogView: View {
     @State private var showAddSession = false
     @State private var editingSessionIndex: Int?
     @State private var inlineEditor = SessionEditorState()
+    @State private var showInlineCustomDetail = false
+    @State private var inlineCustomDetailText = ""
+    @State private var showCustomTypeInput = false
+    @State private var customTypeText = ""
 
     private var userSport: String {
         AuthService.shared.currentUser?.sport ?? "soccer"
@@ -382,43 +386,115 @@ struct TrainingLogView: View {
                     .font(.system(size: 10, weight: .heavy).width(.condensed))
                     .foregroundColor(ColorTheme.tertiaryText(colorScheme))
 
-                LazyVGrid(columns: [
-                    GridItem(.flexible(), spacing: 10),
-                    GridItem(.flexible(), spacing: 10),
-                ], spacing: 10) {
-                    ForEach([
-                        ("match", "Match", "trophy.fill"),
-                        ("gym", "Gym", "dumbbell.fill"),
-                        ("cardio", "Cardio", "heart.circle.fill"),
-                        ("technical", "Technical", "figure.run"),
-                        ("tactical", "Tactical", "brain.head.profile"),
-                        ("recovery", "Recovery", "leaf.fill"),
-                    ], id: \.0) { type, label, icon in
-                        Button {
-                            HapticManager.selection()
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                inlineEditor.reset()
-                                inlineEditor.trainingType = type
+                VStack(spacing: 10) {
+                    LazyVGrid(columns: [
+                        GridItem(.flexible(), spacing: 10),
+                        GridItem(.flexible(), spacing: 10),
+                    ], spacing: 10) {
+                        ForEach([
+                            ("match", "Match", "trophy.fill"),
+                            ("gym", "Gym", "dumbbell.fill"),
+                            ("cardio", "Cardio", "heart.circle.fill"),
+                            ("technical", "Technical", "figure.run"),
+                            ("tactical", "Tactical", "brain.head.profile"),
+                            ("recovery", "Recovery", "leaf.fill"),
+                        ], id: \.0) { type, label, icon in
+                            Button {
+                                HapticManager.selection()
+                                showCustomTypeInput = false
+                                customTypeText = ""
+                                withAnimation(.easeInOut(duration: 0.25)) {
+                                    inlineEditor.reset()
+                                    inlineEditor.trainingType = type
+                                }
+                            } label: {
+                                HStack(spacing: 8) {
+                                    Image(systemName: icon)
+                                        .font(.system(size: 14, weight: .semibold))
+                                    Text(label)
+                                        .font(.system(size: 14, weight: .semibold).width(.condensed))
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .background(ColorTheme.cardBackground(colorScheme))
+                                .foregroundColor(ColorTheme.primaryText(colorScheme))
+                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .strokeBorder(ColorTheme.training.opacity(0.15), lineWidth: 1)
+                                )
+                                .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 4, x: 0, y: 2)
                             }
-                        } label: {
-                            HStack(spacing: 8) {
-                                Image(systemName: icon)
-                                    .font(.system(size: 14, weight: .semibold))
-                                Text(label)
-                                    .font(.system(size: 14, weight: .semibold).width(.condensed))
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                            .background(ColorTheme.cardBackground(colorScheme))
-                            .foregroundColor(ColorTheme.primaryText(colorScheme))
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .strokeBorder(ColorTheme.training.opacity(0.15), lineWidth: 1)
-                            )
-                            .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 4, x: 0, y: 2)
+                            .buttonStyle(LogCardButtonStyle())
                         }
-                        .buttonStyle(LogCardButtonStyle())
+
+                        // + Custom type button
+                        if !showCustomTypeInput {
+                            Button {
+                                HapticManager.selection()
+                                withAnimation(.easeInOut(duration: 0.25)) {
+                                    showCustomTypeInput = true
+                                }
+                            } label: {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "plus")
+                                        .font(.system(size: 14, weight: .semibold))
+                                    Text("Custom")
+                                        .font(.system(size: 14, weight: .semibold).width(.condensed))
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .background(ColorTheme.cardBackground(colorScheme))
+                                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .strokeBorder(ColorTheme.training.opacity(0.2), style: StrokeStyle(lineWidth: 1, dash: [5]))
+                                )
+                                .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 4, x: 0, y: 2)
+                            }
+                            .buttonStyle(LogCardButtonStyle())
+                        }
+                    }
+
+                    // Custom type text field
+                    if showCustomTypeInput {
+                        HStack(spacing: 8) {
+                            TextField("e.g. Pilates, Yoga...", text: $customTypeText)
+                                .font(.system(size: 14, weight: .medium).width(.condensed))
+                                .foregroundColor(ColorTheme.primaryText(colorScheme))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 12)
+                                .background(ColorTheme.cardBackground(colorScheme))
+                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .strokeBorder(ColorTheme.training.opacity(0.3), lineWidth: 1)
+                                )
+                                .onSubmit { addCustomTrainingType() }
+
+                            Button {
+                                addCustomTrainingType()
+                            } label: {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.system(size: 28))
+                                    .foregroundColor(customTypeText.trimmingCharacters(in: .whitespaces).isEmpty ? ColorTheme.tertiaryText(colorScheme) : ColorTheme.training)
+                            }
+                            .disabled(customTypeText.trimmingCharacters(in: .whitespaces).isEmpty)
+                            .buttonStyle(.plain)
+
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.25)) {
+                                    showCustomTypeInput = false
+                                    customTypeText = ""
+                                }
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 24))
+                                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
                 }
             }
@@ -431,7 +507,10 @@ struct TrainingLogView: View {
     // MARK: - Inline Editor (first session, no sheet)
 
     private var inlineDetailOptions: [String] {
-        TrainingSession.detailOptions(for: inlineEditor.trainingType, sport: userSport)
+        let predefined = TrainingSession.detailOptions(for: inlineEditor.trainingType, sport: userSport)
+        let predefinedSet = Set(predefined)
+        let custom = inlineEditor.details.filter { !predefinedSet.contains($0) }.sorted()
+        return predefined + custom
     }
 
     private var inlineEditorView: some View {
@@ -451,6 +530,8 @@ struct TrainingLogView: View {
                     HapticManager.selection()
                     withAnimation(.easeInOut(duration: 0.25)) {
                         inlineEditor.reset()
+                        showInlineCustomDetail = false
+                        inlineCustomDetailText = ""
                     }
                 } label: {
                     Text("Change")
@@ -467,45 +548,106 @@ struct TrainingLogView: View {
             )
 
             // Detail options
-            if !inlineDetailOptions.isEmpty {
+            if !inlineDetailOptions.isEmpty || showInlineCustomDetail {
                 inlineSectionCard(title: inlineDetailSectionTitle, icon: inlineDetailSectionIcon) {
-                    LazyVGrid(columns: [
-                        GridItem(.flexible(), spacing: 8),
-                        GridItem(.flexible(), spacing: 8),
-                    ], spacing: 8) {
-                        ForEach(inlineDetailOptions, id: \.self) { option in
-                            Button {
-                                HapticManager.selection()
-                                if inlineEditor.details.contains(option) {
-                                    inlineEditor.details.remove(option)
-                                } else {
-                                    inlineEditor.details.insert(option)
+                    VStack(spacing: 10) {
+                        LazyVGrid(columns: [
+                            GridItem(.flexible(), spacing: 8),
+                            GridItem(.flexible(), spacing: 8),
+                        ], spacing: 8) {
+                            ForEach(inlineDetailOptions, id: \.self) { option in
+                                Button {
+                                    HapticManager.selection()
+                                    if inlineEditor.details.contains(option) {
+                                        inlineEditor.details.remove(option)
+                                    } else {
+                                        inlineEditor.details.insert(option)
+                                    }
+                                } label: {
+                                    Text(option)
+                                        .font(.system(size: 12, weight: .semibold).width(.condensed))
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 9)
+                                        .background(
+                                            inlineEditor.details.contains(option)
+                                                ? ColorTheme.training.opacity(0.15)
+                                                : ColorTheme.elevatedBackground(colorScheme)
+                                        )
+                                        .foregroundColor(
+                                            inlineEditor.details.contains(option)
+                                                ? ColorTheme.training
+                                                : ColorTheme.secondaryText(colorScheme)
+                                        )
+                                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                                .strokeBorder(
+                                                    inlineEditor.details.contains(option) ? ColorTheme.training.opacity(0.4) : .clear,
+                                                    lineWidth: 1
+                                                )
+                                        )
                                 }
-                            } label: {
-                                Text(option)
-                                    .font(.system(size: 12, weight: .semibold).width(.condensed))
+                                .buttonStyle(.plain)
+                            }
+
+                            // Add custom detail button
+                            if !showInlineCustomDetail {
+                                Button {
+                                    HapticManager.selection()
+                                    showInlineCustomDetail = true
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "plus")
+                                            .font(.system(size: 11, weight: .bold))
+                                        Text("Custom")
+                                            .font(.system(size: 12, weight: .semibold).width(.condensed))
+                                    }
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 9)
-                                    .background(
-                                        inlineEditor.details.contains(option)
-                                            ? ColorTheme.training.opacity(0.15)
-                                            : ColorTheme.elevatedBackground(colorScheme)
-                                    )
-                                    .foregroundColor(
-                                        inlineEditor.details.contains(option)
-                                            ? ColorTheme.training
-                                            : ColorTheme.secondaryText(colorScheme)
-                                    )
+                                    .background(ColorTheme.elevatedBackground(colorScheme))
+                                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
                                     .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                            .strokeBorder(
-                                                inlineEditor.details.contains(option) ? ColorTheme.training.opacity(0.4) : .clear,
-                                                lineWidth: 1
-                                            )
+                                            .strokeBorder(ColorTheme.training.opacity(0.2), style: StrokeStyle(lineWidth: 1, dash: [4]))
                                     )
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
+                        }
+
+                        // Custom detail text field
+                        if showInlineCustomDetail {
+                            HStack(spacing: 8) {
+                                TextField("Type your own...", text: $inlineCustomDetailText)
+                                    .font(.system(size: 14, weight: .medium).width(.condensed))
+                                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 9)
+                                    .background(ColorTheme.elevatedBackground(colorScheme))
+                                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                    .onSubmit { addInlineCustomDetail() }
+
+                                Button {
+                                    addInlineCustomDetail()
+                                } label: {
+                                    Image(systemName: "plus.circle.fill")
+                                        .font(.system(size: 24))
+                                        .foregroundColor(inlineCustomDetailText.trimmingCharacters(in: .whitespaces).isEmpty ? ColorTheme.tertiaryText(colorScheme) : ColorTheme.training)
+                                }
+                                .disabled(inlineCustomDetailText.trimmingCharacters(in: .whitespaces).isEmpty)
+                                .buttonStyle(.plain)
+
+                                Button {
+                                    showInlineCustomDetail = false
+                                    inlineCustomDetailText = ""
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.system(size: 20))
+                                        .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                                }
+                                .buttonStyle(.plain)
+                            }
                         }
                     }
                 }
@@ -668,6 +810,36 @@ struct TrainingLogView: View {
         .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
     }
 
+    private func addCustomTrainingType() {
+        let trimmed = customTypeText.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        // Use the text as-is for the training type key (lowercased), display will use capitalized via default case
+        let typeKey = trimmed.lowercased()
+        withAnimation(.easeInOut(duration: 0.25)) {
+            inlineEditor.reset()
+            inlineEditor.trainingType = typeKey
+            showCustomTypeInput = false
+            customTypeText = ""
+        }
+        HapticManager.selection()
+    }
+
+    private func addInlineCustomDetail() {
+        let trimmed = inlineCustomDetailText.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        let allOptions = Set(inlineDetailOptions)
+        // Only add if not already in predefined or custom options (case-insensitive check)
+        if !allOptions.contains(where: { $0.lowercased() == trimmed.lowercased() }) {
+            inlineEditor.details.insert(trimmed)
+        } else {
+            // Already exists — just select it
+            inlineEditor.details.insert(allOptions.first(where: { $0.lowercased() == trimmed.lowercased() }) ?? trimmed)
+        }
+        inlineCustomDetailText = ""
+        showInlineCustomDetail = false
+        HapticManager.selection()
+    }
+
     private func save() {
         let data = TrainingData(sessions: sessions, sport: userSport)
         onSave(data)
@@ -685,6 +857,10 @@ struct SessionEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @State private var editor = SessionEditorState()
+    @State private var showCustomDetail = false
+    @State private var customDetailText = ""
+    @State private var showCustomTypeInput = false
+    @State private var customTypeText = ""
 
     private let trainingTypes: [(String, String, String)] = [
         ("match", "Match", "trophy.fill"),
@@ -704,7 +880,10 @@ struct SessionEditorView: View {
     ]
 
     private var detailOptions: [String] {
-        TrainingSession.detailOptions(for: editor.trainingType, sport: sport)
+        let predefined = TrainingSession.detailOptions(for: editor.trainingType, sport: sport)
+        let predefinedSet = Set(predefined)
+        let custom = editor.details.filter { !predefinedSet.contains($0) }.sorted()
+        return predefined + custom
     }
 
     private var canSave: Bool { !editor.trainingType.isEmpty }
@@ -721,90 +900,239 @@ struct SessionEditorView: View {
                 VStack(spacing: 20) {
                     // Training Type
                     sectionCard(title: "TYPE", icon: "figure.run") {
-                        LazyVGrid(columns: [
-                            GridItem(.flexible(), spacing: 10),
-                            GridItem(.flexible(), spacing: 10),
-                        ], spacing: 10) {
-                            ForEach(trainingTypes, id: \.0) { type, label, icon in
-                                Button {
-                                    HapticManager.selection()
-                                    if editor.trainingType != type {
-                                        editor.details = []
+                        VStack(spacing: 10) {
+                            LazyVGrid(columns: [
+                                GridItem(.flexible(), spacing: 10),
+                                GridItem(.flexible(), spacing: 10),
+                            ], spacing: 10) {
+                                ForEach(trainingTypes, id: \.0) { type, label, icon in
+                                    Button {
+                                        HapticManager.selection()
+                                        if editor.trainingType != type {
+                                            editor.details = []
+                                            showCustomDetail = false
+                                            customDetailText = ""
+                                        }
+                                        showCustomTypeInput = false
+                                        customTypeText = ""
+                                        editor.trainingType = type
+                                    } label: {
+                                        HStack(spacing: 8) {
+                                            Image(systemName: icon)
+                                                .font(.system(size: 14, weight: .semibold))
+                                            Text(label)
+                                                .font(.system(size: 14, weight: .semibold).width(.condensed))
+                                        }
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 12)
+                                        .background(
+                                            editor.trainingType == type
+                                                ? AnyShapeStyle(ColorTheme.training.opacity(0.15))
+                                                : AnyShapeStyle(ColorTheme.elevatedBackground(colorScheme))
+                                        )
+                                        .foregroundColor(
+                                            editor.trainingType == type
+                                                ? ColorTheme.training
+                                                : ColorTheme.secondaryText(colorScheme)
+                                        )
+                                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                                .strokeBorder(
+                                                    editor.trainingType == type ? ColorTheme.training.opacity(0.4) : .clear,
+                                                    lineWidth: 1.5
+                                                )
+                                        )
                                     }
-                                    editor.trainingType = type
-                                } label: {
+                                    .buttonStyle(.plain)
+                                }
+
+                                // Show custom type chip if editor has a non-predefined type
+                                if !editor.trainingType.isEmpty && !trainingTypes.contains(where: { $0.0 == editor.trainingType }) {
                                     HStack(spacing: 8) {
-                                        Image(systemName: icon)
+                                        Image(systemName: "star.fill")
                                             .font(.system(size: 14, weight: .semibold))
-                                        Text(label)
+                                        Text(editor.trainingType.capitalized)
                                             .font(.system(size: 14, weight: .semibold).width(.condensed))
                                     }
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 12)
-                                    .background(
-                                        editor.trainingType == type
-                                            ? AnyShapeStyle(ColorTheme.training.opacity(0.15))
-                                            : AnyShapeStyle(ColorTheme.elevatedBackground(colorScheme))
-                                    )
-                                    .foregroundColor(
-                                        editor.trainingType == type
-                                            ? ColorTheme.training
-                                            : ColorTheme.secondaryText(colorScheme)
-                                    )
+                                    .background(ColorTheme.training.opacity(0.15))
+                                    .foregroundColor(ColorTheme.training)
                                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                            .strokeBorder(
-                                                editor.trainingType == type ? ColorTheme.training.opacity(0.4) : .clear,
-                                                lineWidth: 1.5
-                                            )
+                                            .strokeBorder(ColorTheme.training.opacity(0.4), lineWidth: 1.5)
                                     )
                                 }
-                                .buttonStyle(.plain)
+
+                                // + Custom type button
+                                if !showCustomTypeInput {
+                                    Button {
+                                        HapticManager.selection()
+                                        showCustomTypeInput = true
+                                    } label: {
+                                        HStack(spacing: 8) {
+                                            Image(systemName: "plus")
+                                                .font(.system(size: 14, weight: .semibold))
+                                            Text("Custom")
+                                                .font(.system(size: 14, weight: .semibold).width(.condensed))
+                                        }
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 12)
+                                        .background(ColorTheme.elevatedBackground(colorScheme))
+                                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                                .strokeBorder(ColorTheme.training.opacity(0.2), style: StrokeStyle(lineWidth: 1, dash: [5]))
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+
+                            // Custom type text field
+                            if showCustomTypeInput {
+                                HStack(spacing: 8) {
+                                    TextField("e.g. Pilates, Yoga...", text: $customTypeText)
+                                        .font(.system(size: 14, weight: .medium).width(.condensed))
+                                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 10)
+                                        .background(ColorTheme.elevatedBackground(colorScheme))
+                                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                                .strokeBorder(ColorTheme.training.opacity(0.3), lineWidth: 1)
+                                        )
+                                        .onSubmit { addSheetCustomTrainingType() }
+
+                                    Button {
+                                        addSheetCustomTrainingType()
+                                    } label: {
+                                        Image(systemName: "plus.circle.fill")
+                                            .font(.system(size: 28))
+                                            .foregroundColor(customTypeText.trimmingCharacters(in: .whitespaces).isEmpty ? ColorTheme.tertiaryText(colorScheme) : ColorTheme.training)
+                                    }
+                                    .disabled(customTypeText.trimmingCharacters(in: .whitespaces).isEmpty)
+                                    .buttonStyle(.plain)
+
+                                    Button {
+                                        showCustomTypeInput = false
+                                        customTypeText = ""
+                                    } label: {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .font(.system(size: 20))
+                                            .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                                    }
+                                    .buttonStyle(.plain)
+                                }
                             }
                         }
                     }
 
                     // Type-specific details
-                    if !editor.trainingType.isEmpty && !detailOptions.isEmpty {
+                    if !editor.trainingType.isEmpty && (!detailOptions.isEmpty || showCustomDetail) {
                         sectionCard(title: detailSectionTitle, icon: detailSectionIcon) {
-                            LazyVGrid(columns: [
-                                GridItem(.flexible(), spacing: 8),
-                                GridItem(.flexible(), spacing: 8),
-                            ], spacing: 8) {
-                                ForEach(detailOptions, id: \.self) { option in
-                                    Button {
-                                        HapticManager.selection()
-                                        if editor.details.contains(option) {
-                                            editor.details.remove(option)
-                                        } else {
-                                            editor.details.insert(option)
+                            VStack(spacing: 10) {
+                                LazyVGrid(columns: [
+                                    GridItem(.flexible(), spacing: 8),
+                                    GridItem(.flexible(), spacing: 8),
+                                ], spacing: 8) {
+                                    ForEach(detailOptions, id: \.self) { option in
+                                        Button {
+                                            HapticManager.selection()
+                                            if editor.details.contains(option) {
+                                                editor.details.remove(option)
+                                            } else {
+                                                editor.details.insert(option)
+                                            }
+                                        } label: {
+                                            Text(option)
+                                                .font(.system(size: 12, weight: .semibold).width(.condensed))
+                                                .frame(maxWidth: .infinity)
+                                                .padding(.vertical, 9)
+                                                .background(
+                                                    editor.details.contains(option)
+                                                        ? ColorTheme.training.opacity(0.15)
+                                                        : ColorTheme.elevatedBackground(colorScheme)
+                                                )
+                                                .foregroundColor(
+                                                    editor.details.contains(option)
+                                                        ? ColorTheme.training
+                                                        : ColorTheme.secondaryText(colorScheme)
+                                                )
+                                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                                .overlay(
+                                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                                        .strokeBorder(
+                                                            editor.details.contains(option) ? ColorTheme.training.opacity(0.4) : .clear,
+                                                            lineWidth: 1
+                                                        )
+                                                )
                                         }
-                                    } label: {
-                                        Text(option)
-                                            .font(.system(size: 12, weight: .semibold).width(.condensed))
+                                        .buttonStyle(.plain)
+                                    }
+
+                                    // Add custom detail button
+                                    if !showCustomDetail {
+                                        Button {
+                                            HapticManager.selection()
+                                            showCustomDetail = true
+                                        } label: {
+                                            HStack(spacing: 4) {
+                                                Image(systemName: "plus")
+                                                    .font(.system(size: 11, weight: .bold))
+                                                Text("Custom")
+                                                    .font(.system(size: 12, weight: .semibold).width(.condensed))
+                                            }
                                             .frame(maxWidth: .infinity)
                                             .padding(.vertical, 9)
-                                            .background(
-                                                editor.details.contains(option)
-                                                    ? ColorTheme.training.opacity(0.15)
-                                                    : ColorTheme.elevatedBackground(colorScheme)
-                                            )
-                                            .foregroundColor(
-                                                editor.details.contains(option)
-                                                    ? ColorTheme.training
-                                                    : ColorTheme.secondaryText(colorScheme)
-                                            )
+                                            .background(ColorTheme.elevatedBackground(colorScheme))
+                                            .foregroundColor(ColorTheme.secondaryText(colorScheme))
                                             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                                             .overlay(
                                                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                                    .strokeBorder(
-                                                        editor.details.contains(option) ? ColorTheme.training.opacity(0.4) : .clear,
-                                                        lineWidth: 1
-                                                    )
+                                                    .strokeBorder(ColorTheme.training.opacity(0.2), style: StrokeStyle(lineWidth: 1, dash: [4]))
                                             )
+                                        }
+                                        .buttonStyle(.plain)
                                     }
-                                    .buttonStyle(.plain)
+                                }
+
+                                // Custom detail text field
+                                if showCustomDetail {
+                                    HStack(spacing: 8) {
+                                        TextField("Type your own...", text: $customDetailText)
+                                            .font(.system(size: 14, weight: .medium).width(.condensed))
+                                            .foregroundColor(ColorTheme.primaryText(colorScheme))
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 9)
+                                            .background(ColorTheme.elevatedBackground(colorScheme))
+                                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                            .onSubmit { addCustomDetail() }
+
+                                        Button {
+                                            addCustomDetail()
+                                        } label: {
+                                            Image(systemName: "plus.circle.fill")
+                                                .font(.system(size: 24))
+                                                .foregroundColor(customDetailText.trimmingCharacters(in: .whitespaces).isEmpty ? ColorTheme.tertiaryText(colorScheme) : ColorTheme.training)
+                                        }
+                                        .disabled(customDetailText.trimmingCharacters(in: .whitespaces).isEmpty)
+                                        .buttonStyle(.plain)
+
+                                        Button {
+                                            showCustomDetail = false
+                                            customDetailText = ""
+                                        } label: {
+                                            Image(systemName: "xmark.circle.fill")
+                                                .font(.system(size: 20))
+                                                .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
                                 }
                             }
                         }
@@ -981,6 +1309,33 @@ struct SessionEditorView: View {
         case "other": return "ellipsis.circle.fill"
         default: return "list.bullet"
         }
+    }
+
+    private func addSheetCustomTrainingType() {
+        let trimmed = customTypeText.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        let typeKey = trimmed.lowercased()
+        editor.details = []
+        showCustomDetail = false
+        customDetailText = ""
+        editor.trainingType = typeKey
+        showCustomTypeInput = false
+        customTypeText = ""
+        HapticManager.selection()
+    }
+
+    private func addCustomDetail() {
+        let trimmed = customDetailText.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        let allOptions = Set(detailOptions)
+        if !allOptions.contains(where: { $0.lowercased() == trimmed.lowercased() }) {
+            editor.details.insert(trimmed)
+        } else {
+            editor.details.insert(allOptions.first(where: { $0.lowercased() == trimmed.lowercased() }) ?? trimmed)
+        }
+        customDetailText = ""
+        showCustomDetail = false
+        HapticManager.selection()
     }
 
     private func sectionCard<Content: View>(

@@ -173,7 +173,8 @@ final class NotificationService {
     // MARK: - Streak Reminder
 
     /// Schedules streak reminders for the next 7 days at 8 PM, each with a different random message.
-    func scheduleStreakReminder() {
+    /// - Parameter skipToday: When true, skips scheduling for today (user already logged).
+    func scheduleStreakReminder(skipToday: Bool = false) {
         let center = UNUserNotificationCenter.current()
         cancelStreakReminder()
 
@@ -181,6 +182,9 @@ final class NotificationService {
         let today = Date()
 
         for dayOffset in 0..<7 {
+            // Skip today entirely if user already logged
+            if dayOffset == 0 && skipToday { continue }
+
             guard let targetDate = calendar.date(byAdding: .day, value: dayOffset, to: today) else { continue }
             let pick = reminderMessages[Int.random(in: 0..<reminderMessages.count)]
 
@@ -224,11 +228,7 @@ final class NotificationService {
     /// Call this on app launch and after settings changes.
     func scheduleAllNotifications(frequency: Int, hasLoggedToday: Bool) {
         scheduleMotivationalQuotes(frequency: frequency)
-        if hasLoggedToday {
-            cancelStreakReminder()
-        } else {
-            scheduleStreakReminder()
-        }
+        scheduleStreakReminder(skipToday: hasLoggedToday)
     }
 
     private init() {}
