@@ -62,7 +62,7 @@ struct PerformanceDashboardView: View {
 
                 // Period Toggle
                 HStack(spacing: 0) {
-                    periodTab("Daily", index: 0)
+                    periodTab("Day", index: 0)
                     periodTab("Week", index: 1)
                     periodTab("Month", index: 2)
                 }
