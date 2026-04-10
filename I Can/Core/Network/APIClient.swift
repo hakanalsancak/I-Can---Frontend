@@ -15,6 +15,8 @@ private final class PinningDelegate: NSObject, URLSessionDelegate, Sendable {
         "T4eoRdbfIYF3G9IOGamqR3Vgye2bNLHQTSCOY8u3y5w=",
         // Intermediate CA: Google Trust Services WE1 (stable across rotations)
         "kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4=",
+        // Root CA: GTS Root R1 (valid until 2036-06-22 — backup for leaf+intermediate rotation)
+        "hxqRlPTu1bMS/0DITB1SSu0vd4u/8l8TjPgfaAp63Gc=",
     ]
 
     // ASN.1 header for EC P-256 SubjectPublicKeyInfo.
@@ -99,9 +101,17 @@ private actor TokenRefreshCoordinator {
     private var activeRefresh: Task<Void, Error>?
 
     func refresh(using refreshAction: @escaping @Sendable () async throws -> Void) async throws {
-        // If a refresh is already in progress, wait for it instead of starting another
+        // If a refresh is already in progress, wait for it with a timeout instead of hanging forever
         if let existing = activeRefresh {
-            try await existing.value
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                group.addTask { try await existing.value }
+                group.addTask {
+                    try await Task.sleep(for: .seconds(15))
+                    throw URLError(.timedOut)
+                }
+                try await group.next()
+                group.cancelAll()
+            }
             return
         }
 
@@ -305,6 +315,9 @@ final class APIClient: @unchecked Sendable {
             body: body,
             authenticated: false
         )
+        guard !tokenResponse.accessToken.isEmpty, !tokenResponse.refreshToken.isEmpty else {
+            throw APIError.unauthorized
+        }
         TokenManager.shared.saveTokens(access: tokenResponse.accessToken, refresh: tokenResponse.refreshToken)
     }
 }

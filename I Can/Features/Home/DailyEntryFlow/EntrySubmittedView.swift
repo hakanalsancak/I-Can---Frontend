@@ -4,6 +4,7 @@ struct EntrySubmittedView: View {
     let response: EntrySubmitResponse
     var coachInsight: String = ""
     var isLoadingInsight: Bool = false
+    var insightFailed: Bool = false
     let onDone: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
@@ -128,6 +129,12 @@ struct EntrySubmittedView: View {
                 Text(coachInsight)
                     .font(.system(size: 14, weight: .medium).width(.condensed))
                     .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(3)
+            } else if insightFailed {
+                Text("Coach insight couldn't load right now.")
+                    .font(.system(size: 14, weight: .medium).width(.condensed))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
                     .multilineTextAlignment(.center)
                     .lineSpacing(3)
             } else {

@@ -6,7 +6,11 @@ import StoreKit
 final class SubscriptionService {
     static let shared = SubscriptionService()
 
-    var isPremium = false
+    private static let premiumCacheKey = "cachedIsPremium"
+
+    var isPremium = UserDefaults.standard.bool(forKey: premiumCacheKey) {
+        didSet { UserDefaults.standard.set(isPremium, forKey: Self.premiumCacheKey) }
+    }
     var statusChecked = false
     var subscriptionStatus: SubscriptionStatus?
 
@@ -172,6 +176,7 @@ final class SubscriptionService {
         isPremium = false
         statusChecked = false
         subscriptionStatus = nil
+        UserDefaults.standard.removeObject(forKey: Self.premiumCacheKey)
         AnalyticsManager.setUserProperty(nil, forName: "subscription_tier")
         AnalyticsManager.setUserProperty(nil, forName: "subscription_status")
     }

@@ -44,6 +44,7 @@ final class DailyEntryViewModel {
     var submittedResponse: EntrySubmitResponse?
     var coachInsight: String = ""
     var isLoadingInsight = false
+    var insightFailed = false
 
     var steps: [EntryStep] {
         var s: [EntryStep] = [.activityType]
@@ -290,7 +291,9 @@ final class DailyEntryViewModel {
         do {
             let insight = try await EntryService.shared.generateInsight(request)
             if !insight.isEmpty { coachInsight = insight }
-        } catch {}
+        } catch {
+            insightFailed = true
+        }
         isLoadingInsight = false
     }
 }
@@ -477,6 +480,7 @@ struct DailyEntryFlowView: View {
                     response: response,
                     coachInsight: viewModel.coachInsight,
                     isLoadingInsight: viewModel.isLoadingInsight,
+                    insightFailed: viewModel.insightFailed,
                     onDone: {
                         onComplete(response)
                         dismiss()
