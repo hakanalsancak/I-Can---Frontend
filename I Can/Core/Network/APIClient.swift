@@ -215,6 +215,12 @@ final class APIClient: @unchecked Sendable {
             }
         }
 
+        // Unauthenticated 401s (e.g. refresh endpoint) should still be .unauthorized,
+        // not .serverError, so callers handle them correctly (sign out instead of maintenance screen).
+        if httpResponse.statusCode == 401, !authenticated {
+            throw APIError.unauthorized
+        }
+
         guard (200...299).contains(httpResponse.statusCode) else {
             let errorBody = try? decoder.decode(APIErrorResponse.self, from: data)
             throw APIError.serverError(errorBody?.error ?? "Server error (\(httpResponse.statusCode))")
