@@ -83,6 +83,7 @@ struct FriendsView: View {
                     viewModel.searchText = ""
                     viewModel.searchResults = []
                     isSearchFieldFocused = false
+                    Task { await viewModel.loadAll() }
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 16))
