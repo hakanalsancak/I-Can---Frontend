@@ -629,6 +629,7 @@ struct CoachChatView: View {
                 .animation(.spring(response: 0.45, dampingFraction: 0.82), value: messages.count)
                 .animation(.easeOut(duration: 0.25), value: isLoading)
             }
+            .scrollDismissesKeyboard(.interactively)
             .onChange(of: messages.count) {
                 Task {
                     try? await Task.sleep(for: .milliseconds(100))

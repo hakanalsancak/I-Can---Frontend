@@ -34,6 +34,7 @@ struct FriendsView: View {
                     .padding(.top, 16)
                     .padding(.bottom, 100)
                 }
+                .scrollDismissesKeyboard(.interactively)
             }
             .background(ColorTheme.background(colorScheme).ignoresSafeArea())
             .navigationBarHidden(true)
