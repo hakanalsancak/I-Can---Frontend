@@ -26,6 +26,13 @@ struct PerformanceDashboardView: View {
     @State private var selectedPeriod = 1 // 0 = daily, 1 = week, 2 = month
     @State private var selectedDayIndex = currentWeekdayIndex()
 
+    // Detail sheet states
+    @State private var showWeeklyTrainingDetail = false
+    @State private var showWeeklyNutritionDetail = false
+    @State private var showWeeklySleepDetail = false
+    @State private var selectedDayTraining: AnalyticsDailyData?
+    @State private var selectedDayNutrition: AnalyticsDailyData?
+
     // Weekly sections now always use weeklyData directly
     // Monthly has its own dedicated MonthlyDashboardView
 
@@ -136,6 +143,29 @@ struct PerformanceDashboardView: View {
                     .frame(maxWidth: .infinity, minHeight: 100)
             } else {
                 noDataView(message: "Start logging to see your data")
+            }
+        }
+        .sheet(isPresented: $showWeeklyTrainingDetail) {
+            if let data = weeklyData {
+                WeeklyTrainingDetailView(data: data)
+            }
+        }
+        .sheet(isPresented: $showWeeklyNutritionDetail) {
+            if let data = weeklyData {
+                WeeklyNutritionDetailView(data: data)
+            }
+        }
+        .sheet(isPresented: $showWeeklySleepDetail) {
+            if let data = weeklyData {
+                WeeklySleepDetailView(data: data)
+            }
+        }
+        .sheet(item: $selectedDayTraining) { day in
+            DayTrainingDetailView(day: day)
+        }
+        .sheet(item: $selectedDayNutrition) { day in
+            if let detail = day.nutritionDetail {
+                DayNutritionDetailView(day: day, detail: detail)
             }
         }
     }
@@ -476,24 +506,44 @@ struct PerformanceDashboardView: View {
 
     private func statsOverview(_ data: AnalyticsResponse) -> some View {
         HStack(spacing: 10) {
-            statCard(
-                value: "\(data.trainingSessions)",
-                label: "Training",
-                icon: "figure.run",
-                color: ColorTheme.training
-            )
-            statCard(
-                value: "\(data.nutritionDays)",
-                label: "Nutrition",
-                icon: "leaf.fill",
-                color: ColorTheme.nutrition
-            )
-            statCard(
-                value: data.avgSleepHours != nil ? String(format: "%.1f", data.avgSleepHours!) : "--",
-                label: "Avg Sleep",
-                icon: "moon.fill",
-                color: ColorTheme.sleep
-            )
+            Button {
+                HapticManager.selection()
+                showWeeklyTrainingDetail = true
+            } label: {
+                statCard(
+                    value: "\(data.trainingSessions)",
+                    label: "Training",
+                    icon: "figure.run",
+                    color: ColorTheme.training
+                )
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                HapticManager.selection()
+                showWeeklyNutritionDetail = true
+            } label: {
+                statCard(
+                    value: "\(data.nutritionDays)",
+                    label: "Nutrition",
+                    icon: "leaf.fill",
+                    color: ColorTheme.nutrition
+                )
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                HapticManager.selection()
+                showWeeklySleepDetail = true
+            } label: {
+                statCard(
+                    value: data.avgSleepHours != nil ? String(format: "%.1f", data.avgSleepHours!) : "--",
+                    label: "Avg Sleep",
+                    icon: "moon.fill",
+                    color: ColorTheme.sleep
+                )
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -587,6 +637,21 @@ struct PerformanceDashboardView: View {
                     }
                 }
             }
+            .chartOverlay { proxy in
+                GeometryReader { geo in
+                    Rectangle()
+                        .fill(Color.clear)
+                        .contentShape(Rectangle())
+                        .onTapGesture { location in
+                            guard let label: String = proxy.value(atX: location.x) else { return }
+                            if let match = allDays.first(where: { $0.label == label }),
+                               let dayData = match.data, dayData.training {
+                                HapticManager.selection()
+                                selectedDayTraining = dayData
+                            }
+                        }
+                }
+            }
             .frame(height: 120)
 
         }
@@ -659,29 +724,38 @@ struct PerformanceDashboardView: View {
                 HStack(spacing: 0) {
                     ForEach(allNutritionDays.indices, id: \.self) { i in
                         let day = allNutritionDays[i]
-                        VStack(spacing: 4) {
-                            if let detail = day.data?.nutritionDetail {
-                                healthScoreRing(score: detail.healthScore, size: 38, lineWidth: 4)
-                            } else {
-                                // Empty placeholder ring
-                                ZStack {
-                                    Circle()
-                                        .stroke(ColorTheme.separator(colorScheme), lineWidth: 4)
-                                    Text("--")
-                                        .font(.system(size: 10, weight: .medium).width(.condensed))
-                                        .foregroundColor(ColorTheme.tertiaryText(colorScheme))
-                                }
-                                .frame(width: 38, height: 38)
+                        Button {
+                            if let dayData = day.data, dayData.nutritionDetail != nil {
+                                HapticManager.selection()
+                                selectedDayNutrition = dayData
                             }
-                            Text(day.label)
-                                .font(.system(size: 9, weight: .medium).width(.condensed))
-                                .foregroundColor(
-                                    day.data?.nutritionDetail != nil
-                                        ? ColorTheme.secondaryText(colorScheme)
-                                        : ColorTheme.tertiaryText(colorScheme)
-                                )
+                        } label: {
+                            VStack(spacing: 4) {
+                                if let detail = day.data?.nutritionDetail {
+                                    healthScoreRing(score: detail.healthScore, size: 38, lineWidth: 4)
+                                } else {
+                                    // Empty placeholder ring
+                                    ZStack {
+                                        Circle()
+                                            .stroke(ColorTheme.separator(colorScheme), lineWidth: 4)
+                                        Text("--")
+                                            .font(.system(size: 10, weight: .medium).width(.condensed))
+                                            .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                                    }
+                                    .frame(width: 38, height: 38)
+                                }
+                                Text(day.label)
+                                    .font(.system(size: 9, weight: .medium).width(.condensed))
+                                    .foregroundColor(
+                                        day.data?.nutritionDetail != nil
+                                            ? ColorTheme.secondaryText(colorScheme)
+                                            : ColorTheme.tertiaryText(colorScheme)
+                                    )
+                            }
+                            .frame(maxWidth: .infinity)
                         }
-                        .frame(maxWidth: .infinity)
+                        .buttonStyle(.plain)
+                        .disabled(day.data?.nutritionDetail == nil)
                     }
                 }
             }

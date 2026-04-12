@@ -16,15 +16,27 @@ struct AnalyticsNutritionDetail: Codable {
     let snacks: Bool
     let drinks: Bool
     let healthScore: Int
+    let breakfastText: String?
+    let lunchText: String?
+    let dinnerText: String?
+    let snacksText: String?
+    let drinksText: String?
 }
 
-struct AnalyticsDailyData: Codable {
+struct AnalyticsDailyData: Codable, Identifiable, Equatable {
+    static func == (lhs: AnalyticsDailyData, rhs: AnalyticsDailyData) -> Bool {
+        lhs.date == rhs.date
+    }
+
+    var id: String { date }
     let date: String
     let completion: Int
     let training: Bool
     let nutrition: Bool
     let sleep: Bool
     let sleepHours: Double?
+    let sleepTime: String?
+    let wakeTime: String?
     let trainingSessions: [AnalyticsSessionData]?
     let trainingDuration: Int?
     let nutritionDetail: AnalyticsNutritionDetail?
