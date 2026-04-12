@@ -34,7 +34,9 @@ struct FriendsView: View {
                     .padding(.top, 16)
                     .padding(.bottom, 100)
                 }
-                .scrollDismissesKeyboard(.interactively)
+                .onTapGesture {
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                }
             }
             .background(ColorTheme.background(colorScheme).ignoresSafeArea())
             .navigationBarHidden(true)

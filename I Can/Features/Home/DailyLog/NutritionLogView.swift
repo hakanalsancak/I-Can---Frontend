@@ -118,6 +118,9 @@ struct NutritionLogView: View {
                 .padding(.top, 8)
                 .padding(.bottom, 32)
             }
+            .onTapGesture {
+                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+            }
             .background(ColorTheme.background(colorScheme).ignoresSafeArea())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
