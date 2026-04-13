@@ -89,9 +89,14 @@ struct CoachChatView: View {
             }
             .onAppear {
                 if messages.isEmpty {
-                    messages = ChatService.shared.loadMessages()
-                    // Mark all loaded messages as already appeared (no animation)
-                    appearedMessageIDs = Set(messages.map(\.id))
+                    if ChatService.hasOpenedChatThisSession {
+                        // Within-session navigation: restore the last active chat
+                        messages = ChatService.shared.loadMessages()
+                        appearedMessageIDs = Set(messages.map(\.id))
+                    } else {
+                        // Fresh app launch: start a blank chat (like ChatGPT)
+                        ChatService.hasOpenedChatThisSession = true
+                    }
                 }
                 restoreLimitState()
             }
