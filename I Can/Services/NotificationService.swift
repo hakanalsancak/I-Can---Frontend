@@ -226,8 +226,10 @@ final class NotificationService {
 
     /// Reschedules all local notifications based on current user state.
     /// Call this on app launch and after settings changes.
+    /// Note: Motivational quotes are sent exclusively via backend push (APNS),
+    /// so only streak reminders are scheduled locally.
     func scheduleAllNotifications(frequency: Int, hasLoggedToday: Bool) {
-        scheduleMotivationalQuotes(frequency: frequency)
+        cancelMotivationalQuotes()
         scheduleStreakReminder(skipToday: hasLoggedToday)
     }
 
