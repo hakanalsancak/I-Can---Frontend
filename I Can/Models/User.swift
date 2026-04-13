@@ -32,6 +32,7 @@ struct RegisterRequest: Encodable {
     let email: String
     let password: String
     let fullName: String?
+    let timezone: String = TimeZone.current.identifier
 }
 
 struct AuthResponse: Codable {
@@ -44,6 +45,7 @@ struct AuthResponse: Codable {
 struct AppleSignInRequest: Encodable {
     let identityToken: String
     let fullName: FullName?
+    let timezone: String = TimeZone.current.identifier
 
     struct FullName: Encodable {
         let givenName: String?
@@ -53,6 +55,7 @@ struct AppleSignInRequest: Encodable {
 
 struct GoogleSignInRequest: Encodable {
     let idToken: String
+    let timezone: String = TimeZone.current.identifier
 }
 
 struct OnboardingRequest: Encodable {
