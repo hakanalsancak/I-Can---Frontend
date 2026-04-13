@@ -4,6 +4,7 @@ import Combine
 struct ReportsView: View {
     @State private var viewModel = ReportsViewModel()
     @State private var showSubscription = false
+    @State private var showSavedReports = false
     @State private var now = Date()
     @Environment(\.colorScheme) private var colorScheme
 
@@ -64,6 +65,16 @@ struct ReportsView: View {
                 Task { try? await SubscriptionService.shared.checkStatus() }
             }) {
                 SubscriptionView()
+            }
+            .sheet(isPresented: $showSavedReports) {
+                SavedReportsView(
+                    weeklyReports: Array(viewModel.weeklyReports.dropFirst()),
+                    monthlyReports: Array(viewModel.monthlyReports.dropFirst()),
+                    yearlyReports: Array(viewModel.yearlyReports.dropFirst())
+                ) { report in
+                    showSavedReports = false
+                    await viewModel.loadReportDetail(report)
+                }
             }
             .onReceive(countdownTimer) { _ in
                 now = Date()
@@ -154,10 +165,97 @@ struct ReportsView: View {
                 periodLabel: "year"
             )
 
+            savedReportsButton
+
             if let error = viewModel.errorMessage {
                 errorBanner(error)
             }
         }
+    }
+
+    // MARK: - Single Report Card
+
+    private func reportCard(_ report: AIReport) -> some View {
+        Button {
+            HapticManager.selection()
+            Task { await viewModel.loadReportDetail(report) }
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: report.reportIcon)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(reportIconColor(report.reportType))
+                    .frame(width: 32, height: 32)
+                    .background(reportIconColor(report.reportType).opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(report.dateRangeDisplay)
+                        .font(.system(size: 15, weight: .semibold).width(.condensed))
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+
+                    HStack(spacing: 8) {
+                        if let created = report.createdDateDisplay {
+                            Text("Generated \(created)")
+                                .font(.system(size: 12, weight: .medium).width(.condensed))
+                                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                        }
+                        if let count = report.entryCount {
+                            Text("·  \(count) entries")
+                                .font(.system(size: 12, weight: .medium).width(.condensed))
+                                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                        }
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+            }
+            .padding(14)
+            .background(ColorTheme.cardBackground(colorScheme))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 4, x: 0, y: 1)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Saved Reports Button
+
+    private var savedReportsButton: some View {
+        Button {
+            HapticManager.selection()
+            showSavedReports = true
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "archivebox.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(Color(hex: "8B5CF6"))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Saved Reports")
+                        .font(.system(size: 16, weight: .bold).width(.condensed))
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+
+                    let totalCount = max(0, viewModel.weeklyReports.count - 1) + max(0, viewModel.monthlyReports.count - 1) + max(0, viewModel.yearlyReports.count - 1)
+                    Text("\(totalCount) report\(totalCount == 1 ? "" : "s") saved")
+                        .font(.system(size: 13, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+            }
+            .padding(16)
+            .background(ColorTheme.cardBackground(colorScheme))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Report Section
@@ -190,10 +288,8 @@ struct ReportsView: View {
                     .shimmering()
             }
 
-            if viewModel.isLoading {
-                loadingPlaceholder
-            } else if !reports.isEmpty {
-                reportCards(reports)
+            if let latest = reports.first {
+                reportCard(latest)
             }
         }
     }
