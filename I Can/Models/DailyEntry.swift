@@ -133,6 +133,19 @@ struct InsightRequest: Encodable {
     // V2 Training Log fields
     var trainingSessions: [TrainingSessionInsight]?
     var sessionScore: Int?
+
+    // Nutrition Log fields
+    var nutrition: NutritionInsight?
+}
+
+struct NutritionInsight: Encodable {
+    var breakfast: String?
+    var lunch: String?
+    var dinner: String?
+    var snacks: String?
+    var drinks: String?
+    var healthScore: Int?
+    var mealsLogged: Int?
 }
 
 struct TrainingSessionInsight: Encodable {

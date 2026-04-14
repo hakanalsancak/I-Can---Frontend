@@ -33,9 +33,17 @@ final class HomeViewModel {
     var isLoadingTrainingInsight = false
     private var lastInsightTrainingData: TrainingData?
 
+    // Nutrition insight (shown inline in performance dashboard)
+    var nutritionInsight: String = ""
+    var isLoadingNutritionInsight = false
+    private var lastInsightNutritionData: NutritionData?
+
     private static let insightTextKey = "trainingInsight.text"
     private static let insightDateKey = "trainingInsight.date"
     private static let insightDataKey = "trainingInsight.data"
+    private static let nutritionInsightTextKey = "nutritionInsight.text"
+    private static let nutritionInsightDateKey = "nutritionInsight.date"
+    private static let nutritionInsightDataKey = "nutritionInsight.data"
 
     private var isSaving = false
     private var hasLoadedInitially = false
@@ -228,10 +236,47 @@ final class HomeViewModel {
             completedSections.append("nutrition")
         }
 
-        if !(await saveDailyLog()) {
+        if await saveDailyLog() {
+            await fetchNutritionInsight(data)
+        } else {
             todayNutrition = prevNutrition
             completedSections = prevSections
         }
+    }
+
+    private func fetchNutritionInsight(_ data: NutritionData) async {
+        guard SubscriptionService.shared.isPremium else { return }
+        if let last = lastInsightNutritionData, last == data, !nutritionInsight.isEmpty {
+            return
+        }
+        isLoadingNutritionInsight = true
+
+        // Pull the health score from today's analytics if available
+        let today = Date().apiDateString
+        let healthScore = weeklyAnalytics?.dailyData.first(where: { $0.date == today })?.nutritionDetail?.healthScore
+
+        var request = InsightRequest(activityType: "Nutrition Log")
+        request.nutrition = NutritionInsight(
+            breakfast: data.breakfast,
+            lunch: data.lunch,
+            dinner: data.dinner,
+            snacks: data.snacks,
+            drinks: data.drinks,
+            healthScore: healthScore,
+            mealsLogged: data.mealsLogged
+        )
+
+        do {
+            let insight = try await EntryService.shared.generateInsight(request)
+            if !insight.isEmpty {
+                nutritionInsight = insight
+                lastInsightNutritionData = data
+                persistNutritionInsight(insight, data: data)
+            }
+        } catch {
+            // Silently fail - insight is a nice-to-have
+        }
+        isLoadingNutritionInsight = false
     }
 
     func submitSleep(_ data: SleepData) async {
@@ -286,6 +331,7 @@ final class HomeViewModel {
 
     private init() {
         loadPersistedInsight()
+        loadPersistedNutritionInsight()
     }
 
     private func loadPersistedInsight() {
@@ -313,6 +359,33 @@ final class HomeViewModel {
         defaults.set(Date().apiDateString, forKey: Self.insightDateKey)
         if let encoded = try? JSONEncoder().encode(data) {
             defaults.set(encoded, forKey: Self.insightDataKey)
+        }
+    }
+
+    private func loadPersistedNutritionInsight() {
+        let defaults = UserDefaults.standard
+        guard let savedDate = defaults.string(forKey: Self.nutritionInsightDateKey),
+              savedDate == Date().apiDateString,
+              let text = defaults.string(forKey: Self.nutritionInsightTextKey),
+              !text.isEmpty else {
+            defaults.removeObject(forKey: Self.nutritionInsightTextKey)
+            defaults.removeObject(forKey: Self.nutritionInsightDateKey)
+            defaults.removeObject(forKey: Self.nutritionInsightDataKey)
+            return
+        }
+        nutritionInsight = text
+        if let data = defaults.data(forKey: Self.nutritionInsightDataKey),
+           let decoded = try? JSONDecoder().decode(NutritionData.self, from: data) {
+            lastInsightNutritionData = decoded
+        }
+    }
+
+    private func persistNutritionInsight(_ text: String, data: NutritionData) {
+        let defaults = UserDefaults.standard
+        defaults.set(text, forKey: Self.nutritionInsightTextKey)
+        defaults.set(Date().apiDateString, forKey: Self.nutritionInsightDateKey)
+        if let encoded = try? JSONEncoder().encode(data) {
+            defaults.set(encoded, forKey: Self.nutritionInsightDataKey)
         }
     }
 }
