@@ -1,5 +1,6 @@
 import SwiftUI
 import Firebase
+import UserNotifications
 
 // MARK: - Jailbreak Detection
 
@@ -36,6 +37,7 @@ struct I_CanApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     #endif
 
+    @Environment(\.scenePhase) private var scenePhase
     @State private var appearanceManager = AppearanceManager.shared
     @State private var showJailbreakWarning = false
 
@@ -56,6 +58,11 @@ struct I_CanApp: App {
                 }
                 .onAppear {
                     AnalyticsManager.log("app_opened")
+                }
+                .onChange(of: scenePhase) { _, newPhase in
+                    if newPhase == .active {
+                        UNUserNotificationCenter.current().setBadgeCount(0)
+                    }
                 }
                 .alert("Security Warning", isPresented: $showJailbreakWarning) {
                     Button("OK", role: .cancel) { }
