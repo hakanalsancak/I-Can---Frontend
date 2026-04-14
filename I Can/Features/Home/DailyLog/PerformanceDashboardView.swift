@@ -440,11 +440,46 @@ struct PerformanceDashboardView: View {
 
                 Spacer()
             }
+
+            Divider().foregroundColor(ColorTheme.separator(colorScheme))
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(ColorTheme.nutrition)
+                    .frame(width: 14)
+                Text(nutritionInsight(detail))
+                    .font(.system(size: 11, weight: .medium).width(.condensed))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .padding(16)
         .background(ColorTheme.cardBackground(colorScheme))
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
+    }
+
+    private func nutritionInsight(_ detail: AnalyticsNutritionDetail) -> String {
+        let score = detail.healthScore
+        if score >= 85 {
+            return "Elite fueling. Keep this rhythm locked in."
+        }
+        if !detail.breakfast {
+            return "Skipped breakfast. Add a protein + carb start to move toward elite."
+        }
+        if !detail.lunch {
+            return "No lunch logged. A balanced midday plate will boost your score."
+        }
+        if !detail.dinner {
+            return "Missing dinner. Add lean protein + veg to recover elite-level."
+        }
+        if !detail.drinks {
+            return "Log hydration — water intake is the easy lift to hit elite."
+        }
+        if score >= 70 {
+            return "Solid day. Swap one processed item for whole food to go elite."
+        }
+        return "Low fuel today. Build three clean meals tomorrow to climb to elite."
     }
 
     private func mealIndicator(_ label: String, filled: Bool, color: Color) -> some View {
