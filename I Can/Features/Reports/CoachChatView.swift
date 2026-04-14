@@ -89,18 +89,20 @@ struct CoachChatView: View {
             }
             .onAppear {
                 if messages.isEmpty {
-                    if ChatService.hasOpenedChatThisSession {
-                        // Within-session navigation: restore the last active chat
-                        messages = ChatService.shared.loadMessages()
-                        appearedMessageIDs = Set(messages.map(\.id))
-                    } else {
-                        // Fresh app launch: start a blank chat (like ChatGPT)
-                        ChatService.hasOpenedChatThisSession = true
+                    // Restore from in-memory session (survives tab switches, blank on fresh launch)
+                    let cached = ChatService.shared.sessionMessages
+                    if !cached.isEmpty {
+                        messages = cached
+                        currentConversationId = ChatService.shared.sessionConversationId
+                        appearedMessageIDs = Set(cached.map(\.id))
                     }
                 }
                 restoreLimitState()
             }
             .onDisappear {
+                // Persist to in-memory session so tab switches restore the chat
+                ChatService.shared.sessionMessages = messages
+                ChatService.shared.sessionConversationId = currentConversationId
                 stopCountdown()
                 streamingTask?.cancel()
             }
@@ -211,6 +213,9 @@ struct CoachChatView: View {
             chipsVisible = false
             appearedMessageIDs = []
         }
+        // Clear in-memory session
+        ChatService.shared.sessionMessages = []
+        ChatService.shared.sessionConversationId = nil
         withAnimation(.spring(response: 0.7, dampingFraction: 0.75).delay(0.1)) {
             headerVisible = true
         }

@@ -11,9 +11,9 @@ struct ChatResult {
 final class ChatService {
     static let shared = ChatService()
 
-    /// Resets to `false` on every fresh process launch.
-    /// CoachChatView checks this to decide whether to start a blank chat.
-    static var hasOpenedChatThisSession = false
+    /// In-memory session state — survives tab switches, resets on process death.
+    var sessionMessages: [ChatMessage] = []
+    var sessionConversationId: String? = nil
 
     private static let fileName = "coach_chat_history.json"
 
