@@ -129,6 +129,35 @@ struct InsightRequest: Encodable {
     var reflectionPositive: String?
     var reflectionImprove: String?
     var proudMoment: String?
+
+    // V2 Training Log fields
+    var trainingSessions: [TrainingSessionInsight]?
+    var sessionScore: Int?
+}
+
+struct TrainingSessionInsight: Encodable {
+    let trainingType: String
+    var duration: Int?
+    var matchType: String?
+    var result: String?
+    var performanceRating: Int?
+    var minutesPlayed: Int?
+    var position: String?
+    var keyStats: [String: Int]?
+    var gymFocus: String?
+    var effortLevel: String?
+    var exercises: [String]?
+    var cardioType: String?
+    var distance: Double?
+    var pace: String?
+    var cardioEffort: String?
+    var skillTrained: String?
+    var focusQuality: String?
+    var tacticalType: String?
+    var understandingLevel: String?
+    var recoveryType: String?
+    var sessionScore: Int?
+    var notes: String?
 }
 
 struct InsightResponse: Codable {

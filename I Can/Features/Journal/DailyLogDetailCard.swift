@@ -197,16 +197,47 @@ struct DailyLogDetailSheet: View {
                             .font(.system(size: 14, weight: .bold).width(.condensed))
                             .foregroundColor(ColorTheme.primaryText(colorScheme))
                         Spacer()
-                        Text("\(session.duration)min")
-                            .font(.system(size: 12, weight: .semibold).width(.condensed))
-                            .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                        Text(session.intensityDisplay)
-                            .font(.system(size: 10, weight: .heavy).width(.condensed))
-                            .foregroundColor(ColorTheme.training)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(ColorTheme.training.opacity(0.1))
-                            .clipShape(Capsule())
+
+                        // Session score badge
+                        if let score = session.sessionScore {
+                            Text("\(score)")
+                                .font(.system(size: 12, weight: .heavy, design: .rounded))
+                                .foregroundColor(score >= 80 ? Color(hex: "22C55E") : score >= 50 ? ColorTheme.accent : Color(hex: "F97316"))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background((score >= 80 ? Color(hex: "22C55E") : score >= 50 ? ColorTheme.accent : Color(hex: "F97316")).opacity(0.1))
+                                .clipShape(Capsule())
+                        }
+                    }
+
+                    // Type-specific summary line
+                    Text(session.typeSpecificSummary)
+                        .font(.system(size: 12, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+
+                    // Match result badge
+                    if session.trainingType == "match", let result = session.resultDisplay {
+                        HStack(spacing: 6) {
+                            let resultColor: Color = result == "Win" ? Color(hex: "22C55E") : result == "Loss" ? Color(hex: "EF4444") : Color(hex: "F59E0B")
+                            Text(result.uppercased())
+                                .font(.system(size: 10, weight: .heavy).width(.condensed))
+                                .foregroundColor(resultColor)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(resultColor.opacity(0.1))
+                                .clipShape(Capsule())
+
+                            if let rating = session.performanceRating {
+                                HStack(spacing: 2) {
+                                    Image(systemName: "star.fill")
+                                        .font(.system(size: 9))
+                                        .foregroundColor(Color(hex: "F59E0B"))
+                                    Text("\(rating)/10")
+                                        .font(.system(size: 10, weight: .bold).width(.condensed))
+                                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+                                }
+                            }
+                        }
                     }
 
                     if !session.details.isEmpty {
@@ -218,6 +249,20 @@ struct DailyLogDetailSheet: View {
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
                                     .background(ColorTheme.training.opacity(0.08))
+                                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                            }
+                        }
+                    }
+
+                    if let exercises = session.exercises, !exercises.isEmpty {
+                        FlowLayout(spacing: 6) {
+                            ForEach(exercises, id: \.self) { ex in
+                                Text(ex)
+                                    .font(.system(size: 11, weight: .semibold).width(.condensed))
+                                    .foregroundColor(Color(hex: "8B5CF6"))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color(hex: "8B5CF6").opacity(0.08))
                                     .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                             }
                         }

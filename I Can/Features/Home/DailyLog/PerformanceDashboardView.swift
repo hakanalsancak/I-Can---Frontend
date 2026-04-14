@@ -380,6 +380,31 @@ struct PerformanceDashboardView: View {
                     }
                 }
             }
+
+            if selectedDayIndex == Self.currentWeekdayIndex() {
+                let vm = HomeViewModel.shared
+                if vm.isLoadingTrainingInsight {
+                    Divider().foregroundColor(ColorTheme.separator(colorScheme))
+                    HStack(spacing: 8) {
+                        ProgressView().scaleEffect(0.7)
+                        Text("Generating insight…")
+                            .font(.system(size: 11, weight: .medium).width(.condensed))
+                            .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                    }
+                } else if !vm.trainingInsight.isEmpty {
+                    Divider().foregroundColor(ColorTheme.separator(colorScheme))
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(ColorTheme.training)
+                            .frame(width: 14)
+                        Text(vm.trainingInsight)
+                            .font(.system(size: 11, weight: .medium).width(.condensed))
+                            .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
         }
         .padding(16)
         .background(ColorTheme.cardBackground(colorScheme))
@@ -387,7 +412,7 @@ struct PerformanceDashboardView: View {
         .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
     }
 
-    // MARK: - Daily Nutrition Section
+// MARK: - Daily Nutrition Section
 
     private func dailyNutritionSection(_ detail: AnalyticsNutritionDetail) -> some View {
         VStack(alignment: .leading, spacing: 12) {

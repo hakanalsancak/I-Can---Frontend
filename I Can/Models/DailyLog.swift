@@ -6,9 +6,42 @@ struct TrainingSession: Codable, Equatable, Identifiable {
     var id: String = UUID().uuidString
     var trainingType: String        // "match", "gym", "cardio", "technical", "tactical", "recovery", "other"
     var duration: Int               // Minutes
-    var intensity: String           // "low", "medium", "high", "max"
+    var intensity: String           // Legacy field — kept for backward compat; new sessions use type-specific fields
     var details: [String]           // Type-specific selections (sub-options)
     var notes: String?
+
+    // MARK: - Match fields
+    var matchType: String?          // "match", "sparring", "competition"
+    var result: String?             // "win", "loss", "draw"
+    var performanceRating: Int?     // 1–10
+    var minutesPlayed: Int?
+    var position: String?
+    var keyStats: [String: Int]?    // Sport-specific stats (goals, assists, etc.)
+
+    // MARK: - Gym fields
+    var gymFocus: String?           // "strength", "hypertrophy", "power", "conditioning"
+    var effortLevel: String?        // "easy", "moderate", "hard", "failure"
+    var exercises: [String]?
+
+    // MARK: - Cardio fields
+    var cardioType: String?         // "run", "bike", "swim"
+    var distance: Double?           // km or miles
+    var pace: String?               // e.g. "5:30 /km"
+    var cardioEffort: String?       // "light", "moderate", "hard"
+
+    // MARK: - Technical fields
+    var skillTrained: String?
+    var focusQuality: String?       // "poor", "average", "good", "elite"
+
+    // MARK: - Tactical fields
+    var tacticalType: String?       // "team_session", "analysis"
+    var understandingLevel: String? // "low", "medium", "high"
+
+    // MARK: - Recovery fields
+    var recoveryType: String?       // "stretching", "ice_bath", "massage", "rest"
+
+    // MARK: - Computed score
+    var sessionScore: Int?          // 0–100, set after computation
 
     var trainingTypeDisplay: String {
         switch trainingType {
@@ -24,6 +57,16 @@ struct TrainingSession: Codable, Equatable, Identifiable {
     }
 
     var intensityDisplay: String {
+        // Prefer type-specific effort display over legacy intensity
+        if let effort = effortLevel, !effort.isEmpty {
+            return effort.capitalized
+        }
+        if let effort = cardioEffort, !effort.isEmpty {
+            return effort.capitalized
+        }
+        if let quality = focusQuality, !quality.isEmpty {
+            return quality.capitalized
+        }
         switch intensity {
         case "low": return "Low"
         case "medium": return "Medium"
@@ -43,6 +86,240 @@ struct TrainingSession: Codable, Equatable, Identifiable {
         case "recovery": return "leaf.fill"
         case "other": return "ellipsis.circle.fill"
         default: return "figure.run"
+        }
+    }
+
+    // MARK: - Type-specific display helpers
+
+    var resultDisplay: String? {
+        guard let result else { return nil }
+        switch result {
+        case "win": return "Win"
+        case "loss": return "Loss"
+        case "draw": return "Draw"
+        default: return result.capitalized
+        }
+    }
+
+    var matchTypeDisplay: String? {
+        guard let matchType else { return nil }
+        switch matchType {
+        case "match": return "Match"
+        case "sparring": return "Sparring"
+        case "competition": return "Competition"
+        default: return matchType.capitalized
+        }
+    }
+
+    var gymFocusDisplay: String? {
+        guard let gymFocus else { return nil }
+        switch gymFocus {
+        case "strength": return "Strength"
+        case "hypertrophy": return "Hypertrophy"
+        case "power": return "Power"
+        case "conditioning": return "Conditioning"
+        default: return gymFocus.capitalized
+        }
+    }
+
+    var effortLevelDisplay: String? {
+        guard let effortLevel else { return nil }
+        switch effortLevel {
+        case "easy": return "Easy"
+        case "moderate": return "Moderate"
+        case "hard": return "Hard"
+        case "failure": return "To Failure"
+        default: return effortLevel.capitalized
+        }
+    }
+
+    var cardioTypeDisplay: String? {
+        guard let cardioType else { return nil }
+        switch cardioType {
+        case "run": return "Run"
+        case "bike": return "Bike"
+        case "swim": return "Swim"
+        default: return cardioType.capitalized
+        }
+    }
+
+    var cardioEffortDisplay: String? {
+        guard let cardioEffort else { return nil }
+        switch cardioEffort {
+        case "light": return "Light"
+        case "moderate": return "Moderate"
+        case "hard": return "Hard"
+        default: return cardioEffort.capitalized
+        }
+    }
+
+    var focusQualityDisplay: String? {
+        guard let focusQuality else { return nil }
+        switch focusQuality {
+        case "poor": return "Poor"
+        case "average": return "Average"
+        case "good": return "Good"
+        case "elite": return "Elite"
+        default: return focusQuality.capitalized
+        }
+    }
+
+    var tacticalTypeDisplay: String? {
+        guard let tacticalType else { return nil }
+        switch tacticalType {
+        case "team_session": return "Team Session"
+        case "analysis": return "Analysis"
+        default: return tacticalType.capitalized
+        }
+    }
+
+    var understandingLevelDisplay: String? {
+        guard let understandingLevel else { return nil }
+        switch understandingLevel {
+        case "low": return "Low"
+        case "medium": return "Medium"
+        case "high": return "High"
+        default: return understandingLevel.capitalized
+        }
+    }
+
+    var recoveryTypeDisplay: String? {
+        guard let recoveryType else { return nil }
+        switch recoveryType {
+        case "stretching": return "Stretching"
+        case "ice_bath": return "Ice Bath"
+        case "massage": return "Massage"
+        case "rest": return "Rest"
+        default: return recoveryType.capitalized
+        }
+    }
+
+    /// Summary line for the session card
+    var typeSpecificSummary: String {
+        switch trainingType {
+        case "match":
+            var parts: [String] = []
+            if let mt = matchTypeDisplay { parts.append(mt) }
+            if let r = resultDisplay { parts.append(r) }
+            if let pr = performanceRating { parts.append("\(pr)/10") }
+            if let mp = minutesPlayed { parts.append("\(mp)min") }
+            return parts.isEmpty ? "\(duration)min" : parts.joined(separator: " - ")
+        case "gym":
+            var parts: [String] = []
+            if let gf = gymFocusDisplay { parts.append(gf) }
+            parts.append("\(duration)min")
+            if let el = effortLevelDisplay { parts.append(el) }
+            return parts.joined(separator: " - ")
+        case "cardio":
+            var parts: [String] = []
+            if let ct = cardioTypeDisplay { parts.append(ct) }
+            if let d = distance { parts.append(String(format: "%.1fkm", d)) }
+            parts.append("\(duration)min")
+            if let ce = cardioEffortDisplay { parts.append(ce) }
+            return parts.joined(separator: " - ")
+        case "technical":
+            var parts: [String] = []
+            if let st = skillTrained, !st.isEmpty { parts.append(st) }
+            parts.append("\(duration)min")
+            if let fq = focusQualityDisplay { parts.append(fq) }
+            return parts.joined(separator: " - ")
+        case "tactical":
+            var parts: [String] = []
+            if let tt = tacticalTypeDisplay { parts.append(tt) }
+            parts.append("\(duration)min")
+            if let ul = understandingLevelDisplay { parts.append(ul) }
+            return parts.joined(separator: " - ")
+        case "recovery":
+            var parts: [String] = []
+            if let rt = recoveryTypeDisplay { parts.append(rt) }
+            if duration > 0 { parts.append("\(duration)min") }
+            return parts.isEmpty ? "Recovery" : parts.joined(separator: " - ")
+        default:
+            return "\(duration)min"
+        }
+    }
+
+    // MARK: - Session Score Computation
+
+    mutating func computeAndSetScore() {
+        sessionScore = computeScore()
+    }
+
+    func computeScore() -> Int {
+        switch trainingType {
+        case "match":
+            let ratingBase = (performanceRating ?? 5) * 8  // 8–80
+            let minutesBonus = min((minutesPlayed ?? duration) / 9, 10)  // 0–10
+            let resultBonus: Int
+            switch result {
+            case "win": resultBonus = 10
+            case "draw": resultBonus = 5
+            default: resultBonus = 0
+            }
+            return min(ratingBase + minutesBonus + resultBonus, 100)
+
+        case "gym":
+            let effortBase: Int
+            switch effortLevel {
+            case "easy": effortBase = 40
+            case "moderate": effortBase = 60
+            case "hard": effortBase = 80
+            case "failure": effortBase = 90
+            default: effortBase = 50
+            }
+            let durationBonus = min(duration / 12, 10)  // 60min = 5, 120min = 10
+            return min(effortBase + durationBonus, 100)
+
+        case "cardio":
+            let effortBase: Int
+            switch cardioEffort {
+            case "light": effortBase = 50
+            case "moderate": effortBase = 70
+            case "hard": effortBase = 90
+            default: effortBase = 60
+            }
+            let distBonus = min(Int((distance ?? 0) * 2), 10)
+            return min(effortBase + distBonus, 100)
+
+        case "technical":
+            let qualityBase: Int
+            switch focusQuality {
+            case "poor": qualityBase = 30
+            case "average": qualityBase = 50
+            case "good": qualityBase = 70
+            case "elite": qualityBase = 90
+            default: qualityBase = 50
+            }
+            let durationBonus = min(duration / 12, 10)
+            return min(qualityBase + durationBonus, 100)
+
+        case "tactical":
+            let understandingBase: Int
+            switch understandingLevel {
+            case "low": understandingBase = 40
+            case "medium": understandingBase = 60
+            case "high": understandingBase = 80
+            default: understandingBase = 50
+            }
+            let durationBonus = min(duration / 12, 10)
+            return min(understandingBase + durationBonus, 100)
+
+        case "recovery":
+            let durationBonus = min(duration / 6, 10)  // 60min = 10
+            return min(60 + durationBonus, 100)
+
+        default:
+            // Legacy/other: use intensity fallback
+            let intensityBase: Int
+            switch intensity {
+            case "low": intensityBase = 40
+            case "medium": intensityBase = 60
+            case "high": intensityBase = 80
+            case "max": intensityBase = 95
+            default: intensityBase = 50
+            }
+            let durationBonus = min(duration / 12, 10)
+            return min(intensityBase + durationBonus, 100)
         }
     }
 
@@ -68,7 +345,7 @@ struct TrainingSession: Codable, Equatable, Identifiable {
         }
     }
 
-    private static func matchDetails(sport: String) -> [String] {
+    static func matchDetails(sport: String) -> [String] {
         switch sport.lowercased() {
         case "soccer":
             return ["Full Match", "Friendly", "Tournament", "Started", "Came Off Bench", "Win", "Loss", "Draw", "Scored", "Assisted", "Clean Sheet"]
@@ -87,7 +364,7 @@ struct TrainingSession: Codable, Equatable, Identifiable {
         }
     }
 
-    private static func technicalDetails(sport: String) -> [String] {
+    static func technicalDetails(sport: String) -> [String] {
         switch sport.lowercased() {
         case "soccer":
             return ["Shooting", "Passing", "Dribbling", "First Touch", "Crossing", "Heading", "Free Kicks", "Penalties", "Ball Control", "Weak Foot"]
@@ -106,7 +383,7 @@ struct TrainingSession: Codable, Equatable, Identifiable {
         }
     }
 
-    private static func tacticalDetails(sport: String) -> [String] {
+    static func tacticalDetails(sport: String) -> [String] {
         switch sport.lowercased() {
         case "soccer":
             return ["Formation Work", "Set Pieces", "Pressing", "Build-up Play", "Counter Attack", "Defensive Shape", "Video Analysis", "Positioning", "Transitions"]
@@ -140,12 +417,18 @@ struct TrainingData: Codable, Equatable {
 
     var summaryText: String {
         if sessions.isEmpty { return "No sessions" }
+        if sessions.count == 1, let s = sessions.first {
+            return s.typeSpecificSummary
+        }
         let types = sessions.map { $0.trainingTypeDisplay }
         let unique = Array(Set(types))
-        if unique.count == 1 {
-            return "\(unique[0]) - \(totalDuration)min"
-        }
         return "\(unique.joined(separator: " + ")) - \(totalDuration)min"
+    }
+
+    var averageSessionScore: Int {
+        let scores = sessions.map { $0.sessionScore ?? $0.computeScore() }
+        guard !scores.isEmpty else { return 0 }
+        return scores.reduce(0, +) / scores.count
     }
 
     var highestIntensity: String {

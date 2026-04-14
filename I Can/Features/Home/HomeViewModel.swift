@@ -28,6 +28,15 @@ final class HomeViewModel {
     var showNutritionLog = false
     var showSleepLog = false
 
+    // Training insight (shown inline in performance dashboard)
+    var trainingInsight: String = ""
+    var isLoadingTrainingInsight = false
+    private var lastInsightTrainingData: TrainingData?
+
+    private static let insightTextKey = "trainingInsight.text"
+    private static let insightDateKey = "trainingInsight.date"
+    private static let insightDataKey = "trainingInsight.data"
+
     private var isSaving = false
     private var hasLoadedInitially = false
 
@@ -152,10 +161,62 @@ final class HomeViewModel {
             completedSections.append("training")
         }
 
-        if !(await saveDailyLog()) {
+        if await saveDailyLog() {
+            await fetchTrainingInsight(data)
+        } else {
             todayTraining = prevTraining
             completedSections = prevSections
         }
+    }
+
+    private func fetchTrainingInsight(_ data: TrainingData) async {
+        guard SubscriptionService.shared.isPremium else { return }
+        // Only regenerate when training data actually changed
+        if let last = lastInsightTrainingData, last == data, !trainingInsight.isEmpty {
+            return
+        }
+        isLoadingTrainingInsight = true
+
+        var request = InsightRequest(activityType: "Daily Log")
+        request.trainingSessions = data.sessions.map { s in
+            TrainingSessionInsight(
+                trainingType: s.trainingType,
+                duration: s.duration,
+                matchType: s.matchType,
+                result: s.result,
+                performanceRating: s.performanceRating,
+                minutesPlayed: s.minutesPlayed,
+                position: s.position,
+                keyStats: s.keyStats,
+                gymFocus: s.gymFocus,
+                effortLevel: s.effortLevel,
+                exercises: s.exercises,
+                cardioType: s.cardioType,
+                distance: s.distance,
+                pace: s.pace,
+                cardioEffort: s.cardioEffort,
+                skillTrained: s.skillTrained,
+                focusQuality: s.focusQuality,
+                tacticalType: s.tacticalType,
+                understandingLevel: s.understandingLevel,
+                recoveryType: s.recoveryType,
+                sessionScore: s.sessionScore,
+                notes: s.notes
+            )
+        }
+        request.sessionScore = data.averageSessionScore
+
+        do {
+            let insight = try await EntryService.shared.generateInsight(request)
+            if !insight.isEmpty {
+                trainingInsight = insight
+                lastInsightTrainingData = data
+                persistInsight(insight, data: data)
+            }
+        } catch {
+            // Silently fail - insight is a nice-to-have
+        }
+        isLoadingTrainingInsight = false
     }
 
     func submitNutrition(_ data: NutritionData) async {
@@ -223,5 +284,35 @@ final class HomeViewModel {
         NotificationService.shared.cancelStreakReminder()
     }
 
-    private init() {}
+    private init() {
+        loadPersistedInsight()
+    }
+
+    private func loadPersistedInsight() {
+        let defaults = UserDefaults.standard
+        guard let savedDate = defaults.string(forKey: Self.insightDateKey),
+              savedDate == Date().apiDateString,
+              let text = defaults.string(forKey: Self.insightTextKey),
+              !text.isEmpty else {
+            // Clean up stale insight from previous days
+            defaults.removeObject(forKey: Self.insightTextKey)
+            defaults.removeObject(forKey: Self.insightDateKey)
+            defaults.removeObject(forKey: Self.insightDataKey)
+            return
+        }
+        trainingInsight = text
+        if let data = defaults.data(forKey: Self.insightDataKey),
+           let decoded = try? JSONDecoder().decode(TrainingData.self, from: data) {
+            lastInsightTrainingData = decoded
+        }
+    }
+
+    private func persistInsight(_ text: String, data: TrainingData) {
+        let defaults = UserDefaults.standard
+        defaults.set(text, forKey: Self.insightTextKey)
+        defaults.set(Date().apiDateString, forKey: Self.insightDateKey)
+        if let encoded = try? JSONEncoder().encode(data) {
+            defaults.set(encoded, forKey: Self.insightDataKey)
+        }
+    }
 }

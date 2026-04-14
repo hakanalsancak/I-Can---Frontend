@@ -99,17 +99,29 @@ final class DailyLogService {
         var confidence = baseRating
 
         if let t = training {
-            let intensityBonus: Int
-            switch t.highestIntensity {
-            case "high": intensityBonus = 2
-            case "max": intensityBonus = 3
-            case "medium": intensityBonus = 1
-            default: intensityBonus = 0
+            let avgScore = t.averageSessionScore
+            let scoreBonus: Int
+            if avgScore >= 80 {
+                scoreBonus = 3
+            } else if avgScore >= 60 {
+                scoreBonus = 2
+            } else if avgScore >= 40 {
+                scoreBonus = 1
+            } else if avgScore > 0 {
+                scoreBonus = 0
+            } else {
+                // Fallback to legacy intensity for old entries without scores
+                switch t.highestIntensity {
+                case "high": scoreBonus = 2
+                case "max": scoreBonus = 3
+                case "medium": scoreBonus = 1
+                default: scoreBonus = 0
+                }
             }
             let durationBonus = min(t.totalDuration / 30, 2)
             let sessionBonus = min(t.sessionCount - 1, 1)
-            focus = min(focus + intensityBonus + durationBonus + sessionBonus, 9)
-            effort = min(effort + intensityBonus + durationBonus + sessionBonus + 1, 9)
+            focus = min(focus + scoreBonus + durationBonus + sessionBonus, 9)
+            effort = min(effort + scoreBonus + durationBonus + sessionBonus + 1, 9)
         }
 
         if let s = sleep {
