@@ -687,39 +687,133 @@ struct DayTrainingDetailView: View {
     }
 
     private func sessionCard(_ session: AnalyticsSessionData) -> some View {
-        HStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(ColorTheme.training.opacity(0.12))
-                    .frame(width: 44, height: 44)
-                Image(systemName: trainingTypeIcon(session.type))
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(ColorTheme.training)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(ColorTheme.training.opacity(0.12))
+                        .frame(width: 44, height: 44)
+                    Image(systemName: trainingTypeIcon(session.type))
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(ColorTheme.training)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(session.type.capitalized)
+                        .font(.system(size: 15, weight: .bold).width(.condensed))
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    Text("\(session.duration) minutes")
+                        .font(.system(size: 12, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                }
+
+                Spacer()
+
+                if let score = session.sessionScore {
+                    Text("\(score)")
+                        .font(.system(size: 13, weight: .bold).width(.condensed))
+                        .foregroundColor(scoreColor(score))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(scoreColor(score).opacity(0.12))
+                        .clipShape(Capsule())
+                } else {
+                    Text(session.intensity.capitalized)
+                        .font(.system(size: 11, weight: .bold).width(.condensed))
+                        .foregroundColor(intensityColor(session.intensity))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(intensityColor(session.intensity).opacity(0.1))
+                        .clipShape(Capsule())
+                }
             }
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(session.type.capitalized)
-                    .font(.system(size: 15, weight: .bold).width(.condensed))
-                    .foregroundColor(ColorTheme.primaryText(colorScheme))
-                Text("\(session.duration) minutes")
-                    .font(.system(size: 12, weight: .medium).width(.condensed))
-                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+            let badges = sessionBadges(session)
+            if !badges.isEmpty {
+                FlowLayout(spacing: 6) {
+                    ForEach(badges.indices, id: \.self) { i in
+                        detailChip(text: badges[i].text, color: badges[i].color)
+                    }
+                }
             }
-
-            Spacer()
-
-            Text(session.intensity.capitalized)
-                .font(.system(size: 11, weight: .bold).width(.condensed))
-                .foregroundColor(intensityColor(session.intensity))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(intensityColor(session.intensity).opacity(0.1))
-                .clipShape(Capsule())
         }
         .padding(16)
         .background(ColorTheme.cardBackground(colorScheme))
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
+    }
+
+    private func sessionBadges(_ s: AnalyticsSessionData) -> [(text: String, color: Color)] {
+        var out: [(String, Color)] = []
+        let accent = ColorTheme.training
+        let warn = Color(hex: "F59E0B")
+        let muted = ColorTheme.secondaryText(colorScheme)
+
+        switch s.type {
+        case "match":
+            if let r = s.result, !r.isEmpty { out.append((r.uppercased(), resultColor(r))) }
+            if let wm = s.winMethod, !wm.isEmpty { out.append((humanize(wm), accent)) }
+            if let pr = s.performanceRating { out.append(("★ \(pr)/10", warn)) }
+            if let mp = s.minutesPlayed { out.append(("\(mp)min", muted)) }
+            if let p = s.position, !p.isEmpty { out.append((p, muted)) }
+            if let ks = s.keyStats {
+                for (k, v) in ks.sorted(by: { $0.key < $1.key }) where v > 0 {
+                    out.append(("\(v) \(humanize(k))", accent))
+                }
+            }
+        case "gym":
+            if let f = s.gymFocus, !f.isEmpty { out.append((humanize(f), accent)) }
+            if let e = s.effortLevel, !e.isEmpty { out.append((humanize(e), warn)) }
+            if let ex = s.exercises { for e in ex where !e.isEmpty { out.append((e, muted)) } }
+        case "cardio":
+            if let ct = s.cardioType, !ct.isEmpty { out.append((humanize(ct), accent)) }
+            if let d = s.distance { out.append((String(format: "%.1f km", d), accent)) }
+            if let p = s.pace, !p.isEmpty { out.append((p, muted)) }
+            if let e = s.cardioEffort, !e.isEmpty { out.append((humanize(e), warn)) }
+        case "technical":
+            if let sk = s.skillTrained, !sk.isEmpty { out.append((sk, accent)) }
+            if let q = s.focusQuality, !q.isEmpty { out.append((humanize(q), warn)) }
+        case "tactical":
+            if let t = s.tacticalType, !t.isEmpty { out.append((humanize(t), accent)) }
+            if let u = s.understandingLevel, !u.isEmpty { out.append((humanize(u), warn)) }
+        case "recovery":
+            if let r = s.recoveryType, !r.isEmpty { out.append((humanize(r), accent)) }
+        default: break
+        }
+        return out
+    }
+
+    private func detailChip(text: String, color: Color) -> some View {
+        Text(text)
+            .font(.system(size: 11, weight: .semibold).width(.condensed))
+            .foregroundColor(color)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(color.opacity(0.12))
+            .clipShape(Capsule())
+    }
+
+    private func resultColor(_ r: String) -> Color {
+        switch r.lowercased() {
+        case "win": return Color(hex: "22C55E")
+        case "loss": return Color(hex: "EF4444")
+        case "draw": return Color(hex: "F59E0B")
+        default: return ColorTheme.secondaryText(colorScheme)
+        }
+    }
+
+    private func scoreColor(_ score: Int) -> Color {
+        if score >= 80 { return Color(hex: "22C55E") }
+        if score >= 60 { return ColorTheme.training }
+        if score >= 40 { return Color(hex: "F59E0B") }
+        return Color(hex: "EF4444")
+    }
+
+    private func humanize(_ raw: String) -> String {
+        raw.replacingOccurrences(of: "_", with: " ")
+            .split(separator: " ")
+            .map { $0.prefix(1).uppercased() + $0.dropFirst() }
+            .joined(separator: " ")
     }
 
     private func dayLabel(_ dateStr: String) -> String {

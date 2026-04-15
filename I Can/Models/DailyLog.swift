@@ -11,8 +11,9 @@ struct TrainingSession: Codable, Equatable, Identifiable {
     var notes: String?
 
     // MARK: - Match fields
-    var matchType: String?          // "match", "sparring", "competition"
+    var matchType: String?          // Legacy (deprecated — kept for backward compat)
     var result: String?             // "win", "loss", "draw"
+    var winMethod: String?          // Sport-specific method of victory/result (e.g. "knockout", "split_decision")
     var performanceRating: Int?     // 1–10
     var minutesPlayed: Int?
     var position: String?
@@ -24,7 +25,7 @@ struct TrainingSession: Codable, Equatable, Identifiable {
     var exercises: [String]?
 
     // MARK: - Cardio fields
-    var cardioType: String?         // "run", "bike", "swim"
+    var cardioType: String?         // "run", "walk", "bike", "swim"
     var distance: Double?           // km or miles
     var pace: String?               // e.g. "5:30 /km"
     var cardioEffort: String?       // "light", "moderate", "hard"
@@ -137,10 +138,20 @@ struct TrainingSession: Codable, Equatable, Identifiable {
         guard let cardioType else { return nil }
         switch cardioType {
         case "run": return "Run"
+        case "walk": return "Walk"
         case "bike": return "Bike"
         case "swim": return "Swim"
         default: return cardioType.capitalized
         }
+    }
+
+    var winMethodDisplay: String? {
+        guard let winMethod, !winMethod.isEmpty else { return nil }
+        return winMethod
+            .replacingOccurrences(of: "_", with: " ")
+            .split(separator: " ")
+            .map { $0.prefix(1).uppercased() + $0.dropFirst() }
+            .joined(separator: " ")
     }
 
     var cardioEffortDisplay: String? {
@@ -197,13 +208,13 @@ struct TrainingSession: Codable, Equatable, Identifiable {
     /// Summary line for the session card
     var typeSpecificSummary: String {
         switch trainingType {
-        case "match":
+        case "match", "sparring":
             var parts: [String] = []
-            if let mt = matchTypeDisplay { parts.append(mt) }
             if let r = resultDisplay { parts.append(r) }
+            if let wm = winMethodDisplay { parts.append(wm) }
             if let pr = performanceRating { parts.append("\(pr)/10") }
-            if let mp = minutesPlayed { parts.append("\(mp)min") }
-            return parts.isEmpty ? "\(duration)min" : parts.joined(separator: " - ")
+            let fallback = trainingType == "sparring" ? "Sparring" : "Match"
+            return parts.isEmpty ? fallback : parts.joined(separator: " - ")
         case "gym":
             var parts: [String] = []
             if let gf = gymFocusDisplay { parts.append(gf) }
@@ -247,7 +258,7 @@ struct TrainingSession: Codable, Equatable, Identifiable {
 
     func computeScore() -> Int {
         switch trainingType {
-        case "match":
+        case "match", "sparring":
             let ratingBase = (performanceRating ?? 5) * 8  // 8–80
             let minutesBonus = min((minutesPlayed ?? duration) / 9, 10)  // 0–10
             let resultBonus: Int
@@ -345,6 +356,69 @@ struct TrainingSession: Codable, Equatable, Identifiable {
         }
     }
 
+    /// Sport-specific "how did the result happen" methods. Shown after the user picks Win/Loss/Draw.
+    /// Returns `[(value, label)]` — empty if the sport has no meaningful follow-up (in which case the UI hides it).
+    static func matchWinMethods(sport: String) -> [(String, String)] {
+        switch sport.lowercased() {
+        case "boxing":
+            return [
+                ("knockout", "Knockout"),
+                ("technical_knockout", "TKO"),
+                ("unanimous_decision", "Unanimous Decision"),
+                ("split_decision", "Split Decision"),
+                ("majority_decision", "Majority Decision"),
+                ("disqualification", "Disqualification")
+            ]
+        case "soccer":
+            return [
+                ("clean_sheet", "Clean Sheet"),
+                ("narrow_margin", "Narrow Margin"),
+                ("dominant", "Dominant"),
+                ("comeback", "Comeback"),
+                ("penalties", "Penalty Shootout"),
+                ("extra_time", "Extra Time")
+            ]
+        case "basketball":
+            return [
+                ("blowout", "Blowout"),
+                ("close_game", "Close Game"),
+                ("overtime", "Overtime"),
+                ("buzzer_beater", "Buzzer Beater"),
+                ("comeback", "Comeback")
+            ]
+        case "tennis":
+            return [
+                ("straight_sets", "Straight Sets"),
+                ("three_sets", "Three Sets"),
+                ("tiebreak", "Tiebreak"),
+                ("comeback", "Comeback"),
+                ("retirement", "Retirement")
+            ]
+        case "football":
+            return [
+                ("dominant", "Dominant"),
+                ("close_game", "Close Game"),
+                ("overtime", "Overtime"),
+                ("comeback", "Comeback"),
+                ("shutout", "Shutout")
+            ]
+        case "cricket":
+            return [
+                ("by_runs", "By Runs"),
+                ("by_wickets", "By Wickets"),
+                ("super_over", "Super Over"),
+                ("duckworth_lewis", "DLS Method"),
+                ("innings", "By Innings")
+            ]
+        default:
+            return [
+                ("dominant", "Dominant"),
+                ("close_game", "Close"),
+                ("comeback", "Comeback")
+            ]
+        }
+    }
+
     static func matchDetails(sport: String) -> [String] {
         switch sport.lowercased() {
         case "soccer":
@@ -373,7 +447,7 @@ struct TrainingSession: Codable, Equatable, Identifiable {
         case "tennis":
             return ["Serve", "Return", "Forehand", "Backhand", "Volley", "Slice", "Topspin", "Drop Shot", "Lob", "Overhead"]
         case "boxing":
-            return ["Jab", "Cross", "Hook", "Uppercut", "Body Shots", "Combinations", "Counter Punching", "Head Movement", "Footwork", "Defense"]
+            return ["Sparring", "Jab", "Cross", "Hook", "Uppercut", "Body Shots", "Combinations", "Counter Punching", "Head Movement", "Footwork", "Defense"]
         case "football":
             return ["Throwing Mechanics", "Route Running", "Catching", "Blocking", "Tackling Form", "Footwork", "Hand Placement", "Release", "Coverage"]
         case "cricket":

@@ -347,33 +347,7 @@ struct PerformanceDashboardView: View {
 
             if let sessions = day.trainingSessions, !sessions.isEmpty {
                 ForEach(sessions.indices, id: \.self) { i in
-                    let session = sessions[i]
-                    HStack(spacing: 10) {
-                        Image(systemName: trainingTypeIcon(session.type))
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(ColorTheme.training)
-                            .frame(width: 24)
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(session.type.capitalized)
-                                .font(.system(size: 13, weight: .semibold).width(.condensed))
-                                .foregroundColor(ColorTheme.primaryText(colorScheme))
-                            Text("\(session.duration)min  \(session.intensity.capitalized)")
-                                .font(.system(size: 11, weight: .medium).width(.condensed))
-                                .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                        }
-
-                        Spacer()
-
-                        Text(intensityBadge(session.intensity))
-                            .font(.system(size: 10, weight: .bold).width(.condensed))
-                            .foregroundColor(intensityColor(session.intensity))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(intensityColor(session.intensity).opacity(0.1))
-                            .clipShape(Capsule())
-                    }
-
+                    analyticsSessionRow(sessions[i])
                     if i < sessions.count - 1 {
                         Divider()
                             .foregroundColor(ColorTheme.separator(colorScheme))
@@ -410,6 +384,142 @@ struct PerformanceDashboardView: View {
         .background(ColorTheme.cardBackground(colorScheme))
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
+    }
+
+    @ViewBuilder
+    private func analyticsSessionRow(_ session: AnalyticsSessionData) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Image(systemName: trainingTypeIcon(session.type))
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(ColorTheme.training)
+                    .frame(width: 24)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(session.type.capitalized)
+                        .font(.system(size: 13, weight: .semibold).width(.condensed))
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    Text(analyticsSessionSubtitle(session))
+                        .font(.system(size: 11, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                }
+
+                Spacer()
+
+                if let score = session.sessionScore {
+                    VStack(spacing: 0) {
+                        Text("\(score)")
+                            .font(.system(size: 14, weight: .heavy).width(.condensed))
+                            .foregroundColor(scoreColor(score))
+                        Text("SCORE")
+                            .font(.system(size: 8, weight: .bold).width(.condensed))
+                            .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(scoreColor(score).opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                }
+            }
+
+            if session.result != nil || session.winMethod != nil || session.performanceRating != nil {
+                HStack(spacing: 6) {
+                    if let r = session.result { chipBadge(text: r.capitalized, color: resultColor(r)) }
+                    if let wm = session.winMethod { chipBadge(text: humanize(wm), color: ColorTheme.training) }
+                    if let rating = session.performanceRating { chipBadge(text: "\(rating)/10 ★", color: Color(hex: "F59E0B")) }
+                }
+            }
+
+            if session.gymFocus != nil || session.effortLevel != nil {
+                HStack(spacing: 6) {
+                    if let f = session.gymFocus { chipBadge(text: f.capitalized, color: ColorTheme.training) }
+                    if let e = session.effortLevel { chipBadge(text: e.capitalized, color: Color(hex: "F59E0B")) }
+                }
+            }
+            if let exercises = session.exercises, !exercises.isEmpty {
+                Text(exercises.joined(separator: " • "))
+                    .font(.system(size: 10, weight: .medium).width(.condensed))
+                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                    .lineLimit(2)
+            }
+
+            if session.cardioType != nil || session.distance != nil || session.cardioEffort != nil || session.pace != nil {
+                HStack(spacing: 6) {
+                    if let ct = session.cardioType { chipBadge(text: ct.capitalized, color: ColorTheme.training) }
+                    if let d = session.distance { chipBadge(text: String(format: "%.1f km", d), color: ColorTheme.training) }
+                    if let p = session.pace, !p.isEmpty { chipBadge(text: p, color: ColorTheme.secondaryText(colorScheme)) }
+                    if let e = session.cardioEffort { chipBadge(text: e.capitalized, color: Color(hex: "F59E0B")) }
+                }
+            }
+
+            if let skill = session.skillTrained, !skill.isEmpty {
+                chipBadge(text: skill, color: ColorTheme.training)
+            }
+            if session.focusQuality != nil || session.tacticalType != nil || session.understandingLevel != nil || session.recoveryType != nil {
+                HStack(spacing: 6) {
+                    if let q = session.focusQuality { chipBadge(text: q.capitalized, color: Color(hex: "F59E0B")) }
+                    if let t = session.tacticalType { chipBadge(text: humanize(t), color: ColorTheme.training) }
+                    if let u = session.understandingLevel { chipBadge(text: u.capitalized, color: Color(hex: "F59E0B")) }
+                    if let r = session.recoveryType { chipBadge(text: humanize(r), color: ColorTheme.training) }
+                }
+            }
+
+            if let stats = session.keyStats, !stats.isEmpty {
+                let ordered = stats.filter { $0.value > 0 }.sorted { $0.key < $1.key }
+                if !ordered.isEmpty {
+                    FlowLayout(spacing: 6) {
+                        ForEach(ordered, id: \.key) { key, value in
+                            chipBadge(text: "\(value) \(humanize(key))", color: ColorTheme.secondaryText(colorScheme))
+                        }
+                    }
+                }
+            }
+
+            if let p = session.position, !p.isEmpty {
+                Text("Position: \(p)")
+                    .font(.system(size: 10, weight: .medium).width(.condensed))
+                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+            }
+        }
+    }
+
+    private func analyticsSessionSubtitle(_ s: AnalyticsSessionData) -> String {
+        var parts: [String] = []
+        if s.duration > 0 { parts.append("\(s.duration)min") }
+        if let m = s.minutesPlayed { parts.append("\(m)min played") }
+        return parts.isEmpty ? s.intensity.capitalized : parts.joined(separator: " · ")
+    }
+
+    private func chipBadge(text: String, color: Color) -> some View {
+        Text(text)
+            .font(.system(size: 10, weight: .bold).width(.condensed))
+            .foregroundColor(color)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(color.opacity(0.12))
+            .clipShape(Capsule())
+    }
+
+    private func resultColor(_ result: String) -> Color {
+        switch result.lowercased() {
+        case "win": return Color(hex: "22C55E")
+        case "loss": return Color(hex: "EF4444")
+        case "draw": return Color(hex: "F59E0B")
+        default: return ColorTheme.training
+        }
+    }
+
+    private func scoreColor(_ score: Int) -> Color {
+        if score >= 80 { return Color(hex: "22C55E") }
+        if score >= 50 { return ColorTheme.training }
+        return Color(hex: "F59E0B")
+    }
+
+    private func humanize(_ raw: String) -> String {
+        raw.replacingOccurrences(of: "_", with: " ")
+            .split(separator: " ")
+            .map { $0.prefix(1).uppercased() + $0.dropFirst() }
+            .joined(separator: " ")
     }
 
 // MARK: - Daily Nutrition Section

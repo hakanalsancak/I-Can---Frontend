@@ -6,6 +6,26 @@ struct AnalyticsSessionData: Codable {
     let type: String
     let duration: Int
     let intensity: String
+    let sessionScore: Int?
+    let result: String?
+    let winMethod: String?
+    let performanceRating: Int?
+    let minutesPlayed: Int?
+    let position: String?
+    let keyStats: [String: Int]?
+    let gymFocus: String?
+    let effortLevel: String?
+    let exercises: [String]?
+    let cardioType: String?
+    let distance: Double?
+    let pace: String?
+    let cardioEffort: String?
+    let skillTrained: String?
+    let focusQuality: String?
+    let tacticalType: String?
+    let understandingLevel: String?
+    let recoveryType: String?
+    let notes: String?
 }
 
 struct AnalyticsNutritionDetail: Codable {

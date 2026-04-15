@@ -11,6 +11,7 @@ final class SessionEditorState {
     // Match
     var matchType = "match"
     var result = ""
+    var winMethod = ""
     var performanceRating = 5
     var minutesPlayed = 90
     var position = ""
@@ -30,6 +31,8 @@ final class SessionEditorState {
 
     // Technical
     var skillTrained = ""
+    var selectedSkills: Set<String> = []
+    var customSkill = ""
     var focusQuality = ""
 
     // Tactical
@@ -53,11 +56,10 @@ final class SessionEditorState {
         )
 
         switch trainingType {
-        case "match":
-            session.matchType = matchType
+        case "match", "sparring":
             session.result = result.isEmpty ? nil : result
+            session.winMethod = winMethod.isEmpty ? nil : winMethod
             session.performanceRating = performanceRating
-            session.minutesPlayed = minutesPlayed
             session.position = position.isEmpty ? nil : position
             session.keyStats = keyStats.isEmpty ? nil : keyStats
         case "gym":
@@ -70,7 +72,11 @@ final class SessionEditorState {
             session.pace = pace.isEmpty ? nil : pace
             session.cardioEffort = cardioEffort.isEmpty ? nil : cardioEffort
         case "technical":
-            session.skillTrained = skillTrained.isEmpty ? nil : skillTrained
+            var items = Array(selectedSkills).sorted()
+            let custom = customSkill.trimmingCharacters(in: .whitespaces)
+            if !custom.isEmpty && !items.contains(custom) { items.append(custom) }
+            let combined = items.joined(separator: ", ")
+            session.skillTrained = combined.isEmpty ? nil : combined
             session.focusQuality = focusQuality.isEmpty ? nil : focusQuality
         case "tactical":
             session.tacticalType = tacticalType.isEmpty ? nil : tacticalType
@@ -94,6 +100,7 @@ final class SessionEditorState {
 
         matchType = session.matchType ?? "match"
         result = session.result ?? ""
+        winMethod = session.winMethod ?? ""
         performanceRating = session.performanceRating ?? 5
         minutesPlayed = session.minutesPlayed ?? 90
         position = session.position ?? ""
@@ -109,6 +116,13 @@ final class SessionEditorState {
         cardioEffort = session.cardioEffort ?? ""
 
         skillTrained = session.skillTrained ?? ""
+        selectedSkills = Set(
+            (session.skillTrained ?? "")
+                .split(separator: ",")
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+        )
+        customSkill = ""
         focusQuality = session.focusQuality ?? ""
 
         tacticalType = session.tacticalType ?? ""
@@ -125,6 +139,7 @@ final class SessionEditorState {
         details = []
         matchType = "match"
         result = ""
+        winMethod = ""
         performanceRating = 5
         minutesPlayed = 90
         position = ""
@@ -138,6 +153,8 @@ final class SessionEditorState {
         pace = ""
         cardioEffort = ""
         skillTrained = ""
+        selectedSkills = []
+        customSkill = ""
         focusQuality = ""
         tacticalType = ""
         understandingLevel = ""
@@ -161,6 +178,17 @@ struct TrainingLogView: View {
 
     private var userSport: String {
         AuthService.shared.currentUser?.sport ?? "soccer"
+    }
+
+    private var availableSessionTypes: [(String, String, String)] {
+        [
+            ("match", "Match", "trophy.fill"),
+            ("gym", "Gym", "dumbbell.fill"),
+            ("cardio", "Cardio", "heart.circle.fill"),
+            ("technical", "Technical", "figure.run"),
+            ("tactical", "Tactical", "brain.head.profile"),
+            ("recovery", "Recovery", "leaf.fill"),
+        ]
     }
 
     init(existingData: TrainingData?, onSave: @escaping (TrainingData) -> Void) {
@@ -576,14 +604,7 @@ struct TrainingLogView: View {
                     GridItem(.flexible(), spacing: 10),
                     GridItem(.flexible(), spacing: 10),
                 ], spacing: 10) {
-                    ForEach([
-                        ("match", "Match", "trophy.fill"),
-                        ("gym", "Gym", "dumbbell.fill"),
-                        ("cardio", "Cardio", "heart.circle.fill"),
-                        ("technical", "Technical", "figure.run"),
-                        ("tactical", "Tactical", "brain.head.profile"),
-                        ("recovery", "Recovery", "leaf.fill"),
-                    ], id: \.0) { type, label, icon in
+                    ForEach(availableSessionTypes, id: \.0) { type, label, icon in
                         Button {
                             HapticManager.selection()
                             withAnimation(.easeInOut(duration: 0.25)) {
@@ -654,7 +675,7 @@ struct TrainingLogView: View {
 
             // Type-specific form sections
             switch inlineEditor.trainingType {
-            case "match":
+            case "match", "sparring":
                 matchFormSections
             case "gym":
                 gymFormSections
@@ -737,17 +758,6 @@ struct TrainingLogView: View {
 
     @ViewBuilder
     private var matchFormSections: some View {
-        // Match Type
-        sectionCard(title: "MATCH TYPE", icon: "trophy.fill") {
-            HStack(spacing: 8) {
-                ForEach([("match", "Match"), ("sparring", "Sparring"), ("competition", "Competition")], id: \.0) { value, label in
-                    chipButton(label: label, isSelected: inlineEditor.matchType == value) {
-                        inlineEditor.matchType = value
-                    }
-                }
-            }
-        }
-
         // Result
         sectionCard(title: "RESULT", icon: "flag.fill") {
             HStack(spacing: 8) {
@@ -784,6 +794,9 @@ struct TrainingLogView: View {
             }
         }
 
+        // Sport-specific win/result method
+        matchWinMethodSection
+
         // Performance Rating
         sectionCard(title: "PERFORMANCE RATING", icon: "star.fill") {
             VStack(spacing: 12) {
@@ -807,27 +820,6 @@ struct TrainingLogView: View {
             }
         }
 
-        // Minutes Played
-        sectionCard(title: "MINUTES PLAYED", icon: "clock.fill") {
-            VStack(spacing: 12) {
-                Text("\(inlineEditor.minutesPlayed) min")
-                    .font(Typography.number(32))
-                    .foregroundColor(ColorTheme.training)
-
-                HStack(spacing: 10) {
-                    ForEach([45, 60, 70, 80, 90], id: \.self) { mins in
-                        quickDurationButton(mins, binding: $inlineEditor.minutesPlayed)
-                    }
-                }
-
-                Slider(value: Binding(
-                    get: { Double(inlineEditor.minutesPlayed) },
-                    set: { inlineEditor.minutesPlayed = Int($0) }
-                ), in: 1...120, step: 1)
-                .tint(ColorTheme.training)
-            }
-        }
-
         // Position (optional)
         sectionCard(title: "POSITION (OPTIONAL)", icon: "mappin.circle.fill") {
             TextField("e.g. Striker, Point Guard, Flyweight...", text: $inlineEditor.position)
@@ -840,6 +832,44 @@ struct TrainingLogView: View {
 
         // Key Stats (sport-specific)
         matchKeyStatsSection
+    }
+
+    @ViewBuilder
+    private var matchWinMethodSection: some View {
+        let methods = TrainingSession.matchWinMethods(sport: userSport)
+        if !methods.isEmpty {
+            let title = winMethodTitle(for: userSport)
+            sectionCard(title: title, icon: winMethodIcon(for: userSport)) {
+                LazyVGrid(columns: [
+                    GridItem(.flexible(), spacing: 8),
+                    GridItem(.flexible(), spacing: 8),
+                ], spacing: 8) {
+                    ForEach(methods, id: \.0) { value, label in
+                        chipButton(label: label, isSelected: inlineEditor.winMethod == value) {
+                            inlineEditor.winMethod = inlineEditor.winMethod == value ? "" : value
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func winMethodTitle(for sport: String) -> String {
+        switch sport.lowercased() {
+        case "boxing": return "METHOD OF RESULT"
+        case "tennis": return "HOW THE MATCH WENT"
+        case "cricket": return "RESULT BY"
+        default: return "GAME STYLE"
+        }
+    }
+
+    private func winMethodIcon(for sport: String) -> String {
+        switch sport.lowercased() {
+        case "boxing": return "figure.boxing"
+        case "tennis": return "tennis.racket"
+        case "cricket": return "figure.cricket"
+        default: return "chart.line.uptrend.xyaxis"
+        }
     }
 
     @ViewBuilder
@@ -981,7 +1011,7 @@ struct TrainingLogView: View {
         // Cardio Type
         sectionCard(title: "TYPE", icon: "heart.circle.fill") {
             HStack(spacing: 8) {
-                ForEach([("run", "Run"), ("bike", "Bike"), ("swim", "Swim")], id: \.0) { value, label in
+                ForEach([("run", "Run"), ("walk", "Walk"), ("bike", "Bike"), ("swim", "Swim")], id: \.0) { value, label in
                     chipButton(label: label, isSelected: inlineEditor.cardioType == value) {
                         inlineEditor.cardioType = value
                     }
@@ -1065,13 +1095,17 @@ struct TrainingLogView: View {
                     GridItem(.flexible(), spacing: 8),
                 ], spacing: 8) {
                     ForEach(skills, id: \.self) { skill in
-                        chipButton(label: skill, isSelected: inlineEditor.skillTrained == skill) {
-                            inlineEditor.skillTrained = inlineEditor.skillTrained == skill ? "" : skill
+                        chipButton(label: skill, isSelected: inlineEditor.selectedSkills.contains(skill)) {
+                            if inlineEditor.selectedSkills.contains(skill) {
+                                inlineEditor.selectedSkills.remove(skill)
+                            } else {
+                                inlineEditor.selectedSkills.insert(skill)
+                            }
                         }
                     }
                 }
 
-                TextField("Or type your own...", text: $inlineEditor.skillTrained)
+                TextField("Or type your own...", text: $inlineEditor.customSkill)
                     .font(.system(size: 14, weight: .medium).width(.condensed))
                     .foregroundColor(ColorTheme.primaryText(colorScheme))
                     .padding(.horizontal, 12)
@@ -1141,24 +1175,26 @@ struct TrainingLogView: View {
             }
         }
 
-        // Duration (optional for recovery)
-        sectionCard(title: "DURATION (OPTIONAL)", icon: "clock.fill") {
-            VStack(spacing: 12) {
-                Text("\(inlineEditor.duration) min")
-                    .font(Typography.number(32))
-                    .foregroundColor(ColorTheme.training)
+        // Duration — hidden for "rest" since rest is all-day
+        if inlineEditor.recoveryType != "rest" {
+            sectionCard(title: "DURATION (OPTIONAL)", icon: "clock.fill") {
+                VStack(spacing: 12) {
+                    Text("\(inlineEditor.duration) min")
+                        .font(Typography.number(32))
+                        .foregroundColor(ColorTheme.training)
 
-                HStack(spacing: 10) {
-                    ForEach([10, 15, 20, 30, 60], id: \.self) { mins in
-                        quickDurationButton(mins, binding: $inlineEditor.duration)
+                    HStack(spacing: 10) {
+                        ForEach([10, 15, 20, 30, 60], id: \.self) { mins in
+                            quickDurationButton(mins, binding: $inlineEditor.duration)
+                        }
                     }
-                }
 
-                Slider(value: Binding(
-                    get: { Double(inlineEditor.duration) },
-                    set: { inlineEditor.duration = Int($0) }
-                ), in: 5...120, step: 5)
-                .tint(ColorTheme.training)
+                    Slider(value: Binding(
+                        get: { Double(inlineEditor.duration) },
+                        set: { inlineEditor.duration = Int($0) }
+                    ), in: 5...120, step: 5)
+                    .tint(ColorTheme.training)
+                }
             }
         }
     }
@@ -1308,14 +1344,16 @@ struct SessionEditorView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var editor = SessionEditorState()
 
-    private let trainingTypes: [(String, String, String)] = [
-        ("match", "Match", "trophy.fill"),
-        ("gym", "Gym", "dumbbell.fill"),
-        ("cardio", "Cardio", "heart.circle.fill"),
-        ("technical", "Technical", "figure.run"),
-        ("tactical", "Tactical", "brain.head.profile"),
-        ("recovery", "Recovery", "leaf.fill"),
-    ]
+    private var trainingTypes: [(String, String, String)] {
+        [
+            ("match", "Match", "trophy.fill"),
+            ("gym", "Gym", "dumbbell.fill"),
+            ("cardio", "Cardio", "heart.circle.fill"),
+            ("technical", "Technical", "figure.run"),
+            ("tactical", "Tactical", "brain.head.profile"),
+            ("recovery", "Recovery", "leaf.fill"),
+        ]
+    }
 
     private var canSave: Bool { !editor.trainingType.isEmpty }
 
@@ -1470,7 +1508,7 @@ private struct SheetFormContent: View {
 
     var body: some View {
         switch editor.trainingType {
-        case "match":
+        case "match", "sparring":
             SheetMatchForm(editor: editor, sport: sport, colorScheme: colorScheme)
         case "gym":
             SheetGymForm(editor: editor, colorScheme: colorScheme)
@@ -1499,12 +1537,6 @@ private struct SheetMatchForm: View {
     let colorScheme: ColorScheme
 
     var body: some View {
-        SheetSection(title: "MATCH TYPE", icon: "trophy.fill", colorScheme: colorScheme) {
-            SheetChipRow(options: [("match", "Match"), ("sparring", "Sparring"), ("competition", "Competition")],
-                         selection: Binding(get: { editor.matchType }, set: { editor.matchType = $0 }),
-                         colorScheme: colorScheme)
-        }
-
         SheetSection(title: "RESULT", icon: "flag.fill", colorScheme: colorScheme) {
             HStack(spacing: 8) {
                 ForEach([("win", "Win", "22C55E"), ("loss", "Loss", "EF4444"), ("draw", "Draw", "F59E0B")], id: \.0) { value, label, hex in
@@ -1550,8 +1582,75 @@ private struct SheetMatchForm: View {
             }
         }
 
-        SheetDurationSection(value: Binding(get: { editor.minutesPlayed }, set: { editor.minutesPlayed = $0 }),
-                             title: "MINUTES PLAYED", presets: [45, 60, 70, 80, 90], range: 1...120, colorScheme: colorScheme)
+        let methods = TrainingSession.matchWinMethods(sport: sport)
+        if !methods.isEmpty {
+            SheetSection(title: "RESULT METHOD", icon: "chart.line.uptrend.xyaxis", colorScheme: colorScheme) {
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
+                    ForEach(methods, id: \.0) { value, label in
+                        Button {
+                            HapticManager.selection()
+                            editor.winMethod = editor.winMethod == value ? "" : value
+                        } label: {
+                            Text(label)
+                                .font(.system(size: 12, weight: .bold).width(.condensed))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 9)
+                                .background(editor.winMethod == value ? ColorTheme.training.opacity(0.15) : ColorTheme.elevatedBackground(colorScheme))
+                                .foregroundColor(editor.winMethod == value ? ColorTheme.training : ColorTheme.secondaryText(colorScheme))
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+
+        SheetSection(title: "POSITION (OPTIONAL)", icon: "mappin.circle.fill", colorScheme: colorScheme) {
+            TextField("e.g. Striker, Point Guard, Flyweight...",
+                      text: Binding(get: { editor.position }, set: { editor.position = $0 }))
+                .font(.system(size: 15, weight: .regular).width(.condensed))
+                .foregroundColor(ColorTheme.primaryText(colorScheme))
+                .padding(12)
+                .background(ColorTheme.elevatedBackground(colorScheme))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+
+        let statFields = SheetMatchForm.statFields(for: sport)
+        if !statFields.isEmpty {
+            SheetSection(title: "KEY STATS (OPTIONAL)", icon: "chart.bar.fill", colorScheme: colorScheme) {
+                VStack(spacing: 8) {
+                    ForEach(statFields, id: \.key) { field in
+                        StatInputRow(
+                            label: field.label,
+                            icon: field.icon,
+                            value: Binding(
+                                get: { editor.keyStats[field.key] ?? 0 },
+                                set: { editor.keyStats[field.key] = $0 }
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    static func statFields(for sport: String) -> [(key: String, label: String, icon: String)] {
+        switch sport.lowercased() {
+        case "soccer":
+            return [("goals", "Goals", "sportscourt.fill"), ("assists", "Assists", "arrow.right.arrow.left"), ("shotsOnTarget", "Shots on Target", "scope")]
+        case "basketball":
+            return [("points", "Points", "basketball.fill"), ("assists", "Assists", "arrow.right.arrow.left"), ("rebounds", "Rebounds", "arrow.up.circle")]
+        case "tennis":
+            return [("setsWon", "Sets Won", "checkmark.circle"), ("aces", "Aces", "bolt.fill"), ("winners", "Winners", "star.fill")]
+        case "boxing":
+            return [("roundsFought", "Rounds", "figure.boxing"), ("cleanPunches", "Clean Punches", "bolt.fill"), ("knockdowns", "Knockdowns", "arrow.down.circle")]
+        case "football":
+            return [("touchdowns", "Touchdowns", "football.fill"), ("yardsGained", "Yards", "arrow.right"), ("tackles", "Tackles", "shield.fill")]
+        case "cricket":
+            return [("runsScored", "Runs", "figure.cricket"), ("wicketsTaken", "Wickets", "flame.fill"), ("catches", "Catches", "hand.raised.fill")]
+        default:
+            return [("points", "Points / Score", "star.fill")]
+        }
     }
 }
 
@@ -1583,7 +1682,7 @@ private struct SheetCardioForm: View {
 
     var body: some View {
         SheetSection(title: "TYPE", icon: "heart.circle.fill", colorScheme: colorScheme) {
-            SheetChipRow(options: [("run", "Run"), ("bike", "Bike"), ("swim", "Swim")],
+            SheetChipRow(options: [("run", "Run"), ("walk", "Walk"), ("bike", "Bike"), ("swim", "Swim")],
                          selection: Binding(get: { editor.cardioType }, set: { editor.cardioType = $0 }),
                          colorScheme: colorScheme)
         }
@@ -1621,23 +1720,25 @@ private struct SheetTechnicalForm: View {
                 let skills = TrainingSession.technicalDetails(sport: sport)
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
                     ForEach(skills, id: \.self) { skill in
+                        let isOn = editor.selectedSkills.contains(skill)
                         Button {
                             HapticManager.selection()
-                            editor.skillTrained = editor.skillTrained == skill ? "" : skill
+                            if isOn { editor.selectedSkills.remove(skill) }
+                            else { editor.selectedSkills.insert(skill) }
                         } label: {
                             Text(skill)
                                 .font(.system(size: 12, weight: .bold).width(.condensed))
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 9)
-                                .background(editor.skillTrained == skill ? ColorTheme.training.opacity(0.15) : ColorTheme.elevatedBackground(colorScheme))
-                                .foregroundColor(editor.skillTrained == skill ? ColorTheme.training : ColorTheme.secondaryText(colorScheme))
+                                .background(isOn ? ColorTheme.training.opacity(0.15) : ColorTheme.elevatedBackground(colorScheme))
+                                .foregroundColor(isOn ? ColorTheme.training : ColorTheme.secondaryText(colorScheme))
                                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                         }
                         .buttonStyle(.plain)
                     }
                 }
 
-                TextField("Or type your own...", text: Binding(get: { editor.skillTrained }, set: { editor.skillTrained = $0 }))
+                TextField("Or type your own...", text: Binding(get: { editor.customSkill }, set: { editor.customSkill = $0 }))
                     .font(.system(size: 14, weight: .medium).width(.condensed))
                     .foregroundColor(ColorTheme.primaryText(colorScheme))
                     .padding(.horizontal, 12)
@@ -1691,8 +1792,10 @@ private struct SheetRecoveryForm: View {
                          colorScheme: colorScheme)
         }
 
-        SheetDurationSection(value: Binding(get: { editor.duration }, set: { editor.duration = $0 }),
-                             title: "DURATION (OPTIONAL)", presets: [10, 15, 20, 30, 60], range: 5...120, colorScheme: colorScheme)
+        if editor.recoveryType != "rest" {
+            SheetDurationSection(value: Binding(get: { editor.duration }, set: { editor.duration = $0 }),
+                                 title: "DURATION (OPTIONAL)", presets: [10, 15, 20, 30, 60], range: 5...120, colorScheme: colorScheme)
+        }
     }
 }
 

@@ -215,27 +215,78 @@ struct DailyLogDetailSheet: View {
                         .font(.system(size: 12, weight: .medium).width(.condensed))
                         .foregroundColor(ColorTheme.secondaryText(colorScheme))
 
-                    // Match result badge
-                    if session.trainingType == "match", let result = session.resultDisplay {
-                        HStack(spacing: 6) {
-                            let resultColor: Color = result == "Win" ? Color(hex: "22C55E") : result == "Loss" ? Color(hex: "EF4444") : Color(hex: "F59E0B")
-                            Text(result.uppercased())
-                                .font(.system(size: 10, weight: .heavy).width(.condensed))
-                                .foregroundColor(resultColor)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
-                                .background(resultColor.opacity(0.1))
-                                .clipShape(Capsule())
-
+                    // Match details: result, win method, rating
+                    if session.trainingType == "match" {
+                        FlowLayout(spacing: 6) {
+                            if let result = session.resultDisplay {
+                                let rc: Color = result == "Win" ? Color(hex: "22C55E") : result == "Loss" ? Color(hex: "EF4444") : Color(hex: "F59E0B")
+                                journalBadge(text: result.uppercased(), color: rc)
+                            }
+                            if let wm = session.winMethodDisplay {
+                                journalBadge(text: wm, color: ColorTheme.training)
+                            }
                             if let rating = session.performanceRating {
-                                HStack(spacing: 2) {
-                                    Image(systemName: "star.fill")
-                                        .font(.system(size: 9))
-                                        .foregroundColor(Color(hex: "F59E0B"))
-                                    Text("\(rating)/10")
-                                        .font(.system(size: 10, weight: .bold).width(.condensed))
-                                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+                                journalBadge(text: "★ \(rating)/10", color: Color(hex: "F59E0B"))
+                            }
+                            if let mp = session.minutesPlayed {
+                                journalBadge(text: "\(mp)min", color: ColorTheme.secondaryText(colorScheme))
+                            }
+                            if let p = session.position, !p.isEmpty {
+                                journalBadge(text: p, color: ColorTheme.secondaryText(colorScheme))
+                            }
+                        }
+
+                        if let stats = session.keyStats, !stats.isEmpty {
+                            let ordered = stats.filter { $0.value > 0 }.sorted { $0.key < $1.key }
+                            if !ordered.isEmpty {
+                                FlowLayout(spacing: 6) {
+                                    ForEach(ordered, id: \.key) { key, value in
+                                        journalBadge(text: "\(value) \(humanize(key))", color: ColorTheme.training)
+                                    }
                                 }
+                            }
+                        }
+                    }
+
+                    // Gym: focus + effort
+                    if session.trainingType == "gym" {
+                        FlowLayout(spacing: 6) {
+                            if let f = session.gymFocusDisplay { journalBadge(text: f, color: ColorTheme.training) }
+                            if let e = session.effortLevelDisplay { journalBadge(text: e, color: Color(hex: "F59E0B")) }
+                        }
+                    }
+
+                    // Cardio
+                    if session.trainingType == "cardio" {
+                        FlowLayout(spacing: 6) {
+                            if let ct = session.cardioTypeDisplay { journalBadge(text: ct, color: ColorTheme.training) }
+                            if let d = session.distance { journalBadge(text: String(format: "%.1f km", d), color: ColorTheme.training) }
+                            if let p = session.pace, !p.isEmpty { journalBadge(text: p, color: ColorTheme.secondaryText(colorScheme)) }
+                            if let e = session.cardioEffortDisplay { journalBadge(text: e, color: Color(hex: "F59E0B")) }
+                        }
+                    }
+
+                    // Technical
+                    if session.trainingType == "technical" {
+                        FlowLayout(spacing: 6) {
+                            if let s = session.skillTrained, !s.isEmpty { journalBadge(text: s, color: ColorTheme.training) }
+                            if let q = session.focusQualityDisplay { journalBadge(text: q, color: Color(hex: "F59E0B")) }
+                        }
+                    }
+
+                    // Tactical
+                    if session.trainingType == "tactical" {
+                        FlowLayout(spacing: 6) {
+                            if let t = session.tacticalTypeDisplay { journalBadge(text: t, color: ColorTheme.training) }
+                            if let u = session.understandingLevelDisplay { journalBadge(text: u, color: Color(hex: "F59E0B")) }
+                        }
+                    }
+
+                    // Recovery
+                    if session.trainingType == "recovery" {
+                        if let r = session.recoveryTypeDisplay {
+                            FlowLayout(spacing: 6) {
+                                journalBadge(text: r, color: ColorTheme.training)
                             }
                         }
                     }
@@ -423,5 +474,22 @@ struct DailyLogDetailSheet: View {
 
             Spacer()
         }
+    }
+
+    private func journalBadge(text: String, color: Color) -> some View {
+        Text(text)
+            .font(.system(size: 11, weight: .semibold).width(.condensed))
+            .foregroundColor(color)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(color.opacity(0.12))
+            .clipShape(Capsule())
+    }
+
+    private func humanize(_ raw: String) -> String {
+        raw.replacingOccurrences(of: "_", with: " ")
+            .split(separator: " ")
+            .map { $0.prefix(1).uppercased() + $0.dropFirst() }
+            .joined(separator: " ")
     }
 }
