@@ -4,6 +4,30 @@ import SwiftUI
 
 @Observable
 final class SessionEditorState {
+    static let gymFocusOptions: [(String, String)] = [
+        ("strength", "Strength"),
+        ("hypertrophy", "Hypertrophy"),
+        ("power", "Power"),
+        ("heavyLifting", "Heavy Lifting"),
+        ("endurance", "Endurance"),
+        ("conditioning", "Conditioning"),
+        ("mobility", "Mobility"),
+        ("fullBody", "Full Body"),
+        ("upperBody", "Upper Body"),
+        ("lowerBody", "Lower Body"),
+        ("push", "Push"),
+        ("pull", "Pull"),
+        ("legs", "Legs"),
+        ("chest", "Chest"),
+        ("back", "Back"),
+        ("shoulders", "Shoulders"),
+        ("arms", "Arms"),
+        ("biceps", "Biceps"),
+        ("triceps", "Triceps"),
+        ("core", "Core / Abs"),
+        ("glutes", "Glutes"),
+    ]
+
     var trainingType = ""
     var duration = 60
     var notes = ""
@@ -19,28 +43,85 @@ final class SessionEditorState {
 
     // Gym
     var gymFocus = ""
+    var selectedGymFocuses: Set<String> = []
+    var customGymFocuses: [String] = []
+    var customGymFocusInput = ""
     var effortLevel = ""
     var exercises: [String] = []
     var exerciseInput = ""
 
     // Cardio
     var cardioType = ""
+    var customCardioTypes: [String] = []
+    var customCardioTypeInput = ""
     var distance: Double = 0
+    var distanceUnit: String = "km"
     var pace = ""
     var cardioEffort = ""
+
+    static let cardioTypeOptions: [(String, String)] = [
+        ("run", "Run"),
+        ("walk", "Walk"),
+        ("bike", "Bike"),
+        ("swim", "Swim"),
+        ("row", "Row"),
+        ("elliptical", "Elliptical"),
+        ("stairs", "Stairs"),
+        ("jumpRope", "Jump Rope"),
+        ("hike", "Hike"),
+        ("hiit", "HIIT"),
+        ("sprints", "Sprints"),
+        ("treadmill", "Treadmill"),
+    ]
 
     // Technical
     var skillTrained = ""
     var selectedSkills: Set<String> = []
     var customSkill = ""
+    var customSkills: [String] = []
+    var customSkillInput = ""
     var focusQuality = ""
 
     // Tactical
     var tacticalType = ""
+    var customTacticalTypes: [String] = []
+    var customTacticalTypeInput = ""
     var understandingLevel = ""
 
     // Recovery
     var recoveryType = ""
+    var customRecoveryTypes: [String] = []
+    var customRecoveryTypeInput = ""
+
+    static let tacticalTypeOptions: [(String, String)] = [
+        ("team_session", "Team Session"),
+        ("analysis", "Analysis"),
+        ("film_study", "Film Study"),
+        ("walkthrough", "Walkthrough"),
+        ("set_pieces", "Set Pieces"),
+        ("playbook", "Playbook Review"),
+        ("scouting", "Opponent Scouting"),
+        ("whiteboard", "Whiteboard Session"),
+        ("individual_review", "Individual Review"),
+        ("position_specific", "Position Specific"),
+    ]
+
+    static let recoveryTypeOptions: [(String, String)] = [
+        ("stretching", "Stretching"),
+        ("foam_rolling", "Foam Rolling"),
+        ("ice_bath", "Ice Bath"),
+        ("massage", "Massage"),
+        ("yoga", "Yoga"),
+        ("mobility", "Mobility Work"),
+        ("light_walk", "Light Walk"),
+        ("meditation", "Meditation"),
+        ("compression", "Compression"),
+        ("sauna", "Sauna"),
+        ("contrast_therapy", "Contrast Therapy"),
+        ("sleep", "Extra Sleep"),
+        ("hydration", "Hydration Focus"),
+        ("rest", "Rest"),
+    ]
 
     // Legacy
     var intensity = ""
@@ -63,18 +144,31 @@ final class SessionEditorState {
             session.position = position.isEmpty ? nil : position
             session.keyStats = keyStats.isEmpty ? nil : keyStats
         case "gym":
-            session.gymFocus = gymFocus.isEmpty ? nil : gymFocus
-            session.effortLevel = effortLevel.isEmpty ? nil : effortLevel
+            var focusItems = SessionEditorState.gymFocusOptions
+                .map { $0.1 }
+                .filter { selectedGymFocuses.contains($0) }
+            for custom in customGymFocuses where !focusItems.contains(where: { $0.lowercased() == custom.lowercased() }) {
+                focusItems.append(custom)
+            }
+            let focusJoined = focusItems.joined(separator: ", ")
+            session.gymFocus = focusJoined.isEmpty ? nil : focusJoined
+            session.effortLevel = nil
             session.exercises = exercises.isEmpty ? nil : exercises
         case "cardio":
             session.cardioType = cardioType.isEmpty ? nil : cardioType
             session.distance = distance > 0 ? distance : nil
+            session.distanceUnit = distance > 0 ? distanceUnit : nil
             session.pace = pace.isEmpty ? nil : pace
             session.cardioEffort = cardioEffort.isEmpty ? nil : cardioEffort
         case "technical":
             var items = Array(selectedSkills).sorted()
-            let custom = customSkill.trimmingCharacters(in: .whitespaces)
-            if !custom.isEmpty && !items.contains(custom) { items.append(custom) }
+            let legacyCustom = customSkill.trimmingCharacters(in: .whitespaces)
+            if !legacyCustom.isEmpty && !items.contains(where: { $0.lowercased() == legacyCustom.lowercased() }) {
+                items.append(legacyCustom)
+            }
+            for custom in customSkills where !items.contains(where: { $0.lowercased() == custom.lowercased() }) {
+                items.append(custom)
+            }
             let combined = items.joined(separator: ", ")
             session.skillTrained = combined.isEmpty ? nil : combined
             session.focusQuality = focusQuality.isEmpty ? nil : focusQuality
@@ -107,28 +201,56 @@ final class SessionEditorState {
         keyStats = session.keyStats ?? [:]
 
         gymFocus = session.gymFocus ?? ""
+        let parsedFocus = (session.gymFocus ?? "")
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        let presetLabels = Set(SessionEditorState.gymFocusOptions.map { $0.1 })
+        selectedGymFocuses = Set(parsedFocus.filter { presetLabels.contains($0) })
+        customGymFocuses = parsedFocus.filter { !presetLabels.contains($0) }
+        customGymFocusInput = ""
         effortLevel = session.effortLevel ?? ""
         exercises = session.exercises ?? []
 
         cardioType = session.cardioType ?? ""
+        let presetCardioValues = Set(SessionEditorState.cardioTypeOptions.map { $0.0 })
+        if !cardioType.isEmpty && !presetCardioValues.contains(cardioType) && !customCardioTypes.contains(cardioType) {
+            customCardioTypes.append(cardioType)
+        }
         distance = session.distance ?? 0
+        distanceUnit = session.distanceUnit ?? "km"
         pace = session.pace ?? ""
         cardioEffort = session.cardioEffort ?? ""
 
         skillTrained = session.skillTrained ?? ""
-        selectedSkills = Set(
-            (session.skillTrained ?? "")
-                .split(separator: ",")
-                .map { $0.trimmingCharacters(in: .whitespaces) }
-                .filter { !$0.isEmpty }
+        let parsedSkills = (session.skillTrained ?? "")
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        let presetSkillSet = Set(TrainingSession.technicalDetails(sport: trainingType == "technical" ? "" : ""))
+        let presetAll = Set(
+            ["soccer", "basketball", "tennis", "boxing", "football", "cricket", ""]
+                .flatMap { TrainingSession.technicalDetails(sport: $0) }
         )
+        _ = presetSkillSet
+        selectedSkills = Set(parsedSkills.filter { presetAll.contains($0) })
+        customSkills = parsedSkills.filter { !presetAll.contains($0) }
         customSkill = ""
+        customSkillInput = ""
         focusQuality = session.focusQuality ?? ""
 
         tacticalType = session.tacticalType ?? ""
+        let presetTacticalValues = Set(SessionEditorState.tacticalTypeOptions.map { $0.0 })
+        if !tacticalType.isEmpty && !presetTacticalValues.contains(tacticalType) && !customTacticalTypes.contains(tacticalType) {
+            customTacticalTypes.append(tacticalType)
+        }
         understandingLevel = session.understandingLevel ?? ""
 
         recoveryType = session.recoveryType ?? ""
+        let presetRecoveryValues = Set(SessionEditorState.recoveryTypeOptions.map { $0.0 })
+        if !recoveryType.isEmpty && !presetRecoveryValues.contains(recoveryType) && !customRecoveryTypes.contains(recoveryType) {
+            customRecoveryTypes.append(recoveryType)
+        }
     }
 
     func reset() {
@@ -145,20 +267,32 @@ final class SessionEditorState {
         position = ""
         keyStats = [:]
         gymFocus = ""
+        selectedGymFocuses = []
+        customGymFocuses = []
+        customGymFocusInput = ""
         effortLevel = ""
         exercises = []
         exerciseInput = ""
         cardioType = ""
+        customCardioTypes = []
+        customCardioTypeInput = ""
         distance = 0
+        distanceUnit = "km"
         pace = ""
         cardioEffort = ""
         skillTrained = ""
         selectedSkills = []
         customSkill = ""
+        customSkills = []
+        customSkillInput = ""
         focusQuality = ""
         tacticalType = ""
+        customTacticalTypes = []
+        customTacticalTypeInput = ""
         understandingLevel = ""
         recoveryType = ""
+        customRecoveryTypes = []
+        customRecoveryTypeInput = ""
     }
 }
 
@@ -820,14 +954,29 @@ struct TrainingLogView: View {
             }
         }
 
-        // Position (optional)
-        sectionCard(title: "POSITION (OPTIONAL)", icon: "mappin.circle.fill") {
-            TextField("e.g. Striker, Point Guard, Flyweight...", text: $inlineEditor.position)
-                .font(.system(size: 15, weight: .regular).width(.condensed))
-                .foregroundColor(ColorTheme.primaryText(colorScheme))
-                .padding(12)
-                .background(ColorTheme.elevatedBackground(colorScheme))
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        // Position / Match Format (sport-specific)
+        switch userSport.lowercased() {
+        case "boxing":
+            EmptyView()
+        case "tennis":
+            sectionCard(title: "MATCH FORMAT", icon: "tennis.racket") {
+                HStack(spacing: 8) {
+                    ForEach(["Singles", "Doubles"], id: \.self) { option in
+                        chipButton(label: option, isSelected: inlineEditor.position == option) {
+                            inlineEditor.position = inlineEditor.position == option ? "" : option
+                        }
+                    }
+                }
+            }
+        default:
+            sectionCard(title: "POSITION (OPTIONAL)", icon: "mappin.circle.fill") {
+                TextField(positionPlaceholder(for: userSport), text: $inlineEditor.position)
+                    .font(.system(size: 15, weight: .regular).width(.condensed))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    .padding(12)
+                    .background(ColorTheme.elevatedBackground(colorScheme))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
         }
 
         // Key Stats (sport-specific)
@@ -869,6 +1018,16 @@ struct TrainingLogView: View {
         case "tennis": return "tennis.racket"
         case "cricket": return "figure.cricket"
         default: return "chart.line.uptrend.xyaxis"
+        }
+    }
+
+    private func positionPlaceholder(for sport: String) -> String {
+        switch sport.lowercased() {
+        case "soccer": return "e.g. Striker, Centre-Back, Goalkeeper..."
+        case "basketball": return "e.g. Point Guard, Small Forward, Center..."
+        case "football": return "e.g. Quarterback, Wide Receiver, Linebacker..."
+        case "cricket": return "e.g. Batsman, Bowler, All-Rounder..."
+        default: return "Your position"
         }
     }
 
@@ -916,30 +1075,55 @@ struct TrainingLogView: View {
 
     @ViewBuilder
     private var gymFormSections: some View {
-        // Focus
+        // Focus (multi-select + custom)
         sectionCard(title: "FOCUS", icon: "dumbbell.fill") {
-            HStack(spacing: 8) {
-                ForEach([("strength", "Strength"), ("hypertrophy", "Hypertrophy"), ("power", "Power"), ("conditioning", "Conditioning")], id: \.0) { value, label in
-                    chipButton(label: label, isSelected: inlineEditor.gymFocus == value) {
-                        inlineEditor.gymFocus = value
+            VStack(spacing: 10) {
+                LazyVGrid(columns: [
+                    GridItem(.flexible(), spacing: 8),
+                    GridItem(.flexible(), spacing: 8),
+                    GridItem(.flexible(), spacing: 8),
+                ], spacing: 8) {
+                    ForEach(SessionEditorState.gymFocusOptions, id: \.0) { _, label in
+                        chipButton(label: label, isSelected: inlineEditor.selectedGymFocuses.contains(label)) {
+                            if inlineEditor.selectedGymFocuses.contains(label) {
+                                inlineEditor.selectedGymFocuses.remove(label)
+                            } else {
+                                inlineEditor.selectedGymFocuses.insert(label)
+                            }
+                        }
                     }
+                    ForEach(inlineEditor.customGymFocuses, id: \.self) { custom in
+                        chipButton(label: custom, isSelected: true) {
+                            inlineEditor.customGymFocuses.removeAll { $0 == custom }
+                        }
+                    }
+                }
+
+                HStack(spacing: 8) {
+                    TextField("Add your own focus...", text: $inlineEditor.customGymFocusInput)
+                        .font(.system(size: 14, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(ColorTheme.elevatedBackground(colorScheme))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .onSubmit { addCustomGymFocus() }
+
+                    Button {
+                        addCustomGymFocus()
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 26))
+                            .foregroundColor(ColorTheme.training)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(inlineEditor.customGymFocusInput.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
         }
 
         // Duration
         durationSection(binding: $inlineEditor.duration)
-
-        // Effort Level
-        sectionCard(title: "EFFORT LEVEL", icon: "flame.fill") {
-            HStack(spacing: 8) {
-                ForEach([("easy", "Easy"), ("moderate", "Moderate"), ("hard", "Hard"), ("failure", "Failure")], id: \.0) { value, label in
-                    chipButton(label: label, isSelected: inlineEditor.effortLevel == value) {
-                        inlineEditor.effortLevel = value
-                    }
-                }
-            }
-        }
 
         // Exercises (optional list)
         sectionCard(title: "EXERCISES (OPTIONAL)", icon: "list.bullet") {
@@ -1004,45 +1188,183 @@ struct TrainingLogView: View {
         HapticManager.selection()
     }
 
+    private func addCustomCardioType() {
+        let trimmed = inlineEditor.customCardioTypeInput.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        let presetValues = SessionEditorState.cardioTypeOptions
+        if let match = presetValues.first(where: { $0.1.lowercased() == trimmed.lowercased() || $0.0.lowercased() == trimmed.lowercased() }) {
+            inlineEditor.cardioType = match.0
+        } else if let existing = inlineEditor.customCardioTypes.first(where: { $0.lowercased() == trimmed.lowercased() }) {
+            inlineEditor.cardioType = existing
+        } else {
+            inlineEditor.customCardioTypes.append(trimmed)
+            inlineEditor.cardioType = trimmed
+        }
+        inlineEditor.customCardioTypeInput = ""
+        HapticManager.selection()
+    }
+
+    private func addCustomTacticalType() {
+        let trimmed = inlineEditor.customTacticalTypeInput.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        let presets = SessionEditorState.tacticalTypeOptions
+        if let match = presets.first(where: { $0.1.lowercased() == trimmed.lowercased() || $0.0.lowercased() == trimmed.lowercased() }) {
+            inlineEditor.tacticalType = match.0
+        } else if let existing = inlineEditor.customTacticalTypes.first(where: { $0.lowercased() == trimmed.lowercased() }) {
+            inlineEditor.tacticalType = existing
+        } else {
+            inlineEditor.customTacticalTypes.append(trimmed)
+            inlineEditor.tacticalType = trimmed
+        }
+        inlineEditor.customTacticalTypeInput = ""
+        HapticManager.selection()
+    }
+
+    private func addCustomRecoveryType() {
+        let trimmed = inlineEditor.customRecoveryTypeInput.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        let presets = SessionEditorState.recoveryTypeOptions
+        if let match = presets.first(where: { $0.1.lowercased() == trimmed.lowercased() || $0.0.lowercased() == trimmed.lowercased() }) {
+            inlineEditor.recoveryType = match.0
+        } else if let existing = inlineEditor.customRecoveryTypes.first(where: { $0.lowercased() == trimmed.lowercased() }) {
+            inlineEditor.recoveryType = existing
+        } else {
+            inlineEditor.customRecoveryTypes.append(trimmed)
+            inlineEditor.recoveryType = trimmed
+        }
+        inlineEditor.customRecoveryTypeInput = ""
+        HapticManager.selection()
+    }
+
+    private func addCustomSkill() {
+        let trimmed = inlineEditor.customSkillInput.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        let presets = TrainingSession.technicalDetails(sport: userSport)
+        if let match = presets.first(where: { $0.lowercased() == trimmed.lowercased() }) {
+            inlineEditor.selectedSkills.insert(match)
+        } else if !inlineEditor.customSkills.contains(where: { $0.lowercased() == trimmed.lowercased() }) {
+            inlineEditor.customSkills.append(trimmed)
+        }
+        inlineEditor.customSkillInput = ""
+        HapticManager.selection()
+    }
+
+    private func addCustomGymFocus() {
+        let trimmed = inlineEditor.customGymFocusInput.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        let presetLabels = Set(SessionEditorState.gymFocusOptions.map { $0.1 })
+        if let matchedPreset = presetLabels.first(where: { $0.lowercased() == trimmed.lowercased() }) {
+            inlineEditor.selectedGymFocuses.insert(matchedPreset)
+        } else if !inlineEditor.customGymFocuses.contains(where: { $0.lowercased() == trimmed.lowercased() }) {
+            inlineEditor.customGymFocuses.append(trimmed)
+        }
+        inlineEditor.customGymFocusInput = ""
+        HapticManager.selection()
+    }
+
     // MARK: - Cardio Form
 
     @ViewBuilder
     private var cardioFormSections: some View {
         // Cardio Type
         sectionCard(title: "TYPE", icon: "heart.circle.fill") {
-            HStack(spacing: 8) {
-                ForEach([("run", "Run"), ("walk", "Walk"), ("bike", "Bike"), ("swim", "Swim")], id: \.0) { value, label in
-                    chipButton(label: label, isSelected: inlineEditor.cardioType == value) {
-                        inlineEditor.cardioType = value
+            VStack(spacing: 10) {
+                LazyVGrid(columns: [
+                    GridItem(.flexible(), spacing: 8),
+                    GridItem(.flexible(), spacing: 8),
+                    GridItem(.flexible(), spacing: 8),
+                ], spacing: 8) {
+                    ForEach(SessionEditorState.cardioTypeOptions, id: \.0) { value, label in
+                        chipButton(label: label, isSelected: inlineEditor.cardioType == value) {
+                            inlineEditor.cardioType = value
+                        }
                     }
+                    ForEach(inlineEditor.customCardioTypes, id: \.self) { custom in
+                        chipButton(label: custom, isSelected: inlineEditor.cardioType == custom) {
+                            if inlineEditor.cardioType == custom {
+                                inlineEditor.cardioType = ""
+                                inlineEditor.customCardioTypes.removeAll { $0 == custom }
+                            } else {
+                                inlineEditor.cardioType = custom
+                            }
+                        }
+                    }
+                }
+
+                HStack(spacing: 8) {
+                    TextField("Add your own type...", text: $inlineEditor.customCardioTypeInput)
+                        .font(.system(size: 14, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(ColorTheme.elevatedBackground(colorScheme))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .onSubmit { addCustomCardioType() }
+
+                    Button {
+                        addCustomCardioType()
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 26))
+                            .foregroundColor(ColorTheme.training)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(inlineEditor.customCardioTypeInput.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
         }
 
         // Distance
-        sectionCard(title: "DISTANCE (KM)", icon: "map.fill") {
+        sectionCard(title: "DISTANCE (\(inlineEditor.distanceUnit.uppercased()))", icon: "map.fill") {
             VStack(spacing: 12) {
-                Text(String(format: "%.1f km", inlineEditor.distance))
-                    .font(Typography.number(32))
-                    .foregroundColor(ColorTheme.training)
-
-                HStack(spacing: 10) {
-                    ForEach([3.0, 5.0, 8.0, 10.0, 15.0], id: \.self) { km in
+                // Unit toggle
+                HStack(spacing: 8) {
+                    ForEach(["km", "mi"], id: \.self) { unit in
                         Button {
                             HapticManager.selection()
-                            inlineEditor.distance = km
+                            inlineEditor.distanceUnit = unit
                         } label: {
-                            Text(String(format: "%.0f", km))
-                                .font(.system(size: 13, weight: .bold).width(.condensed))
+                            Text(unit.uppercased())
+                                .font(.system(size: 12, weight: .heavy).width(.condensed))
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 8)
                                 .background(
-                                    inlineEditor.distance == km
+                                    inlineEditor.distanceUnit == unit
                                         ? ColorTheme.training.opacity(0.15)
                                         : ColorTheme.elevatedBackground(colorScheme)
                                 )
                                 .foregroundColor(
-                                    inlineEditor.distance == km
+                                    inlineEditor.distanceUnit == unit
+                                        ? ColorTheme.training
+                                        : ColorTheme.secondaryText(colorScheme)
+                                )
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
+                Text(String(format: "%.1f %@", inlineEditor.distance, inlineEditor.distanceUnit))
+                    .font(Typography.number(32))
+                    .foregroundColor(ColorTheme.training)
+
+                HStack(spacing: 10) {
+                    ForEach([3.0, 5.0, 8.0, 10.0, 15.0], id: \.self) { value in
+                        Button {
+                            HapticManager.selection()
+                            inlineEditor.distance = value
+                        } label: {
+                            Text(String(format: "%.0f", value))
+                                .font(.system(size: 13, weight: .bold).width(.condensed))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                                .background(
+                                    inlineEditor.distance == value
+                                        ? ColorTheme.training.opacity(0.15)
+                                        : ColorTheme.elevatedBackground(colorScheme)
+                                )
+                                .foregroundColor(
+                                    inlineEditor.distance == value
                                         ? ColorTheme.training
                                         : ColorTheme.secondaryText(colorScheme)
                                 )
@@ -1103,15 +1425,33 @@ struct TrainingLogView: View {
                             }
                         }
                     }
+                    ForEach(inlineEditor.customSkills, id: \.self) { custom in
+                        chipButton(label: custom, isSelected: true) {
+                            inlineEditor.customSkills.removeAll { $0 == custom }
+                        }
+                    }
                 }
 
-                TextField("Or type your own...", text: $inlineEditor.customSkill)
-                    .font(.system(size: 14, weight: .medium).width(.condensed))
-                    .foregroundColor(ColorTheme.primaryText(colorScheme))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(ColorTheme.elevatedBackground(colorScheme))
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                HStack(spacing: 8) {
+                    TextField("Add your own skill...", text: $inlineEditor.customSkillInput)
+                        .font(.system(size: 14, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(ColorTheme.elevatedBackground(colorScheme))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .onSubmit { addCustomSkill() }
+
+                    Button {
+                        addCustomSkill()
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 26))
+                            .foregroundColor(ColorTheme.training)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(inlineEditor.customSkillInput.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
             }
         }
 
@@ -1136,11 +1476,48 @@ struct TrainingLogView: View {
     private var tacticalFormSections: some View {
         // Type
         sectionCard(title: "SESSION TYPE", icon: "brain.head.profile") {
-            HStack(spacing: 8) {
-                ForEach([("team_session", "Team Session"), ("analysis", "Analysis")], id: \.0) { value, label in
-                    chipButton(label: label, isSelected: inlineEditor.tacticalType == value) {
-                        inlineEditor.tacticalType = value
+            VStack(spacing: 10) {
+                LazyVGrid(columns: [
+                    GridItem(.flexible(), spacing: 8),
+                    GridItem(.flexible(), spacing: 8),
+                    GridItem(.flexible(), spacing: 8),
+                ], spacing: 8) {
+                    ForEach(SessionEditorState.tacticalTypeOptions, id: \.0) { value, label in
+                        chipButton(label: label, isSelected: inlineEditor.tacticalType == value) {
+                            inlineEditor.tacticalType = value
+                        }
                     }
+                    ForEach(inlineEditor.customTacticalTypes, id: \.self) { custom in
+                        chipButton(label: custom, isSelected: inlineEditor.tacticalType == custom) {
+                            if inlineEditor.tacticalType == custom {
+                                inlineEditor.tacticalType = ""
+                                inlineEditor.customTacticalTypes.removeAll { $0 == custom }
+                            } else {
+                                inlineEditor.tacticalType = custom
+                            }
+                        }
+                    }
+                }
+
+                HStack(spacing: 8) {
+                    TextField("Add your own type...", text: $inlineEditor.customTacticalTypeInput)
+                        .font(.system(size: 14, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(ColorTheme.elevatedBackground(colorScheme))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .onSubmit { addCustomTacticalType() }
+
+                    Button {
+                        addCustomTacticalType()
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 26))
+                            .foregroundColor(ColorTheme.training)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(inlineEditor.customTacticalTypeInput.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
         }
@@ -1166,11 +1543,48 @@ struct TrainingLogView: View {
     private var recoveryFormSections: some View {
         // Recovery Type
         sectionCard(title: "RECOVERY TYPE", icon: "leaf.fill") {
-            HStack(spacing: 8) {
-                ForEach([("stretching", "Stretching"), ("ice_bath", "Ice Bath"), ("massage", "Massage"), ("rest", "Rest")], id: \.0) { value, label in
-                    chipButton(label: label, isSelected: inlineEditor.recoveryType == value) {
-                        inlineEditor.recoveryType = value
+            VStack(spacing: 10) {
+                LazyVGrid(columns: [
+                    GridItem(.flexible(), spacing: 8),
+                    GridItem(.flexible(), spacing: 8),
+                    GridItem(.flexible(), spacing: 8),
+                ], spacing: 8) {
+                    ForEach(SessionEditorState.recoveryTypeOptions, id: \.0) { value, label in
+                        chipButton(label: label, isSelected: inlineEditor.recoveryType == value) {
+                            inlineEditor.recoveryType = value
+                        }
                     }
+                    ForEach(inlineEditor.customRecoveryTypes, id: \.self) { custom in
+                        chipButton(label: custom, isSelected: inlineEditor.recoveryType == custom) {
+                            if inlineEditor.recoveryType == custom {
+                                inlineEditor.recoveryType = ""
+                                inlineEditor.customRecoveryTypes.removeAll { $0 == custom }
+                            } else {
+                                inlineEditor.recoveryType = custom
+                            }
+                        }
+                    }
+                }
+
+                HStack(spacing: 8) {
+                    TextField("Add your own type...", text: $inlineEditor.customRecoveryTypeInput)
+                        .font(.system(size: 14, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(ColorTheme.elevatedBackground(colorScheme))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .onSubmit { addCustomRecoveryType() }
+
+                    Button {
+                        addCustomRecoveryType()
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 26))
+                            .foregroundColor(ColorTheme.training)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(inlineEditor.customRecoveryTypeInput.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
         }
@@ -1605,14 +2019,39 @@ private struct SheetMatchForm: View {
             }
         }
 
-        SheetSection(title: "POSITION (OPTIONAL)", icon: "mappin.circle.fill", colorScheme: colorScheme) {
-            TextField("e.g. Striker, Point Guard, Flyweight...",
-                      text: Binding(get: { editor.position }, set: { editor.position = $0 }))
-                .font(.system(size: 15, weight: .regular).width(.condensed))
-                .foregroundColor(ColorTheme.primaryText(colorScheme))
-                .padding(12)
-                .background(ColorTheme.elevatedBackground(colorScheme))
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        switch sport.lowercased() {
+        case "boxing":
+            EmptyView()
+        case "tennis":
+            SheetSection(title: "MATCH FORMAT", icon: "tennis.racket", colorScheme: colorScheme) {
+                HStack(spacing: 8) {
+                    ForEach(["Singles", "Doubles"], id: \.self) { option in
+                        Button {
+                            HapticManager.selection()
+                            editor.position = editor.position == option ? "" : option
+                        } label: {
+                            Text(option)
+                                .font(.system(size: 13, weight: .bold).width(.condensed))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(editor.position == option ? ColorTheme.training.opacity(0.15) : ColorTheme.elevatedBackground(colorScheme))
+                                .foregroundColor(editor.position == option ? ColorTheme.training : ColorTheme.secondaryText(colorScheme))
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        default:
+            SheetSection(title: "POSITION (OPTIONAL)", icon: "mappin.circle.fill", colorScheme: colorScheme) {
+                TextField(SheetMatchForm.positionPlaceholder(for: sport),
+                          text: Binding(get: { editor.position }, set: { editor.position = $0 }))
+                    .font(.system(size: 15, weight: .regular).width(.condensed))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    .padding(12)
+                    .background(ColorTheme.elevatedBackground(colorScheme))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
         }
 
         let statFields = SheetMatchForm.statFields(for: sport)
@@ -1631,6 +2070,16 @@ private struct SheetMatchForm: View {
                     }
                 }
             }
+        }
+    }
+
+    static func positionPlaceholder(for sport: String) -> String {
+        switch sport.lowercased() {
+        case "soccer": return "e.g. Striker, Centre-Back, Goalkeeper..."
+        case "basketball": return "e.g. Point Guard, Small Forward, Center..."
+        case "football": return "e.g. Quarterback, Wide Receiver, Linebacker..."
+        case "cricket": return "e.g. Batsman, Bowler, All-Rounder..."
+        default: return "Your position"
         }
     }
 
@@ -1660,19 +2109,88 @@ private struct SheetGymForm: View {
 
     var body: some View {
         SheetSection(title: "FOCUS", icon: "dumbbell.fill", colorScheme: colorScheme) {
-            SheetChipRow(options: [("strength", "Strength"), ("hypertrophy", "Hypertrophy"), ("power", "Power"), ("conditioning", "Conditioning")],
-                         selection: Binding(get: { editor.gymFocus }, set: { editor.gymFocus = $0 }),
-                         colorScheme: colorScheme)
+            VStack(spacing: 10) {
+                LazyVGrid(columns: [
+                    GridItem(.flexible(), spacing: 8),
+                    GridItem(.flexible(), spacing: 8),
+                    GridItem(.flexible(), spacing: 8),
+                ], spacing: 8) {
+                    ForEach(SessionEditorState.gymFocusOptions, id: \.0) { _, label in
+                        let isSelected = editor.selectedGymFocuses.contains(label)
+                        Button {
+                            HapticManager.selection()
+                            if isSelected {
+                                editor.selectedGymFocuses.remove(label)
+                            } else {
+                                editor.selectedGymFocuses.insert(label)
+                            }
+                        } label: {
+                            Text(label)
+                                .font(.system(size: 12, weight: .bold).width(.condensed))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(isSelected ? ColorTheme.training.opacity(0.15) : ColorTheme.elevatedBackground(colorScheme))
+                                .foregroundColor(isSelected ? ColorTheme.training : ColorTheme.secondaryText(colorScheme))
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    ForEach(editor.customGymFocuses, id: \.self) { custom in
+                        Button {
+                            HapticManager.selection()
+                            editor.customGymFocuses.removeAll { $0 == custom }
+                        } label: {
+                            Text(custom)
+                                .font(.system(size: 12, weight: .bold).width(.condensed))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(ColorTheme.training.opacity(0.15))
+                                .foregroundColor(ColorTheme.training)
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
+                HStack(spacing: 8) {
+                    TextField("Add your own focus...",
+                              text: Binding(get: { editor.customGymFocusInput }, set: { editor.customGymFocusInput = $0 }))
+                        .font(.system(size: 14, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(ColorTheme.elevatedBackground(colorScheme))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .onSubmit { SheetGymForm.addCustom(editor: editor) }
+
+                    Button {
+                        SheetGymForm.addCustom(editor: editor)
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 26))
+                            .foregroundColor(ColorTheme.training)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(editor.customGymFocusInput.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
         }
 
         SheetDurationSection(value: Binding(get: { editor.duration }, set: { editor.duration = $0 }),
                              colorScheme: colorScheme)
+    }
 
-        SheetSection(title: "EFFORT LEVEL", icon: "flame.fill", colorScheme: colorScheme) {
-            SheetChipRow(options: [("easy", "Easy"), ("moderate", "Moderate"), ("hard", "Hard"), ("failure", "Failure")],
-                         selection: Binding(get: { editor.effortLevel }, set: { editor.effortLevel = $0 }),
-                         colorScheme: colorScheme)
+    static func addCustom(editor: SessionEditorState) {
+        let trimmed = editor.customGymFocusInput.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        let presetLabels = Set(SessionEditorState.gymFocusOptions.map { $0.1 })
+        if let matchedPreset = presetLabels.first(where: { $0.lowercased() == trimmed.lowercased() }) {
+            editor.selectedGymFocuses.insert(matchedPreset)
+        } else if !editor.customGymFocuses.contains(where: { $0.lowercased() == trimmed.lowercased() }) {
+            editor.customGymFocuses.append(trimmed)
         }
+        editor.customGymFocusInput = ""
+        HapticManager.selection()
     }
 }
 
@@ -1682,14 +2200,96 @@ private struct SheetCardioForm: View {
 
     var body: some View {
         SheetSection(title: "TYPE", icon: "heart.circle.fill", colorScheme: colorScheme) {
-            SheetChipRow(options: [("run", "Run"), ("walk", "Walk"), ("bike", "Bike"), ("swim", "Swim")],
-                         selection: Binding(get: { editor.cardioType }, set: { editor.cardioType = $0 }),
-                         colorScheme: colorScheme)
+            VStack(spacing: 10) {
+                LazyVGrid(columns: [
+                    GridItem(.flexible(), spacing: 8),
+                    GridItem(.flexible(), spacing: 8),
+                    GridItem(.flexible(), spacing: 8),
+                ], spacing: 8) {
+                    ForEach(SessionEditorState.cardioTypeOptions, id: \.0) { value, label in
+                        let isSelected = editor.cardioType == value
+                        Button {
+                            HapticManager.selection()
+                            editor.cardioType = value
+                        } label: {
+                            Text(label)
+                                .font(.system(size: 12, weight: .bold).width(.condensed))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(isSelected ? ColorTheme.training.opacity(0.15) : ColorTheme.elevatedBackground(colorScheme))
+                                .foregroundColor(isSelected ? ColorTheme.training : ColorTheme.secondaryText(colorScheme))
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    ForEach(editor.customCardioTypes, id: \.self) { custom in
+                        let isSelected = editor.cardioType == custom
+                        Button {
+                            HapticManager.selection()
+                            if isSelected {
+                                editor.cardioType = ""
+                                editor.customCardioTypes.removeAll { $0 == custom }
+                            } else {
+                                editor.cardioType = custom
+                            }
+                        } label: {
+                            Text(custom)
+                                .font(.system(size: 12, weight: .bold).width(.condensed))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(isSelected ? ColorTheme.training.opacity(0.15) : ColorTheme.elevatedBackground(colorScheme))
+                                .foregroundColor(isSelected ? ColorTheme.training : ColorTheme.secondaryText(colorScheme))
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
+                HStack(spacing: 8) {
+                    TextField("Add your own type...",
+                              text: Binding(get: { editor.customCardioTypeInput }, set: { editor.customCardioTypeInput = $0 }))
+                        .font(.system(size: 14, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(ColorTheme.elevatedBackground(colorScheme))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .onSubmit { SheetCardioForm.addCustomType(editor: editor) }
+
+                    Button {
+                        SheetCardioForm.addCustomType(editor: editor)
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 26))
+                            .foregroundColor(ColorTheme.training)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(editor.customCardioTypeInput.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
         }
 
-        SheetSection(title: "DISTANCE (KM)", icon: "map.fill", colorScheme: colorScheme) {
+        SheetSection(title: "DISTANCE (\(editor.distanceUnit.uppercased()))", icon: "map.fill", colorScheme: colorScheme) {
             VStack(spacing: 12) {
-                Text(String(format: "%.1f km", editor.distance))
+                HStack(spacing: 8) {
+                    ForEach(["km", "mi"], id: \.self) { unit in
+                        Button {
+                            HapticManager.selection()
+                            editor.distanceUnit = unit
+                        } label: {
+                            Text(unit.uppercased())
+                                .font(.system(size: 12, weight: .heavy).width(.condensed))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                                .background(editor.distanceUnit == unit ? ColorTheme.training.opacity(0.15) : ColorTheme.elevatedBackground(colorScheme))
+                                .foregroundColor(editor.distanceUnit == unit ? ColorTheme.training : ColorTheme.secondaryText(colorScheme))
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
+                Text(String(format: "%.1f %@", editor.distance, editor.distanceUnit))
                     .font(Typography.number(32))
                     .foregroundColor(ColorTheme.training)
 
@@ -1706,6 +2306,22 @@ private struct SheetCardioForm: View {
                          selection: Binding(get: { editor.cardioEffort }, set: { editor.cardioEffort = $0 }),
                          colorScheme: colorScheme)
         }
+    }
+
+    static func addCustomType(editor: SessionEditorState) {
+        let trimmed = editor.customCardioTypeInput.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        let presetValues = SessionEditorState.cardioTypeOptions
+        if let match = presetValues.first(where: { $0.1.lowercased() == trimmed.lowercased() || $0.0.lowercased() == trimmed.lowercased() }) {
+            editor.cardioType = match.0
+        } else if let existing = editor.customCardioTypes.first(where: { $0.lowercased() == trimmed.lowercased() }) {
+            editor.cardioType = existing
+        } else {
+            editor.customCardioTypes.append(trimmed)
+            editor.cardioType = trimmed
+        }
+        editor.customCardioTypeInput = ""
+        HapticManager.selection()
     }
 }
 
@@ -1736,15 +2352,44 @@ private struct SheetTechnicalForm: View {
                         }
                         .buttonStyle(.plain)
                     }
+                    ForEach(editor.customSkills, id: \.self) { custom in
+                        Button {
+                            HapticManager.selection()
+                            editor.customSkills.removeAll { $0 == custom }
+                        } label: {
+                            Text(custom)
+                                .font(.system(size: 12, weight: .bold).width(.condensed))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 9)
+                                .background(ColorTheme.training.opacity(0.15))
+                                .foregroundColor(ColorTheme.training)
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
 
-                TextField("Or type your own...", text: Binding(get: { editor.customSkill }, set: { editor.customSkill = $0 }))
-                    .font(.system(size: 14, weight: .medium).width(.condensed))
-                    .foregroundColor(ColorTheme.primaryText(colorScheme))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(ColorTheme.elevatedBackground(colorScheme))
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                HStack(spacing: 8) {
+                    TextField("Add your own skill...",
+                              text: Binding(get: { editor.customSkillInput }, set: { editor.customSkillInput = $0 }))
+                        .font(.system(size: 14, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(ColorTheme.elevatedBackground(colorScheme))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .onSubmit { SheetTechnicalForm.addCustom(editor: editor, sport: sport) }
+
+                    Button {
+                        SheetTechnicalForm.addCustom(editor: editor, sport: sport)
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 26))
+                            .foregroundColor(ColorTheme.training)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(editor.customSkillInput.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
             }
         }
 
@@ -1757,6 +2402,19 @@ private struct SheetTechnicalForm: View {
                          colorScheme: colorScheme)
         }
     }
+
+    static func addCustom(editor: SessionEditorState, sport: String) {
+        let trimmed = editor.customSkillInput.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        let presets = TrainingSession.technicalDetails(sport: sport)
+        if let match = presets.first(where: { $0.lowercased() == trimmed.lowercased() }) {
+            editor.selectedSkills.insert(match)
+        } else if !editor.customSkills.contains(where: { $0.lowercased() == trimmed.lowercased() }) {
+            editor.customSkills.append(trimmed)
+        }
+        editor.customSkillInput = ""
+        HapticManager.selection()
+    }
 }
 
 private struct SheetTacticalForm: View {
@@ -1765,9 +2423,13 @@ private struct SheetTacticalForm: View {
 
     var body: some View {
         SheetSection(title: "SESSION TYPE", icon: "brain.head.profile", colorScheme: colorScheme) {
-            SheetChipRow(options: [("team_session", "Team Session"), ("analysis", "Analysis")],
-                         selection: Binding(get: { editor.tacticalType }, set: { editor.tacticalType = $0 }),
-                         colorScheme: colorScheme)
+            SheetSingleSelectGrid(
+                presetOptions: SessionEditorState.tacticalTypeOptions,
+                customValues: Binding(get: { editor.customTacticalTypes }, set: { editor.customTacticalTypes = $0 }),
+                selection: Binding(get: { editor.tacticalType }, set: { editor.tacticalType = $0 }),
+                customInput: Binding(get: { editor.customTacticalTypeInput }, set: { editor.customTacticalTypeInput = $0 }),
+                colorScheme: colorScheme
+            )
         }
 
         SheetDurationSection(value: Binding(get: { editor.duration }, set: { editor.duration = $0 }),
@@ -1787,15 +2449,111 @@ private struct SheetRecoveryForm: View {
 
     var body: some View {
         SheetSection(title: "RECOVERY TYPE", icon: "leaf.fill", colorScheme: colorScheme) {
-            SheetChipRow(options: [("stretching", "Stretching"), ("ice_bath", "Ice Bath"), ("massage", "Massage"), ("rest", "Rest")],
-                         selection: Binding(get: { editor.recoveryType }, set: { editor.recoveryType = $0 }),
-                         colorScheme: colorScheme)
+            SheetSingleSelectGrid(
+                presetOptions: SessionEditorState.recoveryTypeOptions,
+                customValues: Binding(get: { editor.customRecoveryTypes }, set: { editor.customRecoveryTypes = $0 }),
+                selection: Binding(get: { editor.recoveryType }, set: { editor.recoveryType = $0 }),
+                customInput: Binding(get: { editor.customRecoveryTypeInput }, set: { editor.customRecoveryTypeInput = $0 }),
+                colorScheme: colorScheme
+            )
         }
 
         if editor.recoveryType != "rest" {
             SheetDurationSection(value: Binding(get: { editor.duration }, set: { editor.duration = $0 }),
                                  title: "DURATION (OPTIONAL)", presets: [10, 15, 20, 30, 60], range: 5...120, colorScheme: colorScheme)
         }
+    }
+}
+
+private struct SheetSingleSelectGrid: View {
+    let presetOptions: [(String, String)]
+    @Binding var customValues: [String]
+    @Binding var selection: String
+    @Binding var customInput: String
+    let colorScheme: ColorScheme
+
+    var body: some View {
+        VStack(spacing: 10) {
+            LazyVGrid(columns: [
+                GridItem(.flexible(), spacing: 8),
+                GridItem(.flexible(), spacing: 8),
+                GridItem(.flexible(), spacing: 8),
+            ], spacing: 8) {
+                ForEach(presetOptions, id: \.0) { value, label in
+                    let isSelected = selection == value
+                    Button {
+                        HapticManager.selection()
+                        selection = value
+                    } label: {
+                        Text(label)
+                            .font(.system(size: 12, weight: .bold).width(.condensed))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(isSelected ? ColorTheme.training.opacity(0.15) : ColorTheme.elevatedBackground(colorScheme))
+                            .foregroundColor(isSelected ? ColorTheme.training : ColorTheme.secondaryText(colorScheme))
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                }
+                ForEach(customValues, id: \.self) { custom in
+                    let isSelected = selection == custom
+                    Button {
+                        HapticManager.selection()
+                        if isSelected {
+                            selection = ""
+                            customValues.removeAll { $0 == custom }
+                        } else {
+                            selection = custom
+                        }
+                    } label: {
+                        Text(custom)
+                            .font(.system(size: 12, weight: .bold).width(.condensed))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(isSelected ? ColorTheme.training.opacity(0.15) : ColorTheme.elevatedBackground(colorScheme))
+                            .foregroundColor(isSelected ? ColorTheme.training : ColorTheme.secondaryText(colorScheme))
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            HStack(spacing: 8) {
+                TextField("Add your own type...", text: $customInput)
+                    .font(.system(size: 14, weight: .medium).width(.condensed))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(ColorTheme.elevatedBackground(colorScheme))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .onSubmit { commit() }
+
+                Button {
+                    commit()
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 26))
+                        .foregroundColor(ColorTheme.training)
+                }
+                .buttonStyle(.plain)
+                .disabled(customInput.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+    }
+
+    private func commit() {
+        let trimmed = customInput.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        if let match = presetOptions.first(where: { $0.1.lowercased() == trimmed.lowercased() || $0.0.lowercased() == trimmed.lowercased() }) {
+            selection = match.0
+        } else if let existing = customValues.first(where: { $0.lowercased() == trimmed.lowercased() }) {
+            selection = existing
+        } else {
+            customValues.append(trimmed)
+            selection = trimmed
+        }
+        customInput = ""
+        HapticManager.selection()
     }
 }
 

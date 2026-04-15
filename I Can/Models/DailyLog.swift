@@ -25,8 +25,9 @@ struct TrainingSession: Codable, Equatable, Identifiable {
     var exercises: [String]?
 
     // MARK: - Cardio fields
-    var cardioType: String?         // "run", "walk", "bike", "swim"
-    var distance: Double?           // km or miles
+    var cardioType: String?         // "run", "walk", "bike", "swim", "row", "elliptical", etc.
+    var distance: Double?           // stored in selected unit (see distanceUnit)
+    var distanceUnit: String?       // "km" or "mi" (defaults to "km" when nil)
     var pace: String?               // e.g. "5:30 /km"
     var cardioEffort: String?       // "light", "moderate", "hard"
 
@@ -441,17 +442,17 @@ struct TrainingSession: Codable, Equatable, Identifiable {
     static func technicalDetails(sport: String) -> [String] {
         switch sport.lowercased() {
         case "soccer":
-            return ["Shooting", "Passing", "Dribbling", "First Touch", "Crossing", "Heading", "Free Kicks", "Penalties", "Ball Control", "Weak Foot"]
+            return ["Shooting", "Passing", "Dribbling", "First Touch", "Crossing", "Heading", "Free Kicks", "Penalties", "Ball Control", "Weak Foot", "Team Training"]
         case "basketball":
-            return ["Shooting Form", "Free Throws", "3-Pointers", "Ball Handling", "Passing", "Post Moves", "Layups", "Dunking", "Crossovers"]
+            return ["Shooting Form", "Free Throws", "3-Pointers", "Ball Handling", "Passing", "Post Moves", "Layups", "Dunking", "Crossovers", "Scrimmage", "Team Training"]
         case "tennis":
             return ["Serve", "Return", "Forehand", "Backhand", "Volley", "Slice", "Topspin", "Drop Shot", "Lob", "Overhead"]
         case "boxing":
             return ["Sparring", "Jab", "Cross", "Hook", "Uppercut", "Body Shots", "Combinations", "Counter Punching", "Head Movement", "Footwork", "Defense"]
         case "football":
-            return ["Throwing Mechanics", "Route Running", "Catching", "Blocking", "Tackling Form", "Footwork", "Hand Placement", "Release", "Coverage"]
+            return ["Throwing Mechanics", "Route Running", "Catching", "Blocking", "Tackling Form", "Footwork", "Hand Placement", "Release", "Coverage", "Team Training"]
         case "cricket":
-            return ["Batting Technique", "Bowling Action", "Spin", "Pace", "Swing", "Fielding Drills", "Catching", "Throwing", "Running Between Wickets"]
+            return ["Batting Technique", "Bowling Action", "Spin", "Pace", "Swing", "Fielding Drills", "Catching", "Throwing", "Running Between Wickets", "Team Training"]
         default:
             return ["Skill Drills", "Technique Work", "Repetition Training", "Form Correction", "Fundamentals", "Advanced Skills"]
         }
