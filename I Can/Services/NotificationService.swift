@@ -82,7 +82,7 @@ final class NotificationService {
     func requestPermission() async -> Bool {
         let center = UNUserNotificationCenter.current()
         do {
-            return try await center.requestAuthorization(options: [.alert, .badge, .sound])
+            return try await center.requestAuthorization(options: [.alert, .sound])
         } catch {
             return false
         }
