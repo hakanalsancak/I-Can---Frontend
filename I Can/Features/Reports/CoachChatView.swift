@@ -527,9 +527,9 @@ struct CoachChatView: View {
                 .offset(y: headerVisible ? 0 : 12)
 
                 VStack(spacing: 10) {
-                    suggestionChip("Review my recent training", icon: "chart.line.uptrend.xyaxis", delay: 0)
-                    suggestionChip("What should I focus on today?", icon: "scope", delay: 0.05)
-                    suggestionChip("Help me with pre-game prep", icon: "brain", delay: 0.1)
+                    featuredSuggestionChip
+                    suggestionChip("Review my recent training", icon: "chart.line.uptrend.xyaxis", delay: 0.05)
+                    suggestionChip("Review my today's nutrition", icon: "fork.knife", delay: 0.1)
                     suggestionChip("Build a recovery plan for me", icon: "heart.circle", delay: 0.15)
                 }
                 .padding(.top, 32)
@@ -545,6 +545,90 @@ struct CoachChatView: View {
                 chipsVisible = true
             }
         }
+    }
+
+    // MARK: - Sport-Specific Featured Program
+
+    private var featuredProgramText: String {
+        let sport = (AuthService.shared.currentUser?.sport ?? "").lowercased()
+        switch sport {
+        case "basketball":
+            return "Get me a personalised dunking program"
+        case "soccer":
+            return "Get me a personalised speed & pace program"
+        case "football":
+            return "Get me a personalised power program"
+        case "boxing":
+            return "Get me a personalised punching power program"
+        case "tennis":
+            return "Get me a personalised serving power program"
+        case "cricket":
+            return "Get me a personalised bowling speed program"
+        default:
+            return "Get me a personalised training program"
+        }
+    }
+
+    private var featuredSuggestionChip: some View {
+        Button {
+            HapticManager.impact(.light)
+            inputText = featuredProgramText
+            sendMessage()
+        } label: {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [Color(hex: "F59E0B").opacity(0.2), Color(hex: "EAB308").opacity(0.12)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 34, height: 34)
+                    Image(systemName: "star.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [Color(hex: "F59E0B"), Color(hex: "EAB308")],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                }
+
+                Text(featuredProgramText)
+                    .font(.system(size: 14, weight: .bold).width(.condensed))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    .multilineTextAlignment(.leading)
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(Color(hex: "F59E0B"))
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(ColorTheme.cardBackground(colorScheme))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [Color(hex: "F59E0B").opacity(0.4), Color(hex: "EAB308").opacity(0.2)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1.5
+                    )
+            )
+            .shadow(color: Color(hex: "F59E0B").opacity(0.15), radius: 8, x: 0, y: 3)
+        }
+        .buttonStyle(.plain)
+        .opacity(chipsVisible ? 1 : 0)
+        .offset(y: chipsVisible ? 0 : 16)
+        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: chipsVisible)
     }
 
     private func suggestionChip(_ text: String, icon: String, delay: Double) -> some View {
