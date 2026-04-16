@@ -823,6 +823,14 @@ struct CoachChatView: View {
                     x: 0,
                     y: 2
                 )
+                .contextMenu {
+                    Button {
+                        UIPasteboard.general.string = message.content
+                        HapticManager.impact(.light)
+                    } label: {
+                        Label("Copy", systemImage: "doc.on.doc")
+                    }
+                }
 
                 Text(message.timestamp, style: .time)
                     .font(.system(size: 10, weight: .medium))
