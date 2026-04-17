@@ -7,6 +7,8 @@ struct ContentView: View {
     @State private var showNoInternet = false
     @State private var showForceUpdate = false
     @State private var showAppMaintenance = false
+    @State private var latestMinVersion: String?
+    @State private var currentAppVersion: String?
     @State private var showPostOnboardingSubscription = false
     @State private var logoScale: CGFloat = 0.8
     @State private var logoOpacity: Double = 0
@@ -38,9 +40,12 @@ struct ContentView: View {
             }
 
             if showForceUpdate {
-                ForceUpdateView()
-                    .transition(.opacity)
-                    .zIndex(12)
+                ForceUpdateView(
+                    currentVersion: currentAppVersion,
+                    minVersion: latestMinVersion
+                )
+                .transition(.opacity)
+                .zIndex(12)
             }
 
             if showAppMaintenance {
@@ -137,6 +142,8 @@ struct ContentView: View {
         }
         do {
             let response: VersionResponse = try await APIClient.shared.request(endpoint, authenticated: false)
+            currentAppVersion = currentVersion
+            latestMinVersion = response.minVersion
             showForceUpdate = response.forceUpdate
             showAppMaintenance = !response.forceUpdate && (response.maintenance ?? false)
         } catch {
