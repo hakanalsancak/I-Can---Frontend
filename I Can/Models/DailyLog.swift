@@ -627,9 +627,6 @@ extension EntryResponses {
 struct DailyLogSubmitRequest: Encodable {
     let entryDate: String
     let activityType: String = "daily_log"
-    let focusRating: Int
-    let effortRating: Int
-    let confidenceRating: Int
     let responses: DailyLogSubmitResponses
 }
 

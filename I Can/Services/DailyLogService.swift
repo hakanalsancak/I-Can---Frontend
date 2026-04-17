@@ -110,66 +110,14 @@ final class DailyLogService {
         sleep: SleepData?,
         completedSections: [String]
     ) async throws -> EntrySubmitResponse {
-        // Compute ratings based on completion
-        let sectionCount = completedSections.count
-        let baseRating = max(3, sectionCount * 3)
-
-        var focus = baseRating
-        var effort = baseRating
-        var confidence = baseRating
-
-        if let t = training {
-            let avgScore = t.averageSessionScore
-            let scoreBonus: Int
-            if avgScore >= 80 {
-                scoreBonus = 3
-            } else if avgScore >= 60 {
-                scoreBonus = 2
-            } else if avgScore >= 40 {
-                scoreBonus = 1
-            } else if avgScore > 0 {
-                scoreBonus = 0
-            } else {
-                // Fallback to legacy intensity for old entries without scores
-                switch t.highestIntensity {
-                case "high": scoreBonus = 2
-                case "max": scoreBonus = 3
-                case "medium": scoreBonus = 1
-                default: scoreBonus = 0
-                }
-            }
-            let durationBonus = min(t.totalDuration / 30, 2)
-            let sessionBonus = min(t.sessionCount - 1, 1)
-            focus = min(focus + scoreBonus + durationBonus + sessionBonus, 9)
-            effort = min(effort + scoreBonus + durationBonus + sessionBonus + 1, 9)
-        }
-
-        if let s = sleep {
-            let hours = s.durationHours
-            if hours >= 7 && hours <= 9 {
-                confidence = min(confidence + 2, 9)
-            } else if hours >= 6 {
-                confidence = min(confidence + 1, 9)
-            }
-        }
-
-        if nutrition != nil {
-            focus = min(focus + 1, 9)
-        }
-
-        let responses = DailyLogSubmitResponses(
-            training: training,
-            nutrition: nutrition,
-            sleep: sleep,
-            completedSections: completedSections
-        )
-
         let request = DailyLogSubmitRequest(
             entryDate: date,
-            focusRating: max(focus, 3),
-            effortRating: max(effort, 3),
-            confidenceRating: max(confidence, 3),
-            responses: responses
+            responses: DailyLogSubmitResponses(
+                training: training,
+                nutrition: nutrition,
+                sleep: sleep,
+                completedSections: completedSections
+            )
         )
 
         return try await APIClient.shared.request(

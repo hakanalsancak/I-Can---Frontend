@@ -844,19 +844,132 @@ struct CoachChatView: View {
         .padding(.top, showAvatar && !message.isUser ? 14 : 2)
     }
 
-    /// Renders coach text with paragraph breaks and **bold** support
+    /// Renders coach text with ChatGPT-style structure:
+    /// - **Heading lines** (a line wrapped entirely in `**...**`) get extra space above and bold weight.
+    /// - Lines starting with `- `, `* ` or `• ` render as a bulleted list with a coloured bullet.
+    /// - Everything else is a regular paragraph; blank lines create paragraph breaks.
     private func formattedCoachText(_ text: String) -> some View {
-        let paragraphs = text.components(separatedBy: "\n\n").filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        let blocks = parseCoachBlocks(text)
 
-        return VStack(alignment: .leading, spacing: 10) {
-            ForEach(Array(paragraphs.enumerated()), id: \.offset) { _, paragraph in
-                let lines = paragraph.components(separatedBy: "\n")
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
-                        parseBoldText(line)
+        return VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
+                coachBlockView(block, isFirst: index == 0)
+            }
+        }
+    }
+
+    private enum CoachBlock {
+        case heading(String)
+        case paragraph(String)
+        case bulletList([String])
+    }
+
+    private func parseCoachBlocks(_ text: String) -> [CoachBlock] {
+        var blocks: [CoachBlock] = []
+        var paragraphLines: [String] = []
+        var bullets: [String] = []
+
+        func flushParagraph() {
+            if !paragraphLines.isEmpty {
+                let joined = paragraphLines.joined(separator: "\n")
+                if !joined.trimmingCharacters(in: .whitespaces).isEmpty {
+                    blocks.append(.paragraph(joined))
+                }
+                paragraphLines = []
+            }
+        }
+        func flushBullets() {
+            if !bullets.isEmpty {
+                blocks.append(.bulletList(bullets))
+                bullets = []
+            }
+        }
+
+        for rawLine in text.components(separatedBy: "\n") {
+            let trimmed = rawLine.trimmingCharacters(in: .whitespaces)
+            if trimmed.isEmpty {
+                flushParagraph()
+                flushBullets()
+                continue
+            }
+            if let heading = extractCoachHeading(from: trimmed) {
+                flushParagraph()
+                flushBullets()
+                blocks.append(.heading(heading))
+                continue
+            }
+            if let bullet = extractCoachBullet(from: trimmed) {
+                flushParagraph()
+                bullets.append(bullet)
+                continue
+            }
+            flushBullets()
+            paragraphLines.append(trimmed)
+        }
+        flushParagraph()
+        flushBullets()
+
+        return blocks
+    }
+
+    private func extractCoachHeading(from line: String) -> String? {
+        if line.hasPrefix("**"), line.hasSuffix("**"), line.count > 4 {
+            let content = String(line.dropFirst(2).dropLast(2))
+            if !content.contains("**") {
+                return content
+            }
+        }
+        if line.hasPrefix("### ") { return String(line.dropFirst(4)) }
+        if line.hasPrefix("## ") { return String(line.dropFirst(3)) }
+        if line.hasPrefix("# ") { return String(line.dropFirst(2)) }
+        return nil
+    }
+
+    private func extractCoachBullet(from line: String) -> String? {
+        for prefix in ["- ", "* ", "• "] {
+            if line.hasPrefix(prefix) {
+                return String(line.dropFirst(prefix.count))
+            }
+        }
+        return nil
+    }
+
+    @ViewBuilder
+    private func coachBlockView(_ block: CoachBlock, isFirst: Bool) -> some View {
+        switch block {
+        case .heading(let title):
+            Text(title)
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(ColorTheme.primaryText(colorScheme))
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, isFirst ? 0 : 16)
+                .padding(.bottom, 2)
+
+        case .paragraph(let body):
+            let lines = body.components(separatedBy: "\n")
+            VStack(alignment: .leading, spacing: 3) {
+                ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
+                    parseBoldText(line)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(.top, isFirst ? 0 : 12)
+
+        case .bulletList(let items):
+            VStack(alignment: .leading, spacing: 7) {
+                ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+                    HStack(alignment: .top, spacing: 10) {
+                        Text("•")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(Color(hex: "0EA5E9"))
+                            .padding(.top, 0)
+                        parseBoldText(item)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
             }
+            .padding(.top, isFirst ? 0 : 10)
         }
     }
 

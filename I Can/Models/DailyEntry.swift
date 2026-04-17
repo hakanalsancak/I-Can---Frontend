@@ -52,10 +52,10 @@ struct DailyEntry: Codable, Identifiable {
     let id: String
     let entryDate: String
     let activityType: String
-    let focusRating: Int
-    let effortRating: Int
-    let confidenceRating: Int
-    let performanceScore: Int
+    let focusRating: Int?
+    let effortRating: Int?
+    let confidenceRating: Int?
+    let performanceScore: Int?
     let didWell: String?
     let improveNext: String?
     let rotatingQuestionId: Int?
