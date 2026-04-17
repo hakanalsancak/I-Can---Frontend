@@ -593,13 +593,10 @@ struct DailyLogResponses: Codable {
 // MARK: - DailyEntry extension for v2
 
 extension DailyEntry {
-    var isDailyLog: Bool { activityType == "daily_log" }
+    var isDailyLog: Bool { responses?.version == 2 }
 
     var dailyLogResponses: DailyLogResponses? {
-        guard isDailyLog, let responses else { return nil }
-        // Decode from the generic EntryResponses to DailyLogResponses
-        // We store v2 data in the responses JSONB
-        return responses.dailyLog
+        responses?.dailyLog
     }
 
     var logCompletionCount: Int {
@@ -626,7 +623,6 @@ extension EntryResponses {
 
 struct DailyLogSubmitRequest: Encodable {
     let entryDate: String
-    let activityType: String = "daily_log"
     let responses: DailyLogSubmitResponses
 }
 

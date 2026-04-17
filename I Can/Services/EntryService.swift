@@ -9,13 +9,6 @@ final class EntryService {
     private var entriesFetchedAt: Date?
     private let cacheMaxAge: TimeInterval = 60
 
-    func submitEntry(_ request: EntrySubmitRequest) async throws -> EntrySubmitResponse {
-        entriesFetchedAt = nil // Invalidate cache after new submission
-        return try await APIClient.shared.request(
-            APIEndpoints.Entries.base, method: "POST", body: request
-        )
-    }
-
     func getEntries(startDate: String? = nil, endDate: String? = nil, limit: Int = 30, forceRefresh: Bool = false) async throws -> [DailyEntry] {
         // Return cached data for default (no date filter) requests within cache window
         if !forceRefresh, startDate == nil, endDate == nil, limit == 30,

@@ -9,7 +9,7 @@ struct EntryDetailView: View {
     var body: some View {
         VStack(spacing: 12) {
             HStack(spacing: 14) {
-                Label(entry.activityTypeDisplay, systemImage: entry.activityIcon)
+                Label("Daily Log", systemImage: "doc.text.fill")
                     .font(.system(size: 14, weight: .semibold).width(.condensed))
                     .foregroundColor(ColorTheme.secondaryText(colorScheme))
                 Spacer()
@@ -24,34 +24,17 @@ struct EntryDetailView: View {
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
 
-            activitySpecificSection
+            legacyFields
 
             universalReflections
-
-            legacyReflections
         }
     }
 
-    // MARK: - Activity-Specific
+    // MARK: - Legacy Fields (from v1 entries that predate daily log)
 
     @ViewBuilder
-    private var activitySpecificSection: some View {
+    private var legacyFields: some View {
         if let r {
-            switch entry.activityType {
-            case "training":
-                trainingSection(r)
-            case "game":
-                gameSection(r)
-            case "rest_day":
-                restSection(r)
-            default:
-                EmptyView()
-            }
-        }
-    }
-
-    private func trainingSection(_ r: EntryResponses) -> some View {
-        VStack(spacing: 10) {
             if let w = r.workedOn, !w.isEmpty {
                 chipRow(title: "WORKED ON", chips: w)
             }
@@ -67,31 +50,24 @@ struct EntryDetailView: View {
             if let focus = r.tomorrowFocus, !focus.isEmpty {
                 textCard(title: "Tomorrow's Focus", icon: "scope", text: focus, color: Color(hex: "3B82F6"))
             }
-
             if let fl = r.focusLabel {
                 labelPill(title: "Focus", label: fl, color: Color(hex: "3B82F6"))
             }
             if let el = r.effortLabel {
                 labelPill(title: "Effort", label: el, color: Color(hex: "F97316"))
             }
-        }
-    }
-
-    private func gameSection(_ r: EntryResponses) -> some View {
-        VStack(spacing: 10) {
             if let stats = r.gameStats, !stats.isEmpty {
                 gameStatsGrid(stats)
             }
             if let best = r.bestMoment, !best.isEmpty {
                 textCard(title: "Best Moment", icon: "star.fill", text: best, color: Color(hex: "F59E0B"))
             }
-            if let mistake = r.biggestMistake, !mistake.isEmpty {
-                textCard(title: "Biggest Mistake", icon: "exclamationmark.triangle.fill", text: mistake, color: Color(hex: "EF4444"))
+            if let bm = r.biggestMistake, !bm.isEmpty {
+                textCard(title: "Biggest Mistake", icon: "exclamationmark.triangle.fill", text: bm, color: Color(hex: "EF4444"))
             }
             if let improve = r.improveNextGame, !improve.isEmpty {
                 textCard(title: "Improve Next Game", icon: "arrow.up.right", text: improve, color: Color(hex: "3B82F6"))
             }
-
             if let strongest = r.strongestAreas, !strongest.isEmpty {
                 chipRow(title: "STRONGEST", chips: strongest)
             }
@@ -101,11 +77,6 @@ struct EntryDetailView: View {
             if let op = r.overallPerformance {
                 labelPill(title: "Performance", label: op, color: Color(hex: "22C55E"))
             }
-        }
-    }
-
-    private func restSection(_ r: EntryResponses) -> some View {
-        VStack(spacing: 10) {
             if let activities = r.recoveryActivities, !activities.isEmpty {
                 chipRow(title: "RECOVERY", chips: activities)
             } else if let a = r.restActivities, !a.isEmpty {
@@ -114,10 +85,9 @@ struct EntryDetailView: View {
             if let study = r.sportStudy, !study.isEmpty {
                 textCard(title: "Sport Study", icon: "book.fill", text: study, color: Color(hex: "8B5CF6"))
             }
-            if let focus = r.restTomorrowFocus, !focus.isEmpty {
-                textCard(title: "Tomorrow's Focus", icon: "scope", text: focus, color: Color(hex: "3B82F6"))
+            if let rf = r.restTomorrowFocus, !rf.isEmpty {
+                textCard(title: "Tomorrow's Focus", icon: "scope", text: rf, color: Color(hex: "3B82F6"))
             }
-
             if let rq = r.recoveryQuality {
                 labelPill(title: "Recovery", label: rq, color: Color(hex: "3B82F6"))
             }
@@ -131,24 +101,8 @@ struct EntryDetailView: View {
 
     @ViewBuilder
     private var universalReflections: some View {
-        if let dw = r?.didWell ?? entry.didWell, !dw.isEmpty {
-            textCard(title: "What went well", icon: "hand.thumbsup.fill", text: dw, color: Color(hex: "22C55E"))
-        }
-        if let imp = r?.improveNext ?? entry.improveNext, !imp.isEmpty {
-            textCard(title: "What to improve", icon: "arrow.up.right", text: imp, color: Color(hex: "F97316"))
-        }
         if let proud = r?.proudMoment, !proud.isEmpty {
             textCard(title: "Proudest moment", icon: "trophy.fill", text: proud, color: Color(hex: "F59E0B"))
-        }
-    }
-
-    @ViewBuilder
-    private var legacyReflections: some View {
-        if let reflection = r?.recoveryReflection, !reflection.isEmpty {
-            textCard(title: "Recovery", icon: "heart.circle.fill", text: reflection, color: ColorTheme.accent)
-        }
-        if let q = r?.rotatingQ, let a = r?.rotatingA {
-            textCard(title: q, icon: "questionmark.circle.fill", text: a, color: Color(hex: "8B5CF6"))
         }
     }
 

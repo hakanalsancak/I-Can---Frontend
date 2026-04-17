@@ -4,7 +4,6 @@ struct JournalView: View {
     @State private var viewModel = JournalViewModel()
     @State private var showSubscription = false
     @State private var showEntryDetail = false
-    @State private var showEditEntry = false
     @FocusState private var isNoteFocused: Bool
     @Environment(\.colorScheme) private var colorScheme
 
@@ -64,16 +63,7 @@ struct JournalView: View {
                     if entry.isDailyLog {
                         DailyLogDetailSheet(entry: entry)
                     } else {
-                        TodayEntryDetailSheet(entry: entry) {
-                            showEditEntry = true
-                        }
-                    }
-                }
-            }
-            .fullScreenCover(isPresented: $showEditEntry) {
-                if let entry = viewModel.selectedEntry {
-                    DailyEntryFlowView(existingEntry: entry) { _ in
-                        viewModel.loadEntries()
+                        TodayEntryDetailSheet(entry: entry)
                     }
                 }
             }

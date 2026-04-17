@@ -2,7 +2,6 @@ import SwiftUI
 
 struct TodayEntryDetailSheet: View {
     let entry: DailyEntry
-    var onEdit: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
 
@@ -14,11 +13,9 @@ struct TodayEntryDetailSheet: View {
                 VStack(spacing: 16) {
                     headerCard
 
-                    activitySpecificSection
+                    legacyFields
 
                     universalReflections
-
-                    legacyReflections
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
@@ -31,22 +28,6 @@ struct TodayEntryDetailSheet: View {
                     Text("Today's Entry")
                         .font(.system(size: 16, weight: .bold).width(.condensed))
                         .foregroundColor(ColorTheme.primaryText(colorScheme))
-                }
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        dismiss()
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                            onEdit?()
-                        }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "pencil")
-                                .font(.system(size: 13, weight: .semibold))
-                            Text("Edit")
-                                .font(.system(size: 15, weight: .semibold).width(.condensed))
-                        }
-                        .foregroundColor(ColorTheme.accent)
-                    }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }
@@ -61,11 +42,6 @@ struct TodayEntryDetailSheet: View {
 
     private var headerCard: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(entry.activityTypeDisplay)
-                .font(.system(size: 13, weight: .bold).width(.condensed))
-                .foregroundColor(ColorTheme.accent)
-                .textCase(.uppercase)
-
             Text("Today's Reflection")
                 .font(.system(size: 18, weight: .bold).width(.condensed))
                 .foregroundColor(ColorTheme.primaryText(colorScheme))
@@ -83,26 +59,11 @@ struct TodayEntryDetailSheet: View {
         .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
     }
 
-    // MARK: - Activity-Specific Section
+    // MARK: - Legacy Fields (from v1 entries that predate daily log)
 
     @ViewBuilder
-    private var activitySpecificSection: some View {
+    private var legacyFields: some View {
         if let r {
-            switch entry.activityType {
-            case "training":
-                trainingSection(r)
-            case "game":
-                gameSection(r)
-            case "rest_day":
-                restSection(r)
-            default:
-                EmptyView()
-            }
-        }
-    }
-
-    private func trainingSection(_ r: EntryResponses) -> some View {
-        VStack(spacing: 10) {
             if let worked = r.workedOn, !worked.isEmpty {
                 chipSection(title: "WORKED ON", chips: worked, color: ColorTheme.accent)
             }
@@ -118,36 +79,26 @@ struct TodayEntryDetailSheet: View {
             if let focus = r.tomorrowFocus, !focus.isEmpty {
                 reflectionCard(title: "Tomorrow's Focus", icon: "scope", text: focus, color: Color(hex: "3B82F6"))
             }
-        }
-    }
-
-    private func gameSection(_ r: EntryResponses) -> some View {
-        VStack(spacing: 10) {
             if let stats = r.gameStats, !stats.isEmpty {
                 gameStatsGrid(stats)
             }
             if let best = r.bestMoment, !best.isEmpty {
                 reflectionCard(title: "Best Moment", icon: "star.fill", text: best, color: Color(hex: "F59E0B"))
             }
-            if let mistake = r.biggestMistake, !mistake.isEmpty {
-                reflectionCard(title: "Biggest Mistake", icon: "exclamationmark.triangle.fill", text: mistake, color: Color(hex: "EF4444"))
+            if let bm = r.biggestMistake, !bm.isEmpty {
+                reflectionCard(title: "Biggest Mistake", icon: "exclamationmark.triangle.fill", text: bm, color: Color(hex: "EF4444"))
             }
             if let improve = r.improveNextGame, !improve.isEmpty {
                 reflectionCard(title: "Improve Next Game", icon: "arrow.up.right", text: improve, color: Color(hex: "3B82F6"))
             }
-        }
-    }
-
-    private func restSection(_ r: EntryResponses) -> some View {
-        VStack(spacing: 10) {
             if let activities = r.recoveryActivities, !activities.isEmpty {
                 chipSection(title: "RECOVERY", chips: activities, color: ColorTheme.accent)
             }
             if let study = r.sportStudy, !study.isEmpty {
                 reflectionCard(title: "Sport Study", icon: "book.fill", text: study, color: Color(hex: "8B5CF6"))
             }
-            if let focus = r.restTomorrowFocus, !focus.isEmpty {
-                reflectionCard(title: "Tomorrow's Focus", icon: "scope", text: focus, color: Color(hex: "3B82F6"))
+            if let rf = r.restTomorrowFocus, !rf.isEmpty {
+                reflectionCard(title: "Tomorrow's Focus", icon: "scope", text: rf, color: Color(hex: "3B82F6"))
             }
         }
     }
@@ -156,24 +107,8 @@ struct TodayEntryDetailSheet: View {
 
     @ViewBuilder
     private var universalReflections: some View {
-        if let dw = r?.didWell ?? entry.didWell, !dw.isEmpty {
-            reflectionCard(title: "What went well", icon: "hand.thumbsup.fill", text: dw, color: Color(hex: "22C55E"))
-        }
-        if let imp = r?.improveNext ?? entry.improveNext, !imp.isEmpty {
-            reflectionCard(title: "What to improve", icon: "arrow.up.right", text: imp, color: Color(hex: "F97316"))
-        }
         if let proud = r?.proudMoment, !proud.isEmpty {
             reflectionCard(title: "Proudest moment", icon: "trophy.fill", text: proud, color: Color(hex: "F59E0B"))
-        }
-    }
-
-    @ViewBuilder
-    private var legacyReflections: some View {
-        if let reflection = r?.recoveryReflection, !reflection.isEmpty {
-            reflectionCard(title: "Recovery reflection", icon: "heart.circle.fill", text: reflection, color: ColorTheme.accent)
-        }
-        if let q = r?.rotatingQ, let a = r?.rotatingA {
-            reflectionCard(title: q, icon: "questionmark.circle.fill", text: a, color: Color(hex: "8B5CF6"))
         }
     }
 

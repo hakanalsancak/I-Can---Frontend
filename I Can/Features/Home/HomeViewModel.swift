@@ -7,7 +7,6 @@ final class HomeViewModel {
 
     var streak: StreakInfo?
     var todayEntry: DailyEntry?
-    var showDailyEntry = false
     var isLoading = false
     var saveError: String?
 
@@ -318,15 +317,6 @@ final class HomeViewModel {
             saveError = "Failed to save. Please try again."
             return false
         }
-    }
-
-    // Legacy support
-    func onEntrySubmitted(response: EntrySubmitResponse) {
-        todayEntry = response.entry
-        streak = response.streak
-        showDailyEntry = false
-        parseDailyLogData(from: response.entry)
-        NotificationService.shared.cancelStreakReminder()
     }
 
     private init() {

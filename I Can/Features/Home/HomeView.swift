@@ -115,10 +115,6 @@ struct HomeView: View {
     @State private var profileImage: UIImage? = nil
     @State private var heroAppeared = false
 
-    // Legacy entry flow support
-    @State private var showEntryDetail = false
-    @State private var editingEntry = false
-
     @Environment(\.colorScheme) private var colorScheme
 
     @State private var quoteTask: Task<Void, Never>?
@@ -188,16 +184,6 @@ struct HomeView: View {
                     Task { await viewModel.submitSleep(data) }
                 }
             }
-            .fullScreenCover(isPresented: $viewModel.showDailyEntry, onDismiss: {
-                Task { await viewModel.loadData() }
-            }) {
-                DailyEntryFlowView(
-                    existingEntry: editingEntry ? viewModel.todayEntry : nil
-                ) { response in
-                    viewModel.onEntrySubmitted(response: response)
-                    editingEntry = false
-                }
-            }
             .sheet(isPresented: $showSubscription, onDismiss: {
                 Task { try? await SubscriptionService.shared.checkStatus() }
             }) {
@@ -205,14 +191,6 @@ struct HomeView: View {
             }
             .fullScreenCover(isPresented: $showBreathing) {
                 BreathingExerciseView()
-            }
-            .sheet(isPresented: $showEntryDetail) {
-                if let entry = viewModel.todayEntry {
-                    TodayEntryDetailSheet(entry: entry) {
-                        editingEntry = true
-                        viewModel.showDailyEntry = true
-                    }
-                }
             }
             .onAppear {
                 quoteTask = Task {
