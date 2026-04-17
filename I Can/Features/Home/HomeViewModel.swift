@@ -200,6 +200,8 @@ final class HomeViewModel {
                 exercises: s.exercises,
                 cardioType: s.cardioType,
                 distance: s.distance,
+                distanceUnit: s.distanceUnit,
+                steps: s.steps,
                 pace: s.pace,
                 cardioEffort: s.cardioEffort,
                 skillTrained: s.skillTrained,

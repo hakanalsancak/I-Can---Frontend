@@ -443,10 +443,16 @@ struct PerformanceDashboardView: View {
                     .lineLimit(2)
             }
 
-            if session.cardioType != nil || session.distance != nil || session.cardioEffort != nil || session.pace != nil {
+            if session.cardioType != nil || session.distance != nil || session.cardioEffort != nil || session.pace != nil || (session.steps ?? 0) > 0 {
                 HStack(spacing: 6) {
                     if let ct = session.cardioType { chipBadge(text: ct.capitalized, color: ColorTheme.training) }
-                    if let d = session.distance { chipBadge(text: String(format: "%.1f km", d), color: ColorTheme.training) }
+                    if let d = session.distance {
+                        let unit = session.distanceUnit ?? "km"
+                        chipBadge(text: String(format: "%.1f %@", d, unit), color: ColorTheme.training)
+                    }
+                    if let s = session.steps, s > 0, session.cardioType == "walk" {
+                        chipBadge(text: "\(s) steps", color: ColorTheme.training)
+                    }
                     if let p = session.pace, !p.isEmpty { chipBadge(text: p, color: ColorTheme.secondaryText(colorScheme)) }
                     if let e = session.cardioEffort { chipBadge(text: e.capitalized, color: Color(hex: "F59E0B")) }
                 }

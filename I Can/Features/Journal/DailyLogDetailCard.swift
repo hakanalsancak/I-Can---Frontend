@@ -260,7 +260,13 @@ struct DailyLogDetailSheet: View {
                     if session.trainingType == "cardio" {
                         FlowLayout(spacing: 6) {
                             if let ct = session.cardioTypeDisplay { journalBadge(text: ct, color: ColorTheme.training) }
-                            if let d = session.distance { journalBadge(text: String(format: "%.1f km", d), color: ColorTheme.training) }
+                            if let d = session.distance {
+                                let unit = session.distanceUnit ?? "km"
+                                journalBadge(text: String(format: "%.1f %@", d, unit), color: ColorTheme.training)
+                            }
+                            if let s = session.steps, s > 0, session.cardioType == "walk" {
+                                journalBadge(text: "\(s) steps", color: ColorTheme.training)
+                            }
                             if let p = session.pace, !p.isEmpty { journalBadge(text: p, color: ColorTheme.secondaryText(colorScheme)) }
                             if let e = session.cardioEffortDisplay { journalBadge(text: e, color: Color(hex: "F59E0B")) }
                         }

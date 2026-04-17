@@ -118,6 +118,8 @@ struct TrainingSessionInsight: Encodable {
     var exercises: [String]?
     var cardioType: String?
     var distance: Double?
+    var distanceUnit: String?
+    var steps: Int?
     var pace: String?
     var cardioEffort: String?
     var skillTrained: String?

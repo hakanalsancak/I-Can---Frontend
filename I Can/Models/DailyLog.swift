@@ -30,6 +30,15 @@ struct TrainingSession: Codable, Equatable, Identifiable {
     var distanceUnit: String?       // "km" or "mi" (defaults to "km" when nil)
     var pace: String?               // e.g. "5:30 /km"
     var cardioEffort: String?       // "light", "moderate", "hard"
+    var steps: Int?                 // Optional step count (walk only)
+
+    /// Cardio types that don't have a natural distance metric.
+    static let cardioTypesWithoutDistance: Set<String> = ["jumpRope", "hiit"]
+
+    static func cardioTypeSupportsDistance(_ type: String?) -> Bool {
+        guard let type, !type.isEmpty else { return true }
+        return !cardioTypesWithoutDistance.contains(type)
+    }
 
     // MARK: - Technical fields
     var skillTrained: String?
@@ -225,7 +234,13 @@ struct TrainingSession: Codable, Equatable, Identifiable {
         case "cardio":
             var parts: [String] = []
             if let ct = cardioTypeDisplay { parts.append(ct) }
-            if let d = distance { parts.append(String(format: "%.1fkm", d)) }
+            if let d = distance {
+                let unit = distanceUnit ?? "km"
+                parts.append(String(format: "%.1f%@", d, unit))
+            }
+            if let s = steps, s > 0, cardioType == "walk" {
+                parts.append("\(s) steps")
+            }
             parts.append("\(duration)min")
             if let ce = cardioEffortDisplay { parts.append(ce) }
             return parts.joined(separator: " - ")

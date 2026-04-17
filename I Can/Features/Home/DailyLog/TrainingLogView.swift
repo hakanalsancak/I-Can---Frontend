@@ -58,6 +58,7 @@ final class SessionEditorState {
     var distanceUnit: String = "km"
     var pace = ""
     var cardioEffort = ""
+    var stepsInput: String = ""
 
     static let cardioTypeOptions: [(String, String)] = [
         ("run", "Run"),
@@ -155,11 +156,18 @@ final class SessionEditorState {
             session.effortLevel = nil
             session.exercises = exercises.isEmpty ? nil : exercises
         case "cardio":
-            session.cardioType = cardioType.isEmpty ? nil : cardioType
-            session.distance = distance > 0 ? distance : nil
-            session.distanceUnit = distance > 0 ? distanceUnit : nil
-            session.pace = pace.isEmpty ? nil : pace
+            let typeValue = cardioType.isEmpty ? nil : cardioType
+            session.cardioType = typeValue
+            let supportsDistance = TrainingSession.cardioTypeSupportsDistance(typeValue)
+            session.distance = (supportsDistance && distance > 0) ? distance : nil
+            session.distanceUnit = (supportsDistance && distance > 0) ? distanceUnit : nil
+            session.pace = (supportsDistance && !pace.isEmpty) ? pace : nil
             session.cardioEffort = cardioEffort.isEmpty ? nil : cardioEffort
+            if cardioType == "walk", let parsedSteps = Int(stepsInput.filter(\.isNumber)), parsedSteps > 0 {
+                session.steps = parsedSteps
+            } else {
+                session.steps = nil
+            }
         case "technical":
             var items = Array(selectedSkills).sorted()
             let legacyCustom = customSkill.trimmingCharacters(in: .whitespaces)
@@ -221,6 +229,7 @@ final class SessionEditorState {
         distanceUnit = session.distanceUnit ?? "km"
         pace = session.pace ?? ""
         cardioEffort = session.cardioEffort ?? ""
+        stepsInput = session.steps.map { String($0) } ?? ""
 
         skillTrained = session.skillTrained ?? ""
         let parsedSkills = (session.skillTrained ?? "")
@@ -280,6 +289,7 @@ final class SessionEditorState {
         distanceUnit = "km"
         pace = ""
         cardioEffort = ""
+        stepsInput = ""
         skillTrained = ""
         selectedSkills = []
         customSkill = ""
@@ -1314,82 +1324,108 @@ struct TrainingLogView: View {
             }
         }
 
-        // Distance
-        sectionCard(title: "DISTANCE (\(inlineEditor.distanceUnit.uppercased()))", icon: "map.fill") {
-            VStack(spacing: 12) {
-                // Unit toggle
-                HStack(spacing: 8) {
-                    ForEach(["km", "mi"], id: \.self) { unit in
-                        Button {
-                            HapticManager.selection()
-                            inlineEditor.distanceUnit = unit
-                        } label: {
-                            Text(unit.uppercased())
-                                .font(.system(size: 12, weight: .heavy).width(.condensed))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 8)
-                                .background(
-                                    inlineEditor.distanceUnit == unit
-                                        ? ColorTheme.training.opacity(0.15)
-                                        : ColorTheme.elevatedBackground(colorScheme)
-                                )
-                                .foregroundColor(
-                                    inlineEditor.distanceUnit == unit
-                                        ? ColorTheme.training
-                                        : ColorTheme.secondaryText(colorScheme)
-                                )
-                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        // Distance — hidden for cardio types that have no natural distance (e.g. jump rope, HIIT)
+        if TrainingSession.cardioTypeSupportsDistance(inlineEditor.cardioType.isEmpty ? nil : inlineEditor.cardioType) {
+            let distanceTitle = inlineEditor.cardioType == "walk"
+                ? "DISTANCE (\(inlineEditor.distanceUnit.uppercased())) (OPTIONAL)"
+                : "DISTANCE (\(inlineEditor.distanceUnit.uppercased()))"
+            sectionCard(title: distanceTitle, icon: "map.fill") {
+                VStack(spacing: 12) {
+                    // Unit toggle
+                    HStack(spacing: 8) {
+                        ForEach(["km", "mi"], id: \.self) { unit in
+                            Button {
+                                HapticManager.selection()
+                                inlineEditor.distanceUnit = unit
+                            } label: {
+                                Text(unit.uppercased())
+                                    .font(.system(size: 12, weight: .heavy).width(.condensed))
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 8)
+                                    .background(
+                                        inlineEditor.distanceUnit == unit
+                                            ? ColorTheme.training.opacity(0.15)
+                                            : ColorTheme.elevatedBackground(colorScheme)
+                                    )
+                                    .foregroundColor(
+                                        inlineEditor.distanceUnit == unit
+                                            ? ColorTheme.training
+                                            : ColorTheme.secondaryText(colorScheme)
+                                    )
+                                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
-                }
 
-                Text(String(format: "%.1f %@", inlineEditor.distance, inlineEditor.distanceUnit))
-                    .font(Typography.number(32))
-                    .foregroundColor(ColorTheme.training)
+                    Text(String(format: "%.1f %@", inlineEditor.distance, inlineEditor.distanceUnit))
+                        .font(Typography.number(32))
+                        .foregroundColor(ColorTheme.training)
 
-                HStack(spacing: 10) {
-                    ForEach([3.0, 5.0, 8.0, 10.0, 15.0], id: \.self) { value in
-                        Button {
-                            HapticManager.selection()
-                            inlineEditor.distance = value
-                        } label: {
-                            Text(String(format: "%.0f", value))
-                                .font(.system(size: 13, weight: .bold).width(.condensed))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 8)
-                                .background(
-                                    inlineEditor.distance == value
-                                        ? ColorTheme.training.opacity(0.15)
-                                        : ColorTheme.elevatedBackground(colorScheme)
-                                )
-                                .foregroundColor(
-                                    inlineEditor.distance == value
-                                        ? ColorTheme.training
-                                        : ColorTheme.secondaryText(colorScheme)
-                                )
-                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    HStack(spacing: 10) {
+                        ForEach([3.0, 5.0, 8.0, 10.0, 15.0], id: \.self) { value in
+                            Button {
+                                HapticManager.selection()
+                                inlineEditor.distance = value
+                            } label: {
+                                Text(String(format: "%.0f", value))
+                                    .font(.system(size: 13, weight: .bold).width(.condensed))
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 8)
+                                    .background(
+                                        inlineEditor.distance == value
+                                            ? ColorTheme.training.opacity(0.15)
+                                            : ColorTheme.elevatedBackground(colorScheme)
+                                    )
+                                    .foregroundColor(
+                                        inlineEditor.distance == value
+                                            ? ColorTheme.training
+                                            : ColorTheme.secondaryText(colorScheme)
+                                    )
+                                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
-                }
 
-                Slider(value: $inlineEditor.distance, in: 0...50, step: 0.5)
-                    .tint(ColorTheme.training)
+                    Slider(value: $inlineEditor.distance, in: 0...50, step: 0.5)
+                        .tint(ColorTheme.training)
+                }
+            }
+        }
+
+        // Steps — walk only (people may know steps but not distance)
+        if inlineEditor.cardioType == "walk" {
+            sectionCard(title: "STEPS (OPTIONAL)", icon: "figure.walk") {
+                TextField("e.g. 8500", text: $inlineEditor.stepsInput)
+                    .keyboardType(.numberPad)
+                    .font(.system(size: 15, weight: .regular).width(.condensed))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    .padding(12)
+                    .background(ColorTheme.elevatedBackground(colorScheme))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .onChange(of: inlineEditor.stepsInput) { _, newValue in
+                        let filtered = newValue.filter(\.isNumber)
+                        if filtered != newValue {
+                            inlineEditor.stepsInput = filtered
+                        }
+                    }
             }
         }
 
         // Time
         durationSection(binding: $inlineEditor.duration, title: "TIME", presets: [15, 20, 30, 45, 60])
 
-        // Pace (optional)
-        sectionCard(title: "PACE (OPTIONAL)", icon: "speedometer") {
-            TextField("e.g. 5:30 /km", text: $inlineEditor.pace)
-                .font(.system(size: 15, weight: .regular).width(.condensed))
-                .foregroundColor(ColorTheme.primaryText(colorScheme))
-                .padding(12)
-                .background(ColorTheme.elevatedBackground(colorScheme))
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        // Pace (optional) — only for distance-based cardio
+        if TrainingSession.cardioTypeSupportsDistance(inlineEditor.cardioType.isEmpty ? nil : inlineEditor.cardioType) {
+            sectionCard(title: "PACE (OPTIONAL)", icon: "speedometer") {
+                TextField("e.g. 5:30 /km", text: $inlineEditor.pace)
+                    .font(.system(size: 15, weight: .regular).width(.condensed))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    .padding(12)
+                    .background(ColorTheme.elevatedBackground(colorScheme))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
         }
 
         // Effort
@@ -2269,32 +2305,51 @@ private struct SheetCardioForm: View {
             }
         }
 
-        SheetSection(title: "DISTANCE (\(editor.distanceUnit.uppercased()))", icon: "map.fill", colorScheme: colorScheme) {
-            VStack(spacing: 12) {
-                HStack(spacing: 8) {
-                    ForEach(["km", "mi"], id: \.self) { unit in
-                        Button {
-                            HapticManager.selection()
-                            editor.distanceUnit = unit
-                        } label: {
-                            Text(unit.uppercased())
-                                .font(.system(size: 12, weight: .heavy).width(.condensed))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 8)
-                                .background(editor.distanceUnit == unit ? ColorTheme.training.opacity(0.15) : ColorTheme.elevatedBackground(colorScheme))
-                                .foregroundColor(editor.distanceUnit == unit ? ColorTheme.training : ColorTheme.secondaryText(colorScheme))
-                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        if TrainingSession.cardioTypeSupportsDistance(editor.cardioType.isEmpty ? nil : editor.cardioType) {
+            let distanceTitle = editor.cardioType == "walk"
+                ? "DISTANCE (\(editor.distanceUnit.uppercased())) (OPTIONAL)"
+                : "DISTANCE (\(editor.distanceUnit.uppercased()))"
+            SheetSection(title: distanceTitle, icon: "map.fill", colorScheme: colorScheme) {
+                VStack(spacing: 12) {
+                    HStack(spacing: 8) {
+                        ForEach(["km", "mi"], id: \.self) { unit in
+                            Button {
+                                HapticManager.selection()
+                                editor.distanceUnit = unit
+                            } label: {
+                                Text(unit.uppercased())
+                                    .font(.system(size: 12, weight: .heavy).width(.condensed))
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 8)
+                                    .background(editor.distanceUnit == unit ? ColorTheme.training.opacity(0.15) : ColorTheme.elevatedBackground(colorScheme))
+                                    .foregroundColor(editor.distanceUnit == unit ? ColorTheme.training : ColorTheme.secondaryText(colorScheme))
+                                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
+
+                    Text(String(format: "%.1f %@", editor.distance, editor.distanceUnit))
+                        .font(Typography.number(32))
+                        .foregroundColor(ColorTheme.training)
+
+                    Slider(value: Binding(get: { editor.distance }, set: { editor.distance = $0 }), in: 0...50, step: 0.5)
+                        .tint(ColorTheme.training)
                 }
+            }
+        }
 
-                Text(String(format: "%.1f %@", editor.distance, editor.distanceUnit))
-                    .font(Typography.number(32))
-                    .foregroundColor(ColorTheme.training)
-
-                Slider(value: Binding(get: { editor.distance }, set: { editor.distance = $0 }), in: 0...50, step: 0.5)
-                    .tint(ColorTheme.training)
+        if editor.cardioType == "walk" {
+            SheetSection(title: "STEPS (OPTIONAL)", icon: "figure.walk", colorScheme: colorScheme) {
+                TextField("e.g. 8500",
+                          text: Binding(get: { editor.stepsInput },
+                                        set: { editor.stepsInput = $0.filter(\.isNumber) }))
+                    .keyboardType(.numberPad)
+                    .font(.system(size: 15, weight: .regular).width(.condensed))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    .padding(12)
+                    .background(ColorTheme.elevatedBackground(colorScheme))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
         }
 

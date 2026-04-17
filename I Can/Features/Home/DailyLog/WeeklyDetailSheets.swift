@@ -767,7 +767,11 @@ struct DayTrainingDetailView: View {
             if let ex = s.exercises { for e in ex where !e.isEmpty { out.append((e, muted)) } }
         case "cardio":
             if let ct = s.cardioType, !ct.isEmpty { out.append((humanize(ct), accent)) }
-            if let d = s.distance { out.append((String(format: "%.1f km", d), accent)) }
+            if let d = s.distance {
+                let unit = s.distanceUnit ?? "km"
+                out.append((String(format: "%.1f %@", d, unit), accent))
+            }
+            if let st = s.steps, st > 0, s.cardioType == "walk" { out.append(("\(st) steps", accent)) }
             if let p = s.pace, !p.isEmpty { out.append((p, muted)) }
             if let e = s.cardioEffort, !e.isEmpty { out.append((humanize(e), warn)) }
         case "technical":

@@ -18,6 +18,8 @@ struct AnalyticsSessionData: Codable {
     let exercises: [String]?
     let cardioType: String?
     let distance: Double?
+    let distanceUnit: String?
+    let steps: Int?
     let pace: String?
     let cardioEffort: String?
     let skillTrained: String?
