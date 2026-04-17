@@ -6,6 +6,7 @@ struct ContentView: View {
     @State private var showMaintenance = false
     @State private var showNoInternet = false
     @State private var showForceUpdate = false
+    @State private var showAppMaintenance = false
     @State private var showPostOnboardingSubscription = false
     @State private var logoScale: CGFloat = 0.8
     @State private var logoOpacity: Double = 0
@@ -39,6 +40,12 @@ struct ContentView: View {
             if showForceUpdate {
                 ForceUpdateView()
                     .transition(.opacity)
+                    .zIndex(12)
+            }
+
+            if showAppMaintenance {
+                AppMaintenanceView(onRetry: { await checkForceUpdate() })
+                    .transition(.opacity)
                     .zIndex(11)
             }
 
@@ -58,6 +65,7 @@ struct ContentView: View {
         .animation(.easeInOut(duration: 0.3), value: showNoInternet)
         .animation(.easeInOut(duration: 0.3), value: showMaintenance)
         .animation(.easeInOut(duration: 0.3), value: showForceUpdate)
+        .animation(.easeInOut(duration: 0.3), value: showAppMaintenance)
         .task {
             await loadInitialState()
         }
@@ -122,10 +130,15 @@ struct ContentView: View {
     private func checkForceUpdate() async {
         guard let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String else { return }
         let endpoint = "\(APIEndpoints.App.version)?current=\(currentVersion)"
-        struct VersionResponse: Decodable { let minVersion: String; let forceUpdate: Bool }
+        struct VersionResponse: Decodable {
+            let minVersion: String
+            let forceUpdate: Bool
+            let maintenance: Bool?
+        }
         do {
             let response: VersionResponse = try await APIClient.shared.request(endpoint, authenticated: false)
             showForceUpdate = response.forceUpdate
+            showAppMaintenance = !response.forceUpdate && (response.maintenance ?? false)
         } catch {
             // Don't block the app if version check fails
         }
@@ -134,6 +147,10 @@ struct ContentView: View {
     private func loadInitialState() async {
         await checkForceUpdate()
         if showForceUpdate { return }
+        if showAppMaintenance {
+            isLoading = false
+            return
+        }
 
         if authService.isAuthenticated {
             do {
