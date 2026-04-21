@@ -18,9 +18,7 @@ struct AppMaintenanceView: View {
         ZStack {
             AnimatedAuroraBackground(palette: .accent)
 
-            VStack(spacing: 36) {
-                Spacer(minLength: 20)
-
+            VStack(spacing: 28) {
                 statusPill
 
                 logoHero
@@ -49,14 +47,17 @@ struct AppMaintenanceView: View {
                     .opacity(appeared ? 1 : 0)
                     .offset(y: appeared ? 0 : 24)
 
-                Spacer()
+                Spacer(minLength: 24)
 
                 retryButton
                     .padding(.horizontal, 32)
-                    .padding(.bottom, 56)
                     .opacity(appeared ? 1 : 0)
                     .offset(y: appeared ? 0 : 24)
+
+                Spacer(minLength: 24)
             }
+            .padding(.top, 16)
+            .padding(.bottom, 20)
         }
         .onAppear {
             withAnimation(.linear(duration: 22).repeatForever(autoreverses: false)) {

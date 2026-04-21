@@ -18,9 +18,7 @@ struct ForceUpdateView: View {
         ZStack {
             AnimatedAuroraBackground(palette: .accent)
 
-            VStack(spacing: 36) {
-                Spacer(minLength: 20)
-
+            VStack(spacing: 28) {
                 statusPill
 
                 logoHero
@@ -51,14 +49,17 @@ struct ForceUpdateView: View {
                     .opacity(appeared ? 1 : 0)
                     .offset(y: appeared ? 0 : 24)
 
-                Spacer()
+                Spacer(minLength: 24)
 
                 updateButton
                     .padding(.horizontal, 32)
-                    .padding(.bottom, 56)
                     .opacity(appeared ? 1 : 0)
                     .offset(y: appeared ? 0 : 24)
+
+                Spacer(minLength: 24)
             }
+            .padding(.top, 16)
+            .padding(.bottom, 20)
         }
         .onAppear {
             withAnimation(.linear(duration: 18).repeatForever(autoreverses: false)) {
@@ -162,7 +163,7 @@ struct ForceUpdateView: View {
             }
             .offset(x: 58, y: 58 + badgeBob)
         }
-        .frame(height: 260)
+        .frame(height: 230)
         .scaleEffect(appeared ? 1 : 0.85)
         .opacity(appeared ? 1 : 0)
     }
