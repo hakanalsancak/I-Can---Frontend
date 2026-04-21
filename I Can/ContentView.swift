@@ -49,7 +49,7 @@ struct ContentView: View {
             }
 
             if showAppMaintenance {
-                AppMaintenanceView(onRetry: { await checkForceUpdate() })
+                AppMaintenanceView(onRetry: { await retryAppMaintenance() })
                     .transition(.opacity)
                     .zIndex(11)
             }
@@ -159,26 +159,35 @@ struct ContentView: View {
             return
         }
 
-        if authService.isAuthenticated {
-            do {
-                try await authService.loadProfile()
-                await authService.setCountryIfNeeded()
-                try? await SubscriptionService.shared.checkStatus()
-                showMaintenance = false
-                showNoInternet = false
-            } catch {
-                if case .unauthorized = error as? APIError {
-                    authService.signOut()
-                } else if case .networkError = error as? APIError {
-                    showNoInternet = true
-                } else {
-                    showMaintenance = true
-                }
-            }
-        }
+        await hydrateAuthenticatedSession()
 
         try? await Task.sleep(nanoseconds: 300_000_000)
 
         isLoading = false
+    }
+
+    private func hydrateAuthenticatedSession() async {
+        guard authService.isAuthenticated else { return }
+        do {
+            try await authService.loadProfile()
+            await authService.setCountryIfNeeded()
+            try? await SubscriptionService.shared.checkStatus()
+            showMaintenance = false
+            showNoInternet = false
+        } catch {
+            if case .unauthorized = error as? APIError {
+                authService.signOut()
+            } else if case .networkError = error as? APIError {
+                showNoInternet = true
+            } else {
+                showMaintenance = true
+            }
+        }
+    }
+
+    private func retryAppMaintenance() async {
+        await checkForceUpdate()
+        if showForceUpdate || showAppMaintenance { return }
+        await hydrateAuthenticatedSession()
     }
 }

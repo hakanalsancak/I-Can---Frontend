@@ -177,7 +177,7 @@ struct AppMaintenanceView: View {
             }
             .offset(x: 58, y: 58)
         }
-        .frame(height: 260)
+        .frame(height: 230)
         .scaleEffect(appeared ? 1 : 0.85)
         .opacity(appeared ? 1 : 0)
     }
@@ -201,32 +201,27 @@ struct AppMaintenanceView: View {
     }
 
     private var infoCards: some View {
-        VStack(spacing: 10) {
-            infoRow(icon: "lock.shield.fill", title: "Your data is safe", subtitle: "All your progress is preserved.")
-            infoRow(icon: "sparkles", title: "Upgrading behind the scenes", subtitle: "We're making I Can even better.")
-            infoRow(icon: "clock.fill", title: "Back online soon", subtitle: "Tap Try Again to check.")
+        VStack(spacing: 8) {
+            infoRow(icon: "lock.shield.fill", title: "Your data is safe")
+            infoRow(icon: "sparkles", title: "Upgrading behind the scenes")
+            infoRow(icon: "clock.fill", title: "Back online soon")
         }
     }
 
-    private func infoRow(icon: String, title: String, subtitle: String) -> some View {
+    private func infoRow(icon: String, title: String) -> some View {
         HStack(spacing: 12) {
             ZStack {
                 Circle()
                     .fill(accent.opacity(0.15))
-                    .frame(width: 34, height: 34)
+                    .frame(width: 30, height: 30)
                 Image(systemName: icon)
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.system(size: 13, weight: .bold))
                     .foregroundColor(accent)
             }
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(Typography.subheadline)
-                    .foregroundColor(ColorTheme.primaryText(colorScheme))
-                Text(subtitle)
-                    .font(Typography.caption)
-                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
-            }
+            Text(title)
+                .font(Typography.subheadline)
+                .foregroundColor(ColorTheme.primaryText(colorScheme).opacity(0.85))
 
             Spacer()
         }
