@@ -1137,7 +1137,15 @@ struct CoachChatView: View {
             messages.append(userMessage)
         }
         persistMessages()
+        // Briefly resign focus so any pending predictive/marked-text composition
+        // commits before we clear — otherwise the committed text writes back into
+        // inputText after the assignment and the field appears not to reset.
+        isInputFocused = false
         inputText = ""
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(10))
+            isInputFocused = true
+        }
         HapticManager.impact(.light)
 
         Task {
