@@ -27,11 +27,22 @@ struct ChatRequest: Encodable {
     let message: String
     let history: [ChatHistoryItem]
     let conversationId: String?
+    let clientDate: String
+    let clientTimezone: String
 
     init(message: String, history: [ChatHistoryItem], conversationId: String? = nil) {
         self.message = message
         self.history = history
         self.conversationId = conversationId
+
+        let tz = TimeZone.current
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = tz
+        formatter.dateFormat = "yyyy-MM-dd"
+        self.clientDate = formatter.string(from: Date())
+        self.clientTimezone = tz.identifier
     }
 }
 
