@@ -10,9 +10,13 @@ struct ContentView: View {
     @State private var latestMinVersion: String?
     @State private var currentAppVersion: String?
     @State private var showPostOnboardingSubscription = false
+    @State private var activeFeedbackCampaign: String?
+    @State private var showFeedbackCampaign = false
     @State private var logoScale: CGFloat = 0.8
     @State private var logoOpacity: Double = 0
     @Environment(\.colorScheme) private var colorScheme
+
+    private static let feedbackCampaignSeenKey = "lastSeenFeedbackCampaign"
 
     private var showingSplash: Bool {
         isLoading || (authService.isAuthenticated && authService.hasCompletedOnboarding && !SubscriptionService.shared.statusChecked)
@@ -64,6 +68,14 @@ struct ContentView: View {
                 ServerMaintenanceView(onRetry: { await retryConnection() })
                     .transition(.opacity)
                     .zIndex(10)
+            }
+        }
+        .sheet(isPresented: $showFeedbackCampaign) {
+            if let campaign = activeFeedbackCampaign {
+                FeedbackCampaignSheet(campaign: campaign) {
+                    UserDefaults.standard.set(campaign, forKey: Self.feedbackCampaignSeenKey)
+                    activeFeedbackCampaign = nil
+                }
             }
         }
         .animation(.easeInOut(duration: 0.4), value: showingSplash)
@@ -139,6 +151,7 @@ struct ContentView: View {
             let minVersion: String
             let forceUpdate: Bool
             let maintenance: Bool?
+            let feedbackCampaign: String?
         }
         do {
             let response: VersionResponse = try await APIClient.shared.request(endpoint, authenticated: false)
@@ -146,9 +159,28 @@ struct ContentView: View {
             latestMinVersion = response.minVersion
             showForceUpdate = response.forceUpdate
             showAppMaintenance = !response.forceUpdate && (response.maintenance ?? false)
+            activeFeedbackCampaign = response.feedbackCampaign
         } catch {
             // Don't block the app if version check fails
         }
+    }
+
+    private func presentFeedbackCampaignIfNeeded() {
+        guard let campaign = activeFeedbackCampaign,
+              !campaign.isEmpty,
+              authService.isAuthenticated,
+              authService.hasCompletedOnboarding,
+              !showForceUpdate,
+              !showAppMaintenance,
+              !showMaintenance,
+              !showNoInternet,
+              !showPostOnboardingSubscription
+        else { return }
+
+        let lastSeen = UserDefaults.standard.string(forKey: Self.feedbackCampaignSeenKey)
+        guard lastSeen != campaign else { return }
+
+        showFeedbackCampaign = true
     }
 
     private func loadInitialState() async {
@@ -164,6 +196,9 @@ struct ContentView: View {
         try? await Task.sleep(nanoseconds: 300_000_000)
 
         isLoading = false
+
+        try? await Task.sleep(nanoseconds: 600_000_000)
+        presentFeedbackCampaignIfNeeded()
     }
 
     private func hydrateAuthenticatedSession() async {
