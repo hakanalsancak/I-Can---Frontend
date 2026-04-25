@@ -185,6 +185,9 @@ final class SessionEditorState {
             session.understandingLevel = understandingLevel.isEmpty ? nil : understandingLevel
         case "recovery":
             session.recoveryType = recoveryType.isEmpty ? nil : recoveryType
+            if recoveryType == "rest" {
+                session.duration = 0
+            }
         default:
             break
         }
