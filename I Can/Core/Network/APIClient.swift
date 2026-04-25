@@ -180,16 +180,6 @@ final class APIClient: @unchecked Sendable {
                 try await refreshCoordinator.refresh { [self] in
                     try await self.refreshAccessToken()
                 }
-                if let newToken = TokenManager.shared.accessToken {
-                    var retryRequest = urlRequest
-                    retryRequest.setValue("Bearer \(newToken)", forHTTPHeaderField: "Authorization")
-                    let (retryData, retryResponse) = try await performRequest(retryRequest)
-                    guard let retryHttp = retryResponse as? HTTPURLResponse,
-                          (200...299).contains(retryHttp.statusCode) else {
-                        throw APIError.unauthorized
-                    }
-                    return try decoder.decode(T.self, from: retryData)
-                }
             } catch let error as APIError where error.isRetryable {
                 // Network/server error during refresh — don't sign the user out,
                 // let the caller handle it (e.g. show maintenance screen).
@@ -197,7 +187,29 @@ final class APIClient: @unchecked Sendable {
             } catch {
                 throw APIError.unauthorized
             }
-            throw APIError.unauthorized
+
+            guard let newToken = TokenManager.shared.accessToken else {
+                throw APIError.unauthorized
+            }
+
+            var retryRequest = urlRequest
+            retryRequest.setValue("Bearer \(newToken)", forHTTPHeaderField: "Authorization")
+            let (retryData, retryResponse) = try await performRequest(retryRequest)
+            guard let retryHttp = retryResponse as? HTTPURLResponse else {
+                throw APIError.invalidResponse
+            }
+            if retryHttp.statusCode == 401 {
+                throw APIError.unauthorized
+            }
+            guard (200...299).contains(retryHttp.statusCode) else {
+                let errorBody = try? decoder.decode(APIErrorResponse.self, from: retryData)
+                throw APIError.serverError(errorBody?.error ?? "Server error (\(retryHttp.statusCode))")
+            }
+            do {
+                return try decoder.decode(T.self, from: retryData)
+            } catch {
+                throw APIError.decodingError(error)
+            }
         }
 
         if httpResponse.statusCode == 403 {
@@ -272,22 +284,34 @@ final class APIClient: @unchecked Sendable {
                 try await refreshCoordinator.refresh { [self] in
                     try await self.refreshAccessToken()
                 }
-                if let newToken = TokenManager.shared.accessToken {
-                    var retryRequest = urlRequest
-                    retryRequest.setValue("Bearer \(newToken)", forHTTPHeaderField: "Authorization")
-                    let (retryData, retryResponse) = try await performRequest(retryRequest)
-                    guard let retryHttp = retryResponse as? HTTPURLResponse,
-                          (200...299).contains(retryHttp.statusCode) else {
-                        throw APIError.unauthorized
-                    }
-                    return try decoder.decode(T.self, from: retryData)
-                }
             } catch let error as APIError where error.isRetryable {
                 throw error
             } catch {
                 throw APIError.unauthorized
             }
-            throw APIError.unauthorized
+
+            guard let newToken = TokenManager.shared.accessToken else {
+                throw APIError.unauthorized
+            }
+
+            var retryRequest = urlRequest
+            retryRequest.setValue("Bearer \(newToken)", forHTTPHeaderField: "Authorization")
+            let (retryData, retryResponse) = try await performRequest(retryRequest)
+            guard let retryHttp = retryResponse as? HTTPURLResponse else {
+                throw APIError.invalidResponse
+            }
+            if retryHttp.statusCode == 401 {
+                throw APIError.unauthorized
+            }
+            guard (200...299).contains(retryHttp.statusCode) else {
+                let errorBody = try? decoder.decode(APIErrorResponse.self, from: retryData)
+                throw APIError.serverError(errorBody?.error ?? "Server error (\(retryHttp.statusCode))")
+            }
+            do {
+                return try decoder.decode(T.self, from: retryData)
+            } catch {
+                throw APIError.decodingError(error)
+            }
         }
 
         guard (200...299).contains(httpResponse.statusCode) else {
