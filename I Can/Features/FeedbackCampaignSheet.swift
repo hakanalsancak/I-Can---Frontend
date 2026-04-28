@@ -36,6 +36,10 @@ struct FeedbackCampaignSheet: View {
                     .padding(.bottom, 32)
                     .frame(maxWidth: .infinity)
                 }
+                .scrollDismissesKeyboard(.interactively)
+                .onTapGesture {
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                }
             }
             .navigationTitle("Quick Feedback")
             .navigationBarTitleDisplayMode(.inline)

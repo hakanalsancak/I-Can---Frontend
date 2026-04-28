@@ -28,6 +28,10 @@ struct BugReportView: View {
                 .padding(.top, 8)
                 .padding(.bottom, 32)
             }
+            .scrollDismissesKeyboard(.interactively)
+            .onTapGesture {
+                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+            }
             .background(ColorTheme.background(colorScheme).ignoresSafeArea())
             .navigationTitle("Report a Bug")
             .navigationBarTitleDisplayMode(.inline)
