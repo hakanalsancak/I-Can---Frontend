@@ -172,7 +172,7 @@ final class NotificationService {
 
     // MARK: - Streak Reminder
 
-    /// Schedules streak reminders for the next 7 days at 8 PM, each with a different random message.
+    /// Schedules streak reminders for the next 7 days at 8:30 PM, each with a different random message.
     /// - Parameter skipToday: When true, skips scheduling for today (user already logged).
     func scheduleStreakReminder(skipToday: Bool = false) {
         let center = UNUserNotificationCenter.current()
@@ -195,9 +195,9 @@ final class NotificationService {
 
             var dateComponents = calendar.dateComponents([.year, .month, .day], from: targetDate)
             dateComponents.hour = 20
-            dateComponents.minute = 0
+            dateComponents.minute = 30
 
-            // Skip if 8 PM already passed today
+            // Skip if 8:30 PM already passed today
             if dayOffset == 0,
                let fireDate = calendar.date(from: dateComponents),
                fireDate <= today {
