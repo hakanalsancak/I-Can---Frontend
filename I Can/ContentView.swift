@@ -183,7 +183,7 @@ struct ContentView: View {
 
         // Only prompt users who've actually used the app — skip brand-new signups.
         // If createdAt is missing or unparseable, suppress the popup to be safe.
-        guard let createdAtString = authService.user?.createdAt,
+        guard let createdAtString = authService.currentUser?.createdAt,
               let createdAt = Self.parseISODate(createdAtString)
         else { return }
         let ageDays = Date().timeIntervalSince(createdAt) / 86_400
