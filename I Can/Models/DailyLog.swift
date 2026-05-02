@@ -564,17 +564,22 @@ struct SleepData: Codable, Equatable {
     var sleepTime: String           // "HH:mm" format
     var wakeTime: String            // "HH:mm" format
 
-    var durationHours: Double {
+    var durationMinutes: Int {
         guard let sleep = parseTime(sleepTime),
               let wake = parseTime(wakeTime) else { return 0 }
         var diff = wake - sleep
         if diff < 0 { diff += 24 * 60 }
-        return Double(diff) / 60.0
+        return diff
+    }
+
+    var durationHours: Double {
+        Double(durationMinutes) / 60.0
     }
 
     var durationFormatted: String {
-        let hours = Int(durationHours)
-        let minutes = Int((durationHours - Double(hours)) * 60)
+        let total = durationMinutes
+        let hours = total / 60
+        let minutes = total % 60
         if minutes == 0 { return "\(hours)h" }
         return "\(hours)h \(minutes)m"
     }
