@@ -6,7 +6,6 @@ final class ReportsViewModel {
     var periodStatus: PeriodStatus?
     var weeklyReports: [AIReport] = []
     var monthlyReports: [AIReport] = []
-    var yearlyReports: [AIReport] = []
     var selectedReport: AIReport?
     var isLoading = false
     var errorMessage: String?
@@ -17,6 +16,14 @@ final class ReportsViewModel {
     }
 
     private var hasFailedStatus = false
+
+    var weeklyHero: AIReport? { weeklyReports.first }
+    var monthlyHero: AIReport? { monthlyReports.first }
+
+    func recentScores(for type: String, limit: Int = 4) -> [AIReport] {
+        let source = type == "weekly" ? weeklyReports : monthlyReports
+        return Array(source.prefix(limit))
+    }
 
     func loadAll() async {
         async let s: () = loadStatus()
@@ -34,14 +41,13 @@ final class ReportsViewModel {
     }
 
     func loadReports() async {
-        if weeklyReports.isEmpty && monthlyReports.isEmpty && yearlyReports.isEmpty {
+        if weeklyReports.isEmpty && monthlyReports.isEmpty {
             isLoading = true
         }
         do {
             let all = try await ReportService.shared.getReports()
             weeklyReports = all.filter { $0.reportType == "weekly" }
             monthlyReports = all.filter { $0.reportType == "monthly" }
-            yearlyReports = all.filter { $0.reportType == "yearly" }
         } catch {
             // Keep existing data on error
         }
@@ -63,4 +69,18 @@ final class ReportsViewModel {
         }
     }
 
+    func openReport(byId id: String) async {
+        // Used by push deep-link: we don't yet know the type/dates, so issue
+        // a detail fetch and let the API hydrate the AIReport.
+        let stub = AIReport(
+            id: id,
+            reportType: "weekly",
+            periodStart: "",
+            periodEnd: "",
+            content: nil,
+            entryCount: nil,
+            createdAt: nil
+        )
+        await loadReportDetail(stub)
+    }
 }

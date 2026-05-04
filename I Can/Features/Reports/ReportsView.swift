@@ -6,38 +6,68 @@ struct ReportsView: View {
     @State private var showSubscription = false
     @State private var showSavedReports = false
     @State private var now = Date()
+    @State private var selectedType: ReportType = .weekly
     @Environment(\.colorScheme) private var colorScheme
 
     private let countdownTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
+    enum ReportType: String, CaseIterable, Identifiable {
+        case weekly = "Weekly"
+        case monthly = "Monthly"
+        var id: String { rawValue }
+
+        var key: String { rawValue.lowercased() }
+        var accent: Color { self == .weekly ? Color(hex: "8B5CF6") : Color(hex: "2563EB") }
+        var gradient: [Color] {
+            self == .weekly
+                ? [Color(hex: "7C3AED"), Color(hex: "4F46E5")]
+                : [Color(hex: "2563EB"), Color(hex: "1D4ED8")]
+        }
+        var icon: String {
+            self == .weekly ? "chart.bar.fill" : "chart.line.uptrend.xyaxis"
+        }
+        var periodLabel: String { self == .weekly ? "week" : "month" }
+        var unlockCopy: String {
+            self == .weekly ? "Monday at 8pm. That\u{2019}s when the week is graded."
+                            : "1st of the month. That\u{2019}s when the verdict drops."
+        }
+    }
 
     private var userName: String {
         AuthService.shared.currentUser?.fullName?.components(separatedBy: " ").first ?? "Athlete"
     }
 
-    private var userSport: String {
-        AuthService.shared.currentUser?.sport.capitalized ?? "your sport"
+    private var currentPeriod: PeriodInfo? {
+        switch selectedType {
+        case .weekly: return viewModel.periodStatus?.weekly
+        case .monthly: return viewModel.periodStatus?.monthly
+        }
+    }
+
+    private var hero: AIReport? {
+        selectedType == .weekly ? viewModel.weeklyHero : viewModel.monthlyHero
+    }
+
+    private var recent: [AIReport] {
+        viewModel.recentScores(for: selectedType.key, limit: 4)
     }
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                PageHeader("Reports")
-
+                header
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 24) {
-                        reportsDescription
+                    VStack(spacing: 22) {
+                        typeSegmentedControl
 
                         if SubscriptionService.shared.isPremium {
                             premiumContent
                         } else {
-                            lockedHeroSection
-                            previewReportsSection
-                            whatYouGetSection
-                            lockedCTASection
+                            lockedPitch
                         }
                     }
                     .padding(.horizontal, 20)
-                    .padding(.top, 16)
+                    .padding(.top, 14)
                     .padding(.bottom, 32)
                 }
             }
@@ -69,8 +99,7 @@ struct ReportsView: View {
             .sheet(isPresented: $showSavedReports) {
                 SavedReportsView(
                     weeklyReports: Array(viewModel.weeklyReports.dropFirst()),
-                    monthlyReports: Array(viewModel.monthlyReports.dropFirst()),
-                    yearlyReports: Array(viewModel.yearlyReports.dropFirst())
+                    monthlyReports: Array(viewModel.monthlyReports.dropFirst())
                 ) { report in
                     showSavedReports = false
                     await viewModel.loadReportDetail(report)
@@ -79,93 +108,75 @@ struct ReportsView: View {
             .onReceive(countdownTimer) { _ in
                 now = Date()
             }
-        }
-    }
-
-    private func countdownText(for period: PeriodInfo) -> String {
-        guard let endDate = Date.fromAPIString(period.periodEnd) else {
-            return "\(period.daysRemaining)d remaining"
-        }
-        // Period end date is a date (no time), report generates at the start of the next day
-        let calendar = Calendar.current
-        guard let deadline = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: endDate)) else {
-            return "\(period.daysRemaining)d remaining"
-        }
-        let remaining = deadline.timeIntervalSince(now)
-        guard remaining > 0 else { return "Generating..." }
-
-        let days = Int(remaining) / 86400
-        let hours = (Int(remaining) % 86400) / 3600
-        let minutes = (Int(remaining) % 3600) / 60
-        let seconds = Int(remaining) % 60
-
-        if days > 0 {
-            return String(format: "%dd %02dh %02dm %02ds", days, hours, minutes, seconds)
-        } else {
-            return String(format: "%02dh %02dm %02ds", hours, minutes, seconds)
-        }
-    }
-
-    // MARK: - Reports Description
-
-    private var reportsDescription: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                Image(systemName: "person.text.rectangle.fill")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(Color(hex: "8B5CF6"))
-                Text("Your Personal Performance Agent")
-                    .font(.system(size: 16, weight: .bold).width(.condensed))
-                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+            .onReceive(NotificationCenter.default.publisher(for: .openReport)) { note in
+                guard let id = note.userInfo?["reportId"] as? String else { return }
+                if let type = note.userInfo?["reportType"] as? String {
+                    selectedType = type == "monthly" ? .monthly : .weekly
+                }
+                Task { await viewModel.openReport(byId: id) }
             }
-
-            Text("Think of this as your private analyst. Based on everything you log — training, nutrition, sleep, and mindset — your AI coach writes detailed reports breaking down your progress, spotting patterns you might miss, and giving you actionable next steps. Reports are generated automatically at the end of each week, month, and year.")
-                .font(.system(size: 13, weight: .medium).width(.condensed))
-                .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                .lineSpacing(3)
-                .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(16)
-        .background(ColorTheme.cardBackground(colorScheme))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
+    }
+
+    // MARK: - Header
+
+    private var header: some View {
+        HStack(alignment: .center) {
+            Text("Reports")
+                .font(.system(size: 28, weight: .heavy).width(.condensed))
+                .foregroundColor(ColorTheme.primaryText(colorScheme))
+            Spacer()
+            if SubscriptionService.shared.isPremium {
+                Button {
+                    HapticManager.selection()
+                    showSavedReports = true
+                } label: {
+                    Image(systemName: "archivebox.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+                        .frame(width: 38, height: 38)
+                        .background(ColorTheme.cardBackground(colorScheme))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+        .padding(.bottom, 4)
+    }
+
+    // MARK: - Segmented Control
+
+    private var typeSegmentedControl: some View {
+        Picker("Type", selection: $selectedType) {
+            ForEach(ReportType.allCases) { type in
+                Text(type.rawValue).tag(type)
+            }
+        }
+        .pickerStyle(.segmented)
     }
 
     // MARK: - Premium Content
 
+    @ViewBuilder
     private var premiumContent: some View {
-        VStack(spacing: 28) {
-            reportSection(
-                title: "WEEKLY REPORTS",
-                icon: "chart.bar.fill",
-                iconColor: Color(hex: "8B5CF6"),
-                gradient: [Color(hex: "7C3AED"), Color(hex: "4F46E5")],
-                period: viewModel.periodStatus?.weekly,
-                reports: viewModel.weeklyReports,
-                periodLabel: "week"
-            )
+        VStack(spacing: 18) {
+            if let hero {
+                heroCard(hero)
+            } else if viewModel.isLoading {
+                heroPlaceholder
+            } else {
+                heroEmpty
+            }
 
-            reportSection(
-                title: "MONTHLY REPORTS",
-                icon: "chart.line.uptrend.xyaxis",
-                iconColor: Color(hex: "2563EB"),
-                gradient: [Color(hex: "2563EB"), Color(hex: "1D4ED8")],
-                period: viewModel.periodStatus?.monthly,
-                reports: viewModel.monthlyReports,
-                periodLabel: "month"
-            )
+            if let period = currentPeriod, !period.reportReady {
+                inProgressCard(period: period)
+            }
 
-            reportSection(
-                title: "YEARLY REPORTS",
-                icon: "star.fill",
-                iconColor: Color(hex: "F59E0B"),
-                gradient: [Color(hex: "F59E0B"), Color(hex: "D97706")],
-                period: viewModel.periodStatus?.yearly,
-                reports: viewModel.yearlyReports,
-                periodLabel: "year"
-            )
-
-            savedReportsButton
+            if recent.count > 1 {
+                recentStrip
+            }
 
             if let error = viewModel.errorMessage {
                 errorBanner(error)
@@ -173,320 +184,362 @@ struct ReportsView: View {
         }
     }
 
-    // MARK: - Single Report Card
+    // MARK: - Hero Card
 
-    private func reportCard(_ report: AIReport) -> some View {
+    private func heroCard(_ report: AIReport) -> some View {
         Button {
             HapticManager.selection()
             Task { await viewModel.loadReportDetail(report) }
         } label: {
-            HStack(spacing: 14) {
-                Image(systemName: report.reportIcon)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(reportIconColor(report.reportType))
-                    .frame(width: 32, height: 32)
-                    .background(reportIconColor(report.reportType).opacity(0.12))
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(report.dateRangeDisplay)
-                        .font(.system(size: 15, weight: .semibold).width(.condensed))
-                        .foregroundColor(ColorTheme.primaryText(colorScheme))
-
-                    HStack(spacing: 8) {
-                        if let created = report.createdDateDisplay {
-                            Text("Generated \(created)")
-                                .font(.system(size: 12, weight: .medium).width(.condensed))
-                                .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                        }
-                        if let count = report.entryCount {
-                            Text("·  \(count) entries")
-                                .font(.system(size: 12, weight: .medium).width(.condensed))
-                                .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                        }
-                    }
-                }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
-            }
-            .padding(14)
-            .background(ColorTheme.cardBackground(colorScheme))
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 4, x: 0, y: 1)
-        }
-        .buttonStyle(.plain)
-    }
-
-    // MARK: - Saved Reports Button
-
-    private var savedReportsButton: some View {
-        Button {
-            HapticManager.selection()
-            showSavedReports = true
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "archivebox.fill")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(Color(hex: "8B5CF6"))
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Saved Reports")
-                        .font(.system(size: 16, weight: .bold).width(.condensed))
-                        .foregroundColor(ColorTheme.primaryText(colorScheme))
-
-                    let totalCount = max(0, viewModel.weeklyReports.count - 1) + max(0, viewModel.monthlyReports.count - 1) + max(0, viewModel.yearlyReports.count - 1)
-                    Text("\(totalCount) report\(totalCount == 1 ? "" : "s") saved")
-                        .font(.system(size: 13, weight: .medium).width(.condensed))
-                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
-            }
-            .padding(16)
-            .background(ColorTheme.cardBackground(colorScheme))
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
-        }
-        .buttonStyle(.plain)
-    }
-
-    // MARK: - Report Section
-
-    private func reportSection(
-        title: String,
-        icon: String,
-        iconColor: Color,
-        gradient: [Color],
-        period: PeriodInfo?,
-        reports: [AIReport],
-        periodLabel: String
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Image(systemName: icon)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(iconColor)
-                Text(title)
-                    .sectionHeader(colorScheme)
-                Spacer()
-            }
-
-            if let period {
-                periodProgressCard(period: period, gradient: gradient, periodLabel: periodLabel)
-            } else if viewModel.isStatusLoading {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(ColorTheme.cardBackground(colorScheme))
-                    .frame(height: 100)
-                    .shimmering()
-            }
-
-            if let latest = reports.first {
-                reportCard(latest)
-            }
-        }
-    }
-
-    // MARK: - Period Progress Card
-
-    private func periodProgressCard(period: PeriodInfo, gradient: [Color], periodLabel: String) -> some View {
-        VStack(spacing: 0) {
-            VStack(spacing: 12) {
+            VStack(spacing: 18) {
                 HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(period.dateRangeDisplay)
-                            .font(.system(size: 17, weight: .bold).width(.condensed))
-                            .foregroundColor(ColorTheme.primaryText(colorScheme))
-
-                        if period.reportReady {
-                            HStack(spacing: 5) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundColor(Color(hex: "22C55E"))
-                                Text("Report ready!")
-                                    .font(.system(size: 13, weight: .semibold).width(.condensed))
-                                    .foregroundColor(Color(hex: "22C55E"))
-                            }
-                        } else {
-                            Text("\(period.daysRemaining) day\(period.daysRemaining == 1 ? "" : "s") remaining")
-                                .font(.system(size: 13, weight: .medium).width(.condensed))
-                                .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                        }
-                    }
-
+                    Text(selectedType == .weekly
+                         ? report.weekLabel.uppercased()
+                         : report.monthLabel.uppercased())
+                        .font(.system(size: 12, weight: .heavy).width(.condensed))
+                        .tracking(1.2)
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
                     Spacer()
-
-                    if period.reportReady {
-                        Button {
-                            HapticManager.selection()
-                            if let reportId = period.reportId {
-                                Task { await viewModel.loadReportDetail(AIReport(
-                                    id: reportId,
-                                    reportType: periodLabel == "week" ? "weekly" : (periodLabel == "month" ? "monthly" : "yearly"),
-                                    periodStart: period.periodStart,
-                                    periodEnd: period.periodEnd,
-                                    content: nil,
-                                    entryCount: nil,
-                                    createdAt: nil
-                                ))}
-                            }
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "sparkles")
-                                    .font(.system(size: 12, weight: .bold))
-                                Text("View")
-                                    .font(.system(size: 14, weight: .bold).width(.condensed))
-                            }
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
-                            .background(
-                                LinearGradient(colors: gradient, startPoint: .leading, endPoint: .trailing)
-                            )
-                            .clipShape(Capsule())
-                        }
-                        .buttonStyle(.plain)
-                    }
+                    Text(report.dateRangeDisplay)
+                        .font(.system(size: 12, weight: .semibold).width(.condensed))
+                        .foregroundColor(ColorTheme.tertiaryText(colorScheme))
                 }
 
-                // Progress bar
-                VStack(spacing: 6) {
-                    GeometryReader { geo in
-                        ZStack(alignment: .leading) {
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.06))
-                                .frame(height: 8)
+                HStack(alignment: .center, spacing: 22) {
+                    heroScoreRing(report: report)
 
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(
-                                    LinearGradient(colors: period.isEligible ? [Color(hex: "22C55E"), Color(hex: "16A34A")] : gradient, startPoint: .leading, endPoint: .trailing)
-                                )
-                                .frame(width: geo.size.width * CGFloat(period.progressFraction), height: 8)
-                                .animation(.spring(duration: 0.6), value: period.progressFraction)
+                    VStack(alignment: .leading, spacing: 8) {
+                        if let prev = report.content?.prevOverallScore,
+                           let score = report.content?.overallScore {
+                            heroDeltaPill(score: score, prev: prev)
                         }
-                    }
-                    .frame(height: 8)
-
-                    HStack {
-                        Text("\(period.entryCount) / \(period.requiredEntries) entries logged")
-                            .font(.system(size: 13, weight: .medium).width(.condensed))
-                            .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                        Spacer()
-                        if !period.reportReady {
-                            if period.isEligible {
-                                Text("Eligible")
-                                    .font(.system(size: 12, weight: .bold).width(.condensed))
-                                    .foregroundColor(Color(hex: "22C55E"))
-                            } else {
-                                Text("Ineligible")
-                                    .font(.system(size: 12, weight: .bold).width(.condensed))
-                                    .foregroundColor(Color(hex: "EF4444"))
-                            }
-                        }
-                    }
-                }
-
-                if !period.reportReady {
-                    HStack(spacing: 6) {
-                        Image(systemName: "clock.fill")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(gradient[0])
-                        Text(countdownText(for: period))
-                            .font(.system(size: 13, weight: .bold, design: .monospaced))
+                        Text(report.content?.headline ?? heroFallbackHeadline(report: report))
+                            .font(.system(size: 16, weight: .heavy).width(.condensed))
                             .foregroundColor(ColorTheme.primaryText(colorScheme))
+                            .multilineTextAlignment(.leading)
+                            .lineSpacing(2)
+                            .lineLimit(3)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(gradient[0].opacity(0.08))
-                    .clipShape(Capsule())
-                    .padding(.top, 2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
+
+                HStack(spacing: 8) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 12, weight: .heavy))
+                    Text("Open Report")
+                        .font(.system(size: 14, weight: .heavy).width(.condensed))
+                    Spacer()
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 12, weight: .heavy))
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+                .background(LinearGradient(colors: selectedType.gradient, startPoint: .leading, endPoint: .trailing))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
-            .padding(16)
+            .padding(18)
             .background(ColorTheme.cardBackground(colorScheme))
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 10, x: 0, y: 4)
         }
+        .buttonStyle(.plain)
     }
 
-    // MARK: - Report Cards
+    private func heroScoreRing(report: AIReport) -> some View {
+        let score = report.content?.overallScore
+        let fraction = CGFloat(min(max(score ?? 0, 0), 100)) / 100.0
+        return ZStack {
+            Circle()
+                .stroke(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.06),
+                        style: StrokeStyle(lineWidth: 9, lineCap: .round))
+            Circle()
+                .trim(from: 0, to: fraction)
+                .stroke(LinearGradient(colors: selectedType.gradient, startPoint: .topLeading, endPoint: .bottomTrailing),
+                        style: StrokeStyle(lineWidth: 9, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+            VStack(spacing: 0) {
+                Text(score.map { "\($0)" } ?? "—")
+                    .font(.system(size: 36, weight: .heavy, design: .rounded).width(.condensed))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    .monospacedDigit()
+                Text(report.content?.letterGrade ?? "")
+                    .font(.system(size: 12, weight: .heavy).width(.condensed))
+                    .foregroundColor(selectedType.accent)
+            }
+        }
+        .frame(width: 110, height: 110)
+    }
 
-    private func reportCards(_ reports: [AIReport]) -> some View {
+    private func heroDeltaPill(score: Int, prev: Int) -> some View {
+        let diff = score - prev
+        let color = diff >= 0 ? Color(hex: "22C55E") : Color(hex: "EF4444")
+        return HStack(spacing: 4) {
+            Image(systemName: diff >= 0 ? "arrow.up" : "arrow.down")
+                .font(.system(size: 10, weight: .heavy))
+            Text("\(diff >= 0 ? "+" : "")\(diff) vs last \(selectedType.periodLabel)")
+                .font(.system(size: 11, weight: .heavy).width(.condensed))
+        }
+        .foregroundColor(color)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
+        .background(color.opacity(0.12))
+        .clipShape(Capsule())
+    }
+
+    private func heroFallbackHeadline(report: AIReport) -> String {
+        report.content?.summary?.components(separatedBy: ". ").first.map { $0 + "." }
+            ?? "Tap to open your report."
+    }
+
+    private var heroPlaceholder: some View {
+        RoundedRectangle(cornerRadius: 18, style: .continuous)
+            .fill(ColorTheme.cardBackground(colorScheme))
+            .frame(height: 220)
+            .shimmering()
+    }
+
+    private var heroEmpty: some View {
         VStack(spacing: 10) {
-            ForEach(reports) { report in
+            Image(systemName: selectedType.icon)
+                .font(.system(size: 26, weight: .bold))
+                .foregroundColor(selectedType.accent)
+            Text("No \(selectedType.rawValue.lowercased()) reports yet.")
+                .font(.system(size: 16, weight: .heavy).width(.condensed))
+                .foregroundColor(ColorTheme.primaryText(colorScheme))
+            Text(selectedType.unlockCopy)
+                .font(.system(size: 13, weight: .medium).width(.condensed))
+                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(28)
+        .background(ColorTheme.cardBackground(colorScheme))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
+    }
+
+    // MARK: - In Progress Card
+
+    private func inProgressCard(period: PeriodInfo) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("THIS \(selectedType.rawValue.uppercased()) SO FAR")
+                    .font(.system(size: 11, weight: .heavy).width(.condensed))
+                    .tracking(1.2)
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                Spacer()
+                Text(period.dateRangeDisplay)
+                    .font(.system(size: 12, weight: .semibold).width(.condensed))
+                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+            }
+
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.06))
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(LinearGradient(colors: period.isEligible
+                                            ? [Color(hex: "22C55E"), Color(hex: "16A34A")]
+                                            : selectedType.gradient,
+                                            startPoint: .leading, endPoint: .trailing))
+                        .frame(width: geo.size.width * CGFloat(period.progressFraction))
+                }
+            }
+            .frame(height: 8)
+
+            HStack {
+                Text("\(period.entryCount) / \(period.requiredEntries) entries")
+                    .font(.system(size: 13, weight: .semibold).width(.condensed))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                Spacer()
+                HStack(spacing: 4) {
+                    Image(systemName: "clock.fill")
+                        .font(.system(size: 10, weight: .bold))
+                    Text(countdownText(for: period))
+                        .font(.system(size: 12, weight: .heavy, design: .monospaced))
+                }
+                .foregroundColor(selectedType.accent)
+            }
+        }
+        .padding(16)
+        .background(ColorTheme.cardBackground(colorScheme))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
+    }
+
+    // MARK: - Recent Strip
+
+    private var recentStrip: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("LAST 4 REPORTS")
+                    .font(.system(size: 11, weight: .heavy).width(.condensed))
+                    .tracking(1.2)
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                Spacer()
                 Button {
                     HapticManager.selection()
-                    Task { await viewModel.loadReportDetail(report) }
+                    showSavedReports = true
                 } label: {
-                    HStack(spacing: 14) {
-                        Image(systemName: report.reportIcon)
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(reportIconColor(report.reportType))
-                            .frame(width: 32, height: 32)
-                            .background(reportIconColor(report.reportType).opacity(0.12))
-                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(report.dateRangeDisplay)
-                                .font(.system(size: 15, weight: .semibold).width(.condensed))
-                                .foregroundColor(ColorTheme.primaryText(colorScheme))
-
-                            HStack(spacing: 8) {
-                                if let created = report.createdDateDisplay {
-                                    Text("Generated \(created)")
-                                        .font(.system(size: 12, weight: .medium).width(.condensed))
-                                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                                }
-                                if let count = report.entryCount {
-                                    Text("·  \(count) entries")
-                                        .font(.system(size: 12, weight: .medium).width(.condensed))
-                                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                                }
-                            }
-                        }
-
-                        Spacer()
-
+                    HStack(spacing: 4) {
+                        Text("See all")
+                            .font(.system(size: 12, weight: .heavy).width(.condensed))
                         Image(systemName: "chevron.right")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                            .font(.system(size: 10, weight: .heavy))
                     }
-                    .padding(14)
-                    .background(ColorTheme.cardBackground(colorScheme))
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 4, x: 0, y: 1)
+                    .foregroundColor(selectedType.accent)
                 }
                 .buttonStyle(.plain)
             }
-        }
-    }
 
-    private func reportIconColor(_ type: String) -> Color {
-        switch type {
-        case "weekly": return Color(hex: "8B5CF6")
-        case "monthly": return Color(hex: "2563EB")
-        case "yearly": return Color(hex: "F59E0B")
-        default: return ColorTheme.accent
-        }
-    }
-
-    // MARK: - Loading
-
-    private var loadingPlaceholder: some View {
-        VStack(spacing: 10) {
-            ForEach(0..<2, id: \.self) { _ in
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(ColorTheme.cardBackground(colorScheme))
-                    .frame(height: 60)
-                    .shimmering()
+            HStack(spacing: 10) {
+                ForEach(recent) { report in
+                    Button {
+                        HapticManager.selection()
+                        Task { await viewModel.loadReportDetail(report) }
+                    } label: {
+                        recentChip(report)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
+        }
+    }
+
+    private func recentChip(_ report: AIReport) -> some View {
+        let score = report.content?.overallScore
+        return VStack(spacing: 6) {
+            Text(score.map { "\($0)" } ?? "—")
+                .font(.system(size: 22, weight: .heavy, design: .rounded).width(.condensed))
+                .foregroundColor(ColorTheme.primaryText(colorScheme))
+                .monospacedDigit()
+            Text(shortLabel(for: report))
+                .font(.system(size: 11, weight: .heavy).width(.condensed))
+                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(selectedType.accent.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private func shortLabel(for report: AIReport) -> String {
+        guard let date = Date.fromAPIString(report.periodStart) else { return report.periodStart }
+        let fmt = DateFormatter()
+        fmt.dateFormat = selectedType == .weekly ? "MMM d" : "MMM"
+        return fmt.string(from: date)
+    }
+
+    // MARK: - Locked Pitch
+
+    private var lockedPitch: some View {
+        VStack(spacing: 0) {
+            VStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(LinearGradient(colors: selectedType.gradient, startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .frame(width: 64, height: 64)
+                        .shadow(color: selectedType.gradient[0].opacity(0.4), radius: 14, x: 0, y: 8)
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 24, weight: .heavy))
+                        .foregroundColor(.white)
+                }
+
+                Text("\(userName), you don\u{2019}t get a score without Premium.")
+                    .font(.system(size: 22, weight: .heavy).width(.condensed))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(3)
+                    .padding(.horizontal, 6)
+
+                VStack(alignment: .leading, spacing: 14) {
+                    pitchLine(icon: "calendar", title: "Every Monday at 8pm",
+                              subtitle: "A 0\u{2013}100 weekly grade. Best day, worst day, one move.")
+                    pitchLine(icon: "calendar.badge.clock", title: "Every 1st of the month",
+                              subtitle: "Trend, consistency grid, verdict.")
+                    pitchLine(icon: "flame.fill", title: "Streaks, deltas, peaks",
+                              subtitle: "The dashboard pros use to study tape.")
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 4)
+
+                Button {
+                    HapticManager.impact(.medium)
+                    showSubscription = true
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 14, weight: .heavy))
+                        Text("Unlock Reports")
+                            .font(.system(size: 16, weight: .heavy).width(.condensed))
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 12, weight: .heavy))
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(LinearGradient(colors: selectedType.gradient, startPoint: .leading, endPoint: .trailing))
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .shadow(color: selectedType.gradient[0].opacity(0.35), radius: 12, x: 0, y: 6)
+                }
+                .padding(.top, 4)
+
+                Text("\u{201C}Pros review the tape. So do you.\u{201D}")
+                    .font(.system(size: 13, weight: .semibold).width(.condensed))
+                    .italic()
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+            }
+            .padding(22)
+            .frame(maxWidth: .infinity)
+            .background(ColorTheme.cardBackground(colorScheme))
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 12, x: 0, y: 6)
+        }
+    }
+
+    private func pitchLine(icon: String, title: String, subtitle: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .heavy))
+                .foregroundColor(selectedType.accent)
+                .frame(width: 28, height: 28)
+                .background(selectedType.accent.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.system(size: 14, weight: .heavy).width(.condensed))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+                Text(subtitle)
+                    .font(.system(size: 13, weight: .semibold).width(.condensed))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                    .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    // MARK: - Countdown
+
+    private func countdownText(for period: PeriodInfo) -> String {
+        guard let endDate = Date.fromAPIString(period.periodEnd) else {
+            return "\(period.daysRemaining)d remaining"
+        }
+        let calendar = Calendar.current
+        guard let deadline = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: endDate)) else {
+            return "\(period.daysRemaining)d remaining"
+        }
+        let remaining = deadline.timeIntervalSince(now)
+        guard remaining > 0 else { return "Generating..." }
+        let days = Int(remaining) / 86400
+        let hours = (Int(remaining) % 86400) / 3600
+        let minutes = (Int(remaining) % 3600) / 60
+        let seconds = Int(remaining) % 60
+        if days > 0 {
+            return String(format: "%dd %02dh %02dm", days, hours, minutes)
+        } else {
+            return String(format: "%02dh %02dm %02ds", hours, minutes, seconds)
         }
     }
 
@@ -513,424 +566,15 @@ struct ReportsView: View {
         .background(Color(hex: "F59E0B").opacity(0.12))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
-
-    // MARK: - Locked Hero (Non-Premium)
-
-    private var lockedHeroSection: some View {
-        VStack(spacing: 20) {
-            // Personalized header
-            VStack(spacing: 6) {
-                Text("\(userName), Your Insights Await")
-                    .font(Typography.title2)
-                    .foregroundColor(ColorTheme.primaryText(colorScheme))
-                    .multilineTextAlignment(.center)
-
-                Text("See what premium athletes get after every training session")
-                    .font(Typography.subheadline)
-                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                    .multilineTextAlignment(.center)
-                    .lineSpacing(2)
-            }
-            .padding(.top, 8)
-
-            Button {
-                HapticManager.impact(.medium)
-                showSubscription = true
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 14, weight: .bold))
-                    Text("Unlock All Reports")
-                        .font(.system(size: 16, weight: .bold).width(.condensed))
-                }
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(
-                    LinearGradient(
-                        colors: [Color(hex: "7C3AED"), Color(hex: "4F46E5")],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .shadow(color: Color(hex: "7C3AED").opacity(0.35), radius: 12, x: 0, y: 6)
-            }
-        }
-    }
-
-    // MARK: - Preview Reports (Blurred Teasers)
-
-    private var previewReportsSection: some View {
-        VStack(spacing: 18) {
-            // Weekly preview
-            lockedReportPreview(
-                title: "WEEKLY REPORT",
-                icon: "chart.bar.fill",
-                iconColor: Color(hex: "8B5CF6"),
-                gradient: [Color(hex: "7C3AED"), Color(hex: "4F46E5")],
-                previewContent: weeklyPreviewCard
-            )
-
-            // Monthly preview
-            lockedReportPreview(
-                title: "MONTHLY REPORT",
-                icon: "chart.line.uptrend.xyaxis",
-                iconColor: Color(hex: "2563EB"),
-                gradient: [Color(hex: "2563EB"), Color(hex: "1D4ED8")],
-                previewContent: monthlyPreviewCard
-            )
-
-            // Yearly preview
-            lockedReportPreview(
-                title: "YEARLY REPORT",
-                icon: "star.fill",
-                iconColor: Color(hex: "F59E0B"),
-                gradient: [Color(hex: "F59E0B"), Color(hex: "D97706")],
-                previewContent: yearlyPreviewCard
-            )
-        }
-    }
-
-    private func lockedReportPreview(
-        title: String,
-        icon: String,
-        iconColor: Color,
-        gradient: [Color],
-        previewContent: some View
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(iconColor)
-                Text(title)
-                    .sectionHeader(colorScheme)
-                Spacer()
-                HStack(spacing: 4) {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 10, weight: .bold))
-                    Text("PREMIUM")
-                        .font(.system(size: 10, weight: .heavy).width(.condensed))
-                }
-                .foregroundColor(Color(hex: "EAB308"))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Color(hex: "EAB308").opacity(0.1))
-                .clipShape(Capsule())
-            }
-
-            // Blurred preview
-            ZStack {
-                previewContent
-                    .blur(radius: 6)
-                    .allowsHitTesting(false)
-
-                // Lock overlay
-                VStack(spacing: 10) {
-                    ZStack {
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: gradient,
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 48, height: 48)
-                            .shadow(color: gradient[0].opacity(0.3), radius: 8, x: 0, y: 4)
-
-                        Image(systemName: "lock.fill")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(.white)
-                    }
-
-                    Text("Unlock with Premium")
-                        .font(.system(size: 14, weight: .bold).width(.condensed))
-                        .foregroundColor(ColorTheme.primaryText(colorScheme))
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .onTapGesture {
-                HapticManager.impact(.light)
-                showSubscription = true
-            }
-        }
-    }
-
-    // MARK: - Preview Card Content (Simulated Report Data)
-
-    private var weeklyPreviewCard: some View {
-        VStack(spacing: 12) {
-            // Simulated summary
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Weekly Summary")
-                    .font(.system(size: 15, weight: .bold).width(.condensed))
-                    .foregroundColor(ColorTheme.primaryText(colorScheme))
-
-                Text("Your training consistency has been strong this week with 5 out of 7 sessions logged. Focus levels peaked mid-week during tactical sessions.")
-                    .font(.system(size: 13, weight: .regular).width(.condensed))
-                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                    .lineSpacing(3)
-            }
-
-            // Simulated metrics row
-            HStack(spacing: 0) {
-                previewMetric(label: "Focus", value: "8.2", trend: "+0.5")
-                previewMetric(label: "Effort", value: "8.7", trend: "+0.3")
-                previewMetric(label: "Confidence", value: "7.4", trend: "+1.1")
-            }
-
-            // Simulated strengths
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Key Strengths")
-                    .font(.system(size: 14, weight: .bold).width(.condensed))
-                    .foregroundColor(ColorTheme.primaryText(colorScheme))
-
-                HStack(spacing: 6) {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.system(size: 12))
-                        .foregroundColor(Color(hex: "22C55E"))
-                    Text("Training consistency improving week over week")
-                        .font(.system(size: 13, weight: .medium).width(.condensed))
-                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                }
-                HStack(spacing: 6) {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.system(size: 12))
-                        .foregroundColor(Color(hex: "22C55E"))
-                    Text("Sleep quality directly boosting performance scores")
-                        .font(.system(size: 13, weight: .medium).width(.condensed))
-                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                }
-            }
-        }
-        .padding(16)
-        .background(ColorTheme.cardBackground(colorScheme))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
-    }
-
-    private var monthlyPreviewCard: some View {
-        VStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Monthly Deep Dive")
-                    .font(.system(size: 15, weight: .bold).width(.condensed))
-                    .foregroundColor(ColorTheme.primaryText(colorScheme))
-
-                Text("This month showed a significant improvement in mental resilience. Your pre-game focus scores jumped 15% compared to last month.")
-                    .font(.system(size: 13, weight: .regular).width(.condensed))
-                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                    .lineSpacing(3)
-            }
-
-            // Simulated progress bars
-            VStack(spacing: 8) {
-                previewProgressRow(label: "Consistency", value: 0.82, color: Color(hex: "22C55E"))
-                previewProgressRow(label: "Mental Growth", value: 0.71, color: Color(hex: "2563EB"))
-                previewProgressRow(label: "Performance", value: 0.68, color: Color(hex: "F59E0B"))
-            }
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Coach Recommendation")
-                    .font(.system(size: 14, weight: .bold).width(.condensed))
-                    .foregroundColor(ColorTheme.primaryText(colorScheme))
-                Text("Focus on visualization exercises before competition days. Your data shows a clear correlation between pre-game mental prep and peak performance.")
-                    .font(.system(size: 13, weight: .medium).width(.condensed))
-                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                    .lineSpacing(3)
-            }
-        }
-        .padding(16)
-        .background(ColorTheme.cardBackground(colorScheme))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
-    }
-
-    private var yearlyPreviewCard: some View {
-        VStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Year in Review")
-                    .font(.system(size: 15, weight: .bold).width(.condensed))
-                    .foregroundColor(ColorTheme.primaryText(colorScheme))
-
-                Text("A year of dedicated growth. You logged 247 sessions, maintained a 85% consistency rate, and your mental performance scores improved by 32%.")
-                    .font(.system(size: 13, weight: .regular).width(.condensed))
-                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                    .lineSpacing(3)
-            }
-
-            // Simulated year stats
-            HStack(spacing: 0) {
-                previewMetric(label: "Sessions", value: "247", trend: nil)
-                previewMetric(label: "Streak", value: "43d", trend: nil)
-                previewMetric(label: "Growth", value: "+32%", trend: nil)
-            }
-        }
-        .padding(16)
-        .background(ColorTheme.cardBackground(colorScheme))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
-    }
-
-    private func previewMetric(label: String, value: String, trend: String?) -> some View {
-        VStack(spacing: 4) {
-            Text(value)
-                .font(.system(size: 20, weight: .heavy, design: .rounded).width(.condensed))
-                .foregroundColor(ColorTheme.primaryText(colorScheme))
-            if let trend {
-                Text(trend)
-                    .font(.system(size: 12, weight: .bold).width(.condensed))
-                    .foregroundColor(Color(hex: "22C55E"))
-            }
-            Text(label)
-                .font(.system(size: 12, weight: .medium).width(.condensed))
-                .foregroundColor(ColorTheme.secondaryText(colorScheme))
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private func previewProgressRow(label: String, value: Double, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text(label)
-                    .font(.system(size: 13, weight: .medium).width(.condensed))
-                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                Spacer()
-                Text("\(Int(value * 100))%")
-                    .font(.system(size: 13, weight: .bold).width(.condensed))
-                    .foregroundColor(ColorTheme.primaryText(colorScheme))
-            }
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.06))
-                        .frame(height: 6)
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(color)
-                        .frame(width: geo.size.width * value, height: 6)
-                }
-            }
-            .frame(height: 6)
-        }
-    }
-
-    // MARK: - What You Get Section
-
-    private var whatYouGetSection: some View {
-        VStack(spacing: 14) {
-            Text("HOW AI REPORTS WORK")
-                .sectionHeader(colorScheme)
-
-            VStack(spacing: 0) {
-                stepRow(
-                    number: "1",
-                    icon: "pencil.and.list.clipboard",
-                    title: "Log Your Training",
-                    description: "Record your daily sessions, nutrition, and sleep",
-                    color: Color(hex: "F97316"),
-                    isLast: false
-                )
-                stepRow(
-                    number: "2",
-                    icon: "brain.head.profile",
-                    title: "AI Analyzes Patterns",
-                    description: "Your coach finds trends across all your data",
-                    color: Color(hex: "8B5CF6"),
-                    isLast: false
-                )
-                stepRow(
-                    number: "3",
-                    icon: "doc.text.magnifyingglass",
-                    title: "Get Actionable Insights",
-                    description: "Receive personalized reports with specific coaching",
-                    color: Color(hex: "22C55E"),
-                    isLast: true
-                )
-            }
-            .padding(16)
-            .background(ColorTheme.cardBackground(colorScheme))
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
-        }
-    }
-
-    private func stepRow(number: String, icon: String, title: String, description: String, color: Color, isLast: Bool) -> some View {
-        VStack(spacing: 0) {
-            HStack(alignment: .top, spacing: 14) {
-                ZStack {
-                    Circle()
-                        .fill(color)
-                        .frame(width: 32, height: 32)
-                    Text(number)
-                        .font(.system(size: 14, weight: .heavy, design: .rounded))
-                        .foregroundColor(.white)
-                }
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(title)
-                        .font(.system(size: 15, weight: .bold).width(.condensed))
-                        .foregroundColor(ColorTheme.primaryText(colorScheme))
-                    Text(description)
-                        .font(.system(size: 13, weight: .medium).width(.condensed))
-                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                }
-                .padding(.top, 2)
-
-                Spacer()
-            }
-            .padding(.vertical, 12)
-
-            if !isLast {
-                HStack(spacing: 0) {
-                    Rectangle()
-                        .fill(ColorTheme.separator(colorScheme))
-                        .frame(width: 1, height: 1)
-                        .padding(.leading, 16)
-                    Spacer()
-                }
-            }
-        }
-    }
-
-    // MARK: - Bottom CTA
-
-    private var lockedCTASection: some View {
-        VStack(spacing: 14) {
-            Text("Your entries are building up. Unlock AI reports to see what your data reveals about your \(userSport) performance.")
-                .font(.system(size: 14, weight: .medium).width(.condensed))
-                .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                .multilineTextAlignment(.center)
-                .lineSpacing(3)
-
-            Button {
-                HapticManager.impact(.medium)
-                showSubscription = true
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "crown.fill")
-                        .font(.system(size: 14, weight: .bold))
-                    Text("Get Premium")
-                        .font(.system(size: 16, weight: .bold).width(.condensed))
-                }
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(
-                    LinearGradient(
-                        colors: [Color(hex: "EAB308"), Color(hex: "D97706")],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .shadow(color: Color(hex: "EAB308").opacity(0.35), radius: 12, x: 0, y: 6)
-            }
-        }
-    }
 }
 
-// MARK: - Shimmer Modifier
+// MARK: - Notification deep link
+
+extension Notification.Name {
+    static let openReport = Notification.Name("openReport")
+}
+
+// MARK: - Shimmer
 
 struct ShimmeringModifier: ViewModifier {
     @State private var phase: CGFloat = -1

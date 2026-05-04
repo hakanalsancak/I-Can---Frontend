@@ -68,6 +68,9 @@ struct MainTabView: View {
         .onReceive(NotificationCenter.default.publisher(for: .switchToAICoachTab)) { _ in
             withAnimation { selectedTab = 2 }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .switchToReportsTab)) { _ in
+            withAnimation { selectedTab = 2 }
+        }
     }
 
     private func requestNotificationPermission() {

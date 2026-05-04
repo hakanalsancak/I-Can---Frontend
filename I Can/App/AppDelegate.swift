@@ -49,6 +49,18 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
+        let payload = response.notification.request.content.userInfo
+        if let type = payload["type"] as? String, type == "report_ready" {
+            var info: [String: Any] = [:]
+            if let id = payload["reportId"] as? String { info["reportId"] = id }
+            if let rt = payload["reportType"] as? String { info["reportType"] = rt }
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .switchToReportsTab, object: nil)
+                if !info.isEmpty {
+                    NotificationCenter.default.post(name: .openReport, object: nil, userInfo: info)
+                }
+            }
+        }
         completionHandler()
     }
 }
