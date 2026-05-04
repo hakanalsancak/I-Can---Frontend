@@ -129,6 +129,10 @@ struct HomeView: View {
                         mantraCard
                             .padding(.top, 16)
 
+                        if SubscriptionService.shared.statusChecked && !SubscriptionService.shared.isPremium {
+                            aiCoachPromo
+                        }
+
                         // DAILY LOG SECTION - PRIMARY FOCUS
                         dailyLogSection
 
@@ -148,10 +152,6 @@ struct HomeView: View {
 
                         // BREATHING - COMPACT
                         compactBreatheCard
-
-                        if SubscriptionService.shared.statusChecked && !SubscriptionService.shared.isPremium {
-                            aiCoachPromo
-                        }
                     }
                     .padding(.horizontal, 20)
                     .padding(.bottom, 16)

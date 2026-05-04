@@ -443,12 +443,13 @@ struct SubscriptionView: View {
                 comparisonHeader
                 comparisonRow("Daily Logging", free: true, premium: true, isLast: false)
                 comparisonRow("Streaks & Journal", free: true, premium: true, isLast: false)
+                comparisonRow("Performance Dashboard", free: true, premium: true, isLast: false)
+                comparisonRow("Friends & Leaderboard", free: true, premium: true, isLast: false)
                 comparisonRow("Breathing Exercise", free: true, premium: true, isLast: false)
                 comparisonRow("AI Coach Chat", free: "15/day", premium: "Unlimited", isLast: false)
                 comparisonRow("Daily AI Insights", free: false, premium: true, isLast: false)
                 comparisonRow("Weekly Reports", free: false, premium: true, isLast: false)
                 comparisonRow("Monthly Deep Dives", free: false, premium: true, isLast: false)
-                comparisonRow("Yearly Analysis", free: false, premium: true, isLast: false)
                 comparisonRow("Mental Pattern Analysis", free: false, premium: true, isLast: true)
             }
             .background(ColorTheme.cardBackground(colorScheme))
