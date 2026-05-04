@@ -311,6 +311,7 @@ final class HomeViewModel {
             todayEntry = response.entry
             streak = response.streak
             NotificationService.shared.cancelStreakReminder()
+            ReviewManager.requestReviewAfterFirstLog()
 
             // Refresh analytics after save
             await loadAnalytics()
