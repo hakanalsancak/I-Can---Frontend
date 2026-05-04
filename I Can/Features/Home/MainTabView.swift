@@ -33,14 +33,14 @@ struct MainTabView: View {
             JournalView()
                 .tabItem {
                     Image(systemName: selectedTab == 1 ? "book.fill" : "book")
-                    Text("Journal")
+                    Text("Log")
                 }
                 .tag(1)
 
             ReportsView()
                 .tabItem {
                     Image(systemName: selectedTab == 2 ? "chart.bar.fill" : "chart.bar")
-                    Text("Reports")
+                    Text("Insights")
                 }
                 .tag(2)
 

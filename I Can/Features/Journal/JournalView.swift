@@ -10,7 +10,7 @@ struct JournalView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                PageHeader("Journal")
+                PageHeader("Log")
 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 20) {

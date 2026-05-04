@@ -122,7 +122,7 @@ struct ReportsView: View {
 
     private var header: some View {
         HStack(alignment: .center) {
-            Text("Reports")
+            Text("Insights")
                 .font(.system(size: 28, weight: .heavy).width(.condensed))
                 .foregroundColor(ColorTheme.primaryText(colorScheme))
             Spacer()
