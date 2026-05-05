@@ -54,7 +54,9 @@ struct CommunityView: View {
                     .navigationBarTitleDisplayMode(.inline)
             }
         case .friends:
-            FriendsView()
+            NavigationStack {
+                FriendsFeedView()
+            }
         case .sport:
             NavigationStack {
                 CommunityComingSoonView(title: "Sport feed", message: "Curated training, recovery, and mindset content.")

@@ -81,6 +81,7 @@ enum APIEndpoints {
 
     enum Community {
         static let forYou = "/api/community/feed/foryou"
+        static let friendsFeed = "/api/community/feed/friends"
         static let posts = "/api/community/posts"
         static func post(_ id: String) -> String { "/api/community/posts/\(id)" }
 
