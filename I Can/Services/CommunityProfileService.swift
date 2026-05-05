@@ -75,6 +75,18 @@ final class CommunityProfileService {
         return r.handle
     }
 
+    @discardableResult
+    func setCommunityNotifications(enabled: Bool) async throws -> Bool {
+        struct Body: Encodable { let enabled: Bool }
+        struct Resp: Decodable { let enabled: Bool }
+        let r: Resp = try await APIClient.shared.request(
+            APIEndpoints.Community.myNotifications,
+            method: "PUT",
+            body: Body(enabled: enabled)
+        )
+        return r.enabled
+    }
+
     func setBio(_ bio: String?) async throws -> String? {
         struct Body: Encodable { let bio: String? }
         struct Resp: Decodable { let bio: String? }

@@ -99,6 +99,7 @@ enum APIEndpoints {
         static let myProfile = "/api/community/users/me"
         static let myHandle = "/api/community/users/me/handle"
         static let myBio = "/api/community/users/me/bio"
+        static let myNotifications = "/api/community/users/me/notifications"
         static func userProfile(_ id: String) -> String { "/api/community/users/\(id)" }
         static func follow(_ id: String) -> String { "/api/community/users/\(id)/follow" }
 
