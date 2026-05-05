@@ -53,16 +53,24 @@ struct PostCardView: View {
 
     private var header: some View {
         HStack(spacing: 10) {
-            avatar
-            VStack(alignment: .leading, spacing: 2) {
-                Text(post.displayName)
-                    .font(.system(size: 14, weight: .semibold))
-                if let sport = post.authorSport {
-                    Text(sport.capitalized)
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
+            NavigationLink {
+                CommunityProfileView(userId: post.authorId)
+            } label: {
+                HStack(spacing: 10) {
+                    avatar
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(post.displayName)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.primary)
+                        if let sport = post.authorSport {
+                            Text(sport.capitalized)
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
+            .buttonStyle(.plain)
             Spacer()
             Text(relativeTime)
                 .font(.system(size: 12))

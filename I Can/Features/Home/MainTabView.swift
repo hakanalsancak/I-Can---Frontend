@@ -51,10 +51,10 @@ struct MainTabView: View {
                 }
                 .tag(3)
 
-            FriendsView()
+            CommunityView()
                 .tabItem {
-                    Image(systemName: selectedTab == 4 ? "person.2.fill" : "person.2")
-                    Text("Friends")
+                    Image(systemName: selectedTab == 4 ? "person.3.fill" : "person.3")
+                    Text("Community")
                 }
                 .tag(4)
         }

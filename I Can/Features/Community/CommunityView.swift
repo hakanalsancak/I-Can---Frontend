@@ -13,16 +13,12 @@ struct CommunityView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                segmentedControl
-                Divider().opacity(0.3)
-                contentForTab
-            }
-            .background(ColorTheme.background(colorScheme).ignoresSafeArea())
-            .navigationTitle("Community")
-            .navigationBarTitleDisplayMode(.inline)
+        VStack(spacing: 0) {
+            segmentedControl
+            Divider().opacity(0.3)
+            contentForTab
         }
+        .background(ColorTheme.background(colorScheme).ignoresSafeArea())
     }
 
     private var segmentedControl: some View {
@@ -52,11 +48,19 @@ struct CommunityView: View {
     private var contentForTab: some View {
         switch selected {
         case .forYou:
-            ForYouFeedView()
+            NavigationStack {
+                ForYouFeedView()
+                    .navigationTitle("Community")
+                    .navigationBarTitleDisplayMode(.inline)
+            }
         case .friends:
-            CommunityComingSoonView(title: "Friends feed", message: "Posts from people you follow will live here.")
+            FriendsView()
         case .sport:
-            CommunityComingSoonView(title: "Sport feed", message: "Curated training, recovery, and mindset content.")
+            NavigationStack {
+                CommunityComingSoonView(title: "Sport feed", message: "Curated training, recovery, and mindset content.")
+                    .navigationTitle("Community")
+                    .navigationBarTitleDisplayMode(.inline)
+            }
         }
     }
 }
