@@ -80,4 +80,126 @@ final class CommunityService {
         )
         forYouPosts.removeAll { $0.id == id }
     }
+
+    @discardableResult
+    func toggleLike(postId: String) async throws -> Bool {
+        guard let idx = forYouPosts.firstIndex(where: { $0.id == postId }) else {
+            return false
+        }
+        let post = forYouPosts[idx]
+        let willLike = !post.likedByMe
+        // Optimistic
+        forYouPosts[idx] = mutated(post,
+                                    likedByMe: willLike,
+                                    likeCount: max(post.likeCount + (willLike ? 1 : -1), 0))
+
+        struct Resp: Decodable { let liked: Bool; let likeCount: Int }
+        do {
+            let r: Resp = try await APIClient.shared.request(
+                APIEndpoints.Community.like(postId),
+                method: willLike ? "POST" : "DELETE"
+            )
+            if let i = forYouPosts.firstIndex(where: { $0.id == postId }) {
+                forYouPosts[i] = mutated(forYouPosts[i],
+                                          likedByMe: r.liked,
+                                          likeCount: r.likeCount)
+            }
+            return r.liked
+        } catch {
+            // Roll back optimistic update
+            if let i = forYouPosts.firstIndex(where: { $0.id == postId }) {
+                forYouPosts[i] = mutated(forYouPosts[i],
+                                          likedByMe: post.likedByMe,
+                                          likeCount: post.likeCount)
+            }
+            throw error
+        }
+    }
+
+    @discardableResult
+    func toggleSave(postId: String) async throws -> Bool {
+        guard let idx = forYouPosts.firstIndex(where: { $0.id == postId }) else {
+            return false
+        }
+        let post = forYouPosts[idx]
+        let willSave = !post.savedByMe
+        forYouPosts[idx] = mutated(post, savedByMe: willSave)
+
+        struct Resp: Decodable { let saved: Bool }
+        do {
+            let r: Resp = try await APIClient.shared.request(
+                APIEndpoints.Community.save(postId),
+                method: willSave ? "POST" : "DELETE"
+            )
+            if let i = forYouPosts.firstIndex(where: { $0.id == postId }) {
+                forYouPosts[i] = mutated(forYouPosts[i], savedByMe: r.saved)
+            }
+            return r.saved
+        } catch {
+            if let i = forYouPosts.firstIndex(where: { $0.id == postId }) {
+                forYouPosts[i] = mutated(forYouPosts[i], savedByMe: post.savedByMe)
+            }
+            throw error
+        }
+    }
+
+    func loadComments(postId: String, cursor: String? = nil, limit: Int = 30) async throws -> PostCommentsPage {
+        var endpoint = APIEndpoints.Community.comments(postId) + "?limit=\(limit)"
+        if let cursor, let encoded = cursor.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+            endpoint += "&cursor=\(encoded)"
+        }
+        let page: PostCommentsPage = try await APIClient.shared.request(endpoint)
+        return page
+    }
+
+    func createComment(postId: String, body: String, parentId: String? = nil) async throws -> PostComment {
+        struct Body: Encodable { let body: String; let parentId: String? }
+        let comment: PostComment = try await APIClient.shared.request(
+            APIEndpoints.Community.comments(postId),
+            method: "POST",
+            body: Body(body: body, parentId: parentId)
+        )
+        if let i = forYouPosts.firstIndex(where: { $0.id == postId }) {
+            forYouPosts[i] = mutated(forYouPosts[i], commentCount: forYouPosts[i].commentCount + 1)
+        }
+        return comment
+    }
+
+    func deleteComment(id: String, postId: String) async throws {
+        struct Resp: Decodable { let id: String; let deleted: Bool }
+        let _: Resp = try await APIClient.shared.request(
+            APIEndpoints.Community.deleteComment(id),
+            method: "DELETE"
+        )
+        if let i = forYouPosts.firstIndex(where: { $0.id == postId }) {
+            forYouPosts[i] = mutated(forYouPosts[i],
+                                      commentCount: max(forYouPosts[i].commentCount - 1, 0))
+        }
+    }
+
+    private func mutated(_ p: CommunityPost,
+                          likedByMe: Bool? = nil,
+                          savedByMe: Bool? = nil,
+                          likeCount: Int? = nil,
+                          commentCount: Int? = nil) -> CommunityPost {
+        CommunityPost(
+            id: p.id,
+            authorId: p.authorId,
+            authorUsername: p.authorUsername,
+            authorFullName: p.authorFullName,
+            authorPhotoUrl: p.authorPhotoUrl,
+            authorSport: p.authorSport,
+            type: p.type,
+            visibility: p.visibility,
+            body: p.body,
+            photoUrl: p.photoUrl,
+            sport: p.sport,
+            metadata: p.metadata,
+            likeCount: likeCount ?? p.likeCount,
+            commentCount: commentCount ?? p.commentCount,
+            likedByMe: likedByMe ?? p.likedByMe,
+            savedByMe: savedByMe ?? p.savedByMe,
+            createdAt: p.createdAt
+        )
+    }
 }

@@ -89,6 +89,11 @@ enum APIEndpoints {
         static let myBio = "/api/community/users/me/bio"
         static func userProfile(_ id: String) -> String { "/api/community/users/\(id)" }
         static func follow(_ id: String) -> String { "/api/community/users/\(id)/follow" }
+
+        static func like(_ postId: String) -> String { "/api/community/posts/\(postId)/like" }
+        static func save(_ postId: String) -> String { "/api/community/posts/\(postId)/save" }
+        static func comments(_ postId: String) -> String { "/api/community/posts/\(postId)/comments" }
+        static func deleteComment(_ id: String) -> String { "/api/community/comments/\(id)" }
     }
 
 }

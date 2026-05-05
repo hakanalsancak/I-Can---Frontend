@@ -2,6 +2,9 @@ import SwiftUI
 
 struct PostCardView: View {
     let post: CommunityPost
+    @State private var service = CommunityService.shared
+    @State private var likeBusy = false
+    @State private var saveBusy = false
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -137,24 +140,59 @@ struct PostCardView: View {
 
     private var footer: some View {
         HStack(spacing: 20) {
-            HStack(spacing: 4) {
-                Image(systemName: post.likedByMe ? "heart.fill" : "heart")
-                    .foregroundStyle(post.likedByMe ? .red : .secondary)
-                Text("\(post.likeCount)")
-                    .font(.system(size: 13).monospacedDigit())
-                    .foregroundStyle(.secondary)
+            Button { Task { await tapLike() } } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: post.likedByMe ? "heart.fill" : "heart")
+                        .foregroundStyle(post.likedByMe ? .red : .secondary)
+                        .scaleEffect(post.likedByMe ? 1.05 : 1.0)
+                        .animation(.spring(response: 0.25, dampingFraction: 0.6),
+                                   value: post.likedByMe)
+                    Text("\(post.likeCount)")
+                        .font(.system(size: 13).monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
             }
-            HStack(spacing: 4) {
-                Image(systemName: "bubble.left")
-                    .foregroundStyle(.secondary)
-                Text("\(post.commentCount)")
-                    .font(.system(size: 13).monospacedDigit())
-                    .foregroundStyle(.secondary)
+            .buttonStyle(.plain)
+            .disabled(likeBusy)
+
+            NavigationLink {
+                PostDetailView(postId: post.id)
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "bubble.left")
+                        .foregroundStyle(.secondary)
+                    Text("\(post.commentCount)")
+                        .font(.system(size: 13).monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
             }
+            .buttonStyle(.plain)
+
             Spacer()
-            Image(systemName: post.savedByMe ? "bookmark.fill" : "bookmark")
-                .foregroundStyle(.secondary)
+            Button { Task { await tapSave() } } label: {
+                Image(systemName: post.savedByMe ? "bookmark.fill" : "bookmark")
+                    .foregroundStyle(post.savedByMe ? ColorTheme.accent : .secondary)
+            }
+            .buttonStyle(.plain)
+            .disabled(saveBusy)
         }
+    }
+
+    private func tapLike() async {
+        guard !likeBusy else { return }
+        likeBusy = true
+        defer { likeBusy = false }
+        #if canImport(UIKit)
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        #endif
+        try? await service.toggleLike(postId: post.id)
+    }
+
+    private func tapSave() async {
+        guard !saveBusy else { return }
+        saveBusy = true
+        defer { saveBusy = false }
+        try? await service.toggleSave(postId: post.id)
     }
 
     private var relativeTime: String {
