@@ -56,8 +56,13 @@ struct FriendsView: View {
                 BlockedUsersView()
             }
             .sheet(item: $selectedProfile) { profile in
-                AthleteProfileSheet(athleteId: profile.id) {
-                    Task { await viewModel.removeFriend(profile) }
+                NavigationStack {
+                    CommunityProfileView(userId: profile.id)
+                        .toolbar {
+                            ToolbarItem(placement: .topBarTrailing) {
+                                Button("Done") { selectedProfile = nil }
+                            }
+                        }
                 }
                 .onAppear {
                     AnalyticsManager.log("profile_viewed", parameters: ["athlete_id": profile.id])

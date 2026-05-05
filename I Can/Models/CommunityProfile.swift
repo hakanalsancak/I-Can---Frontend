@@ -3,10 +3,12 @@ import Foundation
 struct CommunityProfile: Codable, Identifiable, Hashable {
     let id: String
     let handle: String?
+    let username: String?
     let fullName: String?
     let bio: String?
     let sport: String?
     let position: String?
+    let team: String?
     let country: String?
     let profilePhotoUrl: String?
     let profileVisibility: String

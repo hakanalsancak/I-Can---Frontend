@@ -12,6 +12,8 @@ struct CommunityProfileView: View {
     @State private var messageBusy = false
     @State private var openedConversation: DMConversation?
     @State private var goToChat = false
+    @State private var showRemoveFriendConfirm = false
+    @State private var removeFriendBusy = false
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -30,6 +32,9 @@ struct CommunityProfileView: View {
                         }
                         if let bio = profile.bio, !bio.isEmpty {
                             bioBlock(bio)
+                        }
+                        if !profile.isSelf, profile.relation.isFriend {
+                            removeFriendButton(profile)
                         }
                     } else if isLoading {
                         ProgressView().padding(.top, 60)
@@ -137,8 +142,68 @@ struct CommunityProfileView: View {
             }
             .font(.system(size: 13))
             .foregroundStyle(.secondary)
+
+            if let team = p.team, !team.isEmpty {
+                HStack(spacing: 6) {
+                    Image(systemName: "shield.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(ColorTheme.accent)
+                    Text(team)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.primary)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(ColorTheme.accent.opacity(0.10))
+                )
+            }
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private func removeFriendButton(_ p: CommunityProfile) -> some View {
+        Button {
+            showRemoveFriendConfirm = true
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "person.badge.minus")
+                Text("Remove friend")
+                    .font(.system(size: 14, weight: .semibold))
+            }
+            .foregroundStyle(.red)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Color.red.opacity(0.3), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(removeFriendBusy)
+        .confirmationDialog(
+            "Remove \(p.fullName ?? "this athlete") from your friends?",
+            isPresented: $showRemoveFriendConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Remove", role: .destructive) {
+                Task { await removeFriend(p) }
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+    }
+
+    private func removeFriend(_ p: CommunityProfile) async {
+        guard !removeFriendBusy else { return }
+        removeFriendBusy = true
+        defer { removeFriendBusy = false }
+        do {
+            try await FriendService.shared.removeFriend(id: p.id)
+            profile = try? await service.loadProfile(userId: p.id)
+        } catch {
+            // silent
+        }
     }
 
     @ViewBuilder
