@@ -8,6 +8,9 @@ struct CommunityProfileView: View {
     @State private var isLoading = true
     @State private var loadFailed = false
     @State private var followBusy = false
+    @State private var messageBusy = false
+    @State private var openedConversation: DMConversation?
+    @State private var goToChat = false
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -17,7 +20,10 @@ struct CommunityProfileView: View {
                     header(profile)
                     statsRow(profile.stats)
                     if !profile.isSelf {
-                        followButton(profile)
+                        HStack(spacing: 10) {
+                            followButton(profile)
+                            messageButton(profile)
+                        }
                     }
                     if let bio = profile.bio, !bio.isEmpty {
                         bioBlock(bio)
@@ -38,6 +44,58 @@ struct CommunityProfileView: View {
         .navigationTitle("Profile")
         .navigationBarTitleDisplayMode(.inline)
         .task { await load() }
+        .navigationDestination(isPresented: $goToChat) {
+            if let conv = openedConversation {
+                ChatView(conversation: conv)
+            }
+        }
+    }
+
+    private func messageButton(_ p: CommunityProfile) -> some View {
+        Button {
+            Task { await openMessage(with: p) }
+        } label: {
+            Text("Message")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.primary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.primary.opacity(0.15), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(messageBusy)
+    }
+
+    private func openMessage(with p: CommunityProfile) async {
+        guard !messageBusy else { return }
+        messageBusy = true
+        defer { messageBusy = false }
+        do {
+            let convId = try await DMService.shared.openConversation(with: p.id)
+            openedConversation = DMConversation(
+                id: convId,
+                isGroup: false,
+                title: nil,
+                isRequest: false,
+                lastMessageAt: nil,
+                lastReadAt: nil,
+                unreadCount: 0,
+                other: DMConversationOther(
+                    id: p.id,
+                    fullName: p.fullName,
+                    username: p.handle,
+                    photoUrl: p.profilePhotoUrl,
+                    sport: p.sport
+                ),
+                lastMessage: nil
+            )
+            goToChat = true
+        } catch {
+            // silent
+        }
     }
 
     private func header(_ p: CommunityProfile) -> some View {

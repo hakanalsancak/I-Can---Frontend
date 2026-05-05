@@ -10,6 +10,8 @@ struct AthleteProfileSheet: View {
     @State private var errorMessage: String?
     @State private var glowPhase: CGFloat = 0
     @State private var showRemoveConfirmation = false
+    @State private var presentedConversation: DMConversation?
+    @State private var messageBusy = false
 
     var body: some View {
         NavigationStack {
@@ -27,6 +29,8 @@ struct AthleteProfileSheet: View {
                             badgesRow(profile)
                             statsRow(profile)
                             detailsSection(profile)
+
+                            messageButton
 
                             if profile.isFriend == true, onRemoveFriend != nil {
                                 removeFriendButton
@@ -76,6 +80,62 @@ struct AthleteProfileSheet: View {
             } message: {
                 Text("Are you sure you want to remove \(profile?.fullName ?? "this friend") from your friends?")
             }
+            .sheet(item: $presentedConversation) { conv in
+                NavigationStack {
+                    ChatView(conversation: conv)
+                }
+            }
+        }
+    }
+
+    private var messageButton: some View {
+        Button {
+            HapticManager.impact(.light)
+            Task { await openMessage() }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "bubble.left.and.bubble.right.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                Text("Message")
+                    .font(.system(size: 15, weight: .bold).width(.condensed))
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(ColorTheme.accent)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .disabled(messageBusy)
+        .padding(.horizontal, 20)
+        .padding(.top, 4)
+    }
+
+    private func openMessage() async {
+        guard !messageBusy, let p = profile else { return }
+        messageBusy = true
+        defer { messageBusy = false }
+        do {
+            let convId = try await DMService.shared.openConversation(with: athleteId)
+            presentedConversation = DMConversation(
+                id: convId,
+                isGroup: false,
+                title: nil,
+                isRequest: false,
+                lastMessageAt: nil,
+                lastReadAt: nil,
+                unreadCount: 0,
+                other: DMConversationOther(
+                    id: athleteId,
+                    fullName: p.fullName,
+                    username: p.username,
+                    photoUrl: p.profilePhotoUrl,
+                    sport: p.sport
+                ),
+                lastMessage: nil
+            )
+        } catch {
+            // silent
         }
     }
 
