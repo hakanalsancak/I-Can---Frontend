@@ -12,10 +12,20 @@ struct FriendsView: View {
         case received, sent
     }
 
+    @State private var showBlocked = false
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                PageHeader("Friends")
+                PageHeader("Friends") {
+                    Button {
+                        showBlocked = true
+                    } label: {
+                        Image(systemName: "hand.raised.slash")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                }
 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 24) {
@@ -42,6 +52,9 @@ struct FriendsView: View {
             .navigationBarHidden(true)
             .onAppear { Task { await viewModel.loadAll() } }
             .refreshable { await viewModel.loadAll() }
+            .sheet(isPresented: $showBlocked) {
+                BlockedUsersView()
+            }
             .sheet(item: $selectedProfile) { profile in
                 AthleteProfileSheet(athleteId: profile.id) {
                     Task { await viewModel.removeFriend(profile) }

@@ -1,5 +1,13 @@
 import Foundation
 
+private extension Data {
+    mutating func appendString(_ string: String) {
+        if let data = string.data(using: .utf8) {
+            append(data)
+        }
+    }
+}
+
 @MainActor
 @Observable
 final class DMService {
@@ -52,6 +60,75 @@ final class DMService {
             body: Body(body: body)
         )
         return m
+    }
+
+    func sendAttachment(
+        conversationId: String,
+        kind: String,
+        attachment: DMAttachmentRef,
+        body: String? = nil
+    ) async throws -> DMMessage {
+        struct Body: Encodable {
+            let body: String?
+            let attachmentType: String
+            let attachmentRef: DMAttachmentRef
+        }
+        let m: DMMessage = try await APIClient.shared.request(
+            APIEndpoints.Community.sendMessage(conversationId),
+            method: "POST",
+            body: Body(body: body, attachmentType: kind, attachmentRef: attachment)
+        )
+        return m
+    }
+
+    /// Uploads bytes to /messages/upload via multipart and returns the Cloudinary URL + metadata.
+    func uploadMedia(data: Data, kind: String, mimeType: String, filename: String) async throws -> DMAttachmentRef {
+        let token = TokenManager.shared.accessToken ?? ""
+        guard let url = URL(string: APIEndpoints.baseURL + APIEndpoints.Community.uploadMedia) else {
+            throw APIError.invalidURL
+        }
+
+        let boundary = "Boundary-\(UUID().uuidString)"
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 120
+        request.setValue("multipart/form-data; boundary=\(boundary)",
+                         forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        var body = Data()
+        body.appendString("--\(boundary)\r\n")
+        body.appendString("Content-Disposition: form-data; name=\"kind\"\r\n\r\n")
+        body.appendString("\(kind)\r\n")
+        body.appendString("--\(boundary)\r\n")
+        body.appendString("Content-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\r\n")
+        body.appendString("Content-Type: \(mimeType)\r\n\r\n")
+        body.append(data)
+        body.appendString("\r\n--\(boundary)--\r\n")
+        request.httpBody = body
+
+        let session = URLSession.shared
+        let (responseData, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+        guard (200...299).contains(http.statusCode) else {
+            let msg = String(data: responseData, encoding: .utf8) ?? ""
+            throw APIError.serverError("Upload failed (\(http.statusCode)): \(msg)")
+        }
+        struct Resp: Decodable {
+            let url: String
+            let durationMs: Int?
+            let width: Int?
+            let height: Int?
+        }
+        let r = try JSONDecoder().decode(Resp.self, from: responseData)
+        return DMAttachmentRef(
+            url: r.url,
+            durationMs: r.durationMs,
+            width: r.width,
+            height: r.height
+        )
     }
 
     func markRead(conversationId: String) async {

@@ -7,6 +7,7 @@ struct CommunityProfileView: View {
     @State private var profile: CommunityProfile?
     @State private var isLoading = true
     @State private var loadFailed = false
+    @State private var loadError: String?
     @State private var followBusy = false
     @State private var messageBusy = false
     @State private var openedConversation: DMConversation?
@@ -33,9 +34,18 @@ struct CommunityProfileView: View {
                     } else if isLoading {
                         ProgressView().padding(.top, 60)
                     } else if loadFailed {
-                        Text("Couldn't load profile.")
-                            .foregroundStyle(.secondary)
-                            .padding(.top, 60)
+                        VStack(spacing: 8) {
+                            Text("Couldn't load profile.")
+                                .foregroundStyle(.secondary)
+                            if let err = loadError {
+                                Text(err)
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.secondary.opacity(0.8))
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal, 20)
+                            }
+                        }
+                        .padding(.top, 60)
                     }
                     Spacer()
                 }
@@ -227,11 +237,13 @@ struct CommunityProfileView: View {
     private func load() async {
         isLoading = true
         loadFailed = false
+        loadError = nil
         defer { isLoading = false }
         do {
             profile = try await service.loadProfile(userId: userId)
         } catch {
             loadFailed = true
+            loadError = (error as? APIError)?.errorDescription ?? "\(error)"
         }
     }
 

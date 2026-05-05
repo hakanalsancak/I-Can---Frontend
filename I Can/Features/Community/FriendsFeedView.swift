@@ -39,11 +39,11 @@ struct FriendsFeedView: View {
 
     @ViewBuilder
     private var content: some View {
-        if service.friendsPosts.isEmpty && service.friendsLoading {
+        if visibleFriendsPosts.isEmpty && service.friendsLoading {
             ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if service.friendsPosts.isEmpty && loadFailed {
+        } else if visibleFriendsPosts.isEmpty && loadFailed {
             errorState
-        } else if service.friendsPosts.isEmpty {
+        } else if visibleFriendsPosts.isEmpty {
             emptyState
         } else {
             feedList

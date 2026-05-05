@@ -51,12 +51,20 @@ struct DMConversationsPage: Codable {
     let items: [DMConversation]
 }
 
+struct DMAttachmentRef: Codable, Hashable {
+    let url: String
+    let durationMs: Int?
+    let width: Int?
+    let height: Int?
+}
+
 struct DMMessage: Identifiable, Codable, Hashable {
     let id: String
     let conversationId: String
     let senderId: String
     let body: String?
     let attachmentType: String?
+    let attachmentRef: DMAttachmentRef?
     let createdAt: String
 
     var createdAtDate: Date? {
