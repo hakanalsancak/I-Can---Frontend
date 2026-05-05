@@ -9,6 +9,7 @@ struct ForYouFeedView: View {
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
+            ColorTheme.background(colorScheme).ignoresSafeArea()
             content
             composeButton
         }
@@ -44,6 +45,9 @@ struct ForYouFeedView: View {
     private var feedList: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
+                if !service.featuredPosts.isEmpty {
+                    featuredRail
+                }
                 ForEach(visiblePosts) { post in
                     PostCardView(post: post)
                         .padding(.horizontal, 16)
@@ -124,11 +128,15 @@ struct ForYouFeedView: View {
     }
 
     private func initialLoad() async {
+        if service.featuredPosts.isEmpty {
+            await service.loadFeatured()
+        }
         guard service.forYouPosts.isEmpty else { return }
         await refresh()
     }
 
     private func refresh() async {
+        async let featured: () = service.loadFeatured()
         do {
             try await service.loadForYou(refresh: true)
             loadFailed = false
@@ -137,6 +145,97 @@ struct ForYouFeedView: View {
             loadFailed = true
             errorMessage = (error as? APIError)?.userMessage ?? "Try again in a moment."
         }
+        _ = await featured
+    }
+
+    private var featuredRail: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("FEATURED")
+                .font(.system(size: 11, weight: .bold))
+                .tracking(0.6)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 16)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(service.featuredPosts) { post in
+                        FeaturedCardView(post: post)
+                            .frame(width: 280)
+                    }
+                }
+                .padding(.horizontal, 16)
+            }
+        }
+        .padding(.top, 4)
+        .padding(.bottom, 8)
+    }
+}
+
+private struct FeaturedCardView: View {
+    let post: CommunityPost
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        NavigationLink {
+            PostDetailView(postId: post.id)
+        } label: {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(ColorTheme.accent.opacity(0.2))
+                        .frame(width: 28, height: 28)
+                        .overlay(
+                            Text(initials)
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(ColorTheme.accent)
+                        )
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(post.displayName)
+                            .font(.system(size: 12, weight: .semibold))
+                            .lineLimit(1)
+                        if let s = post.authorSport {
+                            Text(s.capitalized)
+                                .font(.system(size: 10))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer()
+                }
+                if let body = post.body {
+                    Text(body)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.primary)
+                        .lineLimit(4)
+                        .multilineTextAlignment(.leading)
+                }
+                HStack(spacing: 12) {
+                    Label("\(post.likeCount)", systemImage: "heart")
+                    Label("\(post.commentCount)", systemImage: "bubble.left")
+                    Spacer()
+                }
+                .font(.system(size: 11).monospacedDigit())
+                .foregroundStyle(.secondary)
+            }
+            .padding(12)
+            .frame(height: 150, alignment: .topLeading)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(colorScheme == .dark
+                          ? Color.white.opacity(0.05)
+                          : Color.white)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(ColorTheme.accent.opacity(0.3), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var initials: String {
+        let parts = post.displayName.split(separator: " ")
+        let f = parts.first?.first.map(String.init) ?? ""
+        let s = parts.dropFirst().first?.first.map(String.init) ?? ""
+        return (f + s).uppercased()
     }
 }
 

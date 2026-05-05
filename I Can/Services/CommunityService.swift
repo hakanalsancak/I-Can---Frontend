@@ -10,6 +10,7 @@ final class CommunityService {
     private(set) var nextOffset: Int?
     private(set) var hasReachedEnd = false
 
+    private(set) var featuredPosts: [CommunityPost] = []
     private(set) var friendsPosts: [CommunityPost] = []
     private(set) var friendsLoading = false
     private(set) var friendsNextCursor: String?
@@ -39,6 +40,18 @@ final class CommunityService {
         }
         nextOffset = page.nextOffset
         if page.nextOffset == nil { hasReachedEnd = true }
+    }
+
+    func loadFeatured() async {
+        struct Resp: Decodable { let items: [CommunityPost] }
+        do {
+            let r: Resp = try await APIClient.shared.request(
+                APIEndpoints.Community.featured + "?limit=10"
+            )
+            featuredPosts = r.items
+        } catch {
+            // silent — featured is optional decoration
+        }
     }
 
     func loadFriendsFeed(refresh: Bool = false) async throws {

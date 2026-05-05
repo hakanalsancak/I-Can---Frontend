@@ -8,22 +8,33 @@ struct FriendsFeedView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        content
-            .navigationTitle("Friends")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showFriendsManager = true
-                    } label: {
-                        Image(systemName: "person.crop.circle.badge.plus")
-                    }
-                }
-            }
-            .task { await initialLoad() }
-            .sheet(isPresented: $showFriendsManager) {
-                FriendsView()
-            }
+        ZStack(alignment: .topTrailing) {
+            ColorTheme.background(colorScheme).ignoresSafeArea()
+            content
+            findFriendsButton
+        }
+        .toolbar(.hidden, for: .navigationBar)
+        .task { await initialLoad() }
+        .sheet(isPresented: $showFriendsManager) {
+            FriendsView()
+        }
+    }
+
+    private var findFriendsButton: some View {
+        Button {
+            showFriendsManager = true
+        } label: {
+            Image(systemName: "person.crop.circle.badge.plus")
+                .font(.system(size: 18))
+                .foregroundStyle(ColorTheme.accent)
+                .frame(width: 36, height: 36)
+                .background(
+                    Circle().fill(ColorTheme.accent.opacity(0.12))
+                )
+        }
+        .buttonStyle(.plain)
+        .padding(.trailing, 16)
+        .padding(.top, 8)
     }
 
     @ViewBuilder

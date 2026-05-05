@@ -82,6 +82,7 @@ enum APIEndpoints {
     enum Community {
         static let forYou = "/api/community/feed/foryou"
         static let friendsFeed = "/api/community/feed/friends"
+        static let featured = "/api/community/featured"
         static let sportFeed = "/api/community/sport-feed"
         static let trackArticle = "/api/community/sport-feed/track-interaction"
 

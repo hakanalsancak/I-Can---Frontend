@@ -7,11 +7,13 @@ struct InboxView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        content
-            .navigationTitle("Inbox")
-            .navigationBarTitleDisplayMode(.inline)
-            .task { await initialLoad() }
-            .refreshable { await refresh() }
+        ZStack {
+            ColorTheme.background(colorScheme).ignoresSafeArea()
+            content
+        }
+        .toolbar(.hidden, for: .navigationBar)
+        .task { await initialLoad() }
+        .refreshable { await refresh() }
     }
 
     @ViewBuilder

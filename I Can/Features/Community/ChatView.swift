@@ -16,11 +16,13 @@ struct ChatView: View {
     @State private var currentUserId: String? = AuthService.shared.currentUser?.id
 
     var body: some View {
-        VStack(spacing: 0) {
-            messagesList
-            inputBar
+        ZStack {
+            ColorTheme.background(colorScheme).ignoresSafeArea()
+            VStack(spacing: 0) {
+                messagesList
+                inputBar
+            }
         }
-        .background(ColorTheme.background(colorScheme).ignoresSafeArea())
         .navigationTitle(conversation.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .task { await initialLoad() }

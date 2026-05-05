@@ -9,6 +9,23 @@ struct ArticleReaderView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
+        ZStack {
+            ColorTheme.background(colorScheme).ignoresSafeArea()
+            scrollContent
+        }
+        .navigationTitle("Article")
+        .navigationBarTitleDisplayMode(.inline)
+        .task { await service.track(article: article, action: "view") }
+        .sheet(isPresented: $showSafari) {
+            if let url = URL(string: article.sourceUrl) {
+                SafariView(url: url)
+                    .ignoresSafeArea()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var scrollContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 heroImage
@@ -69,16 +86,6 @@ struct ArticleReaderView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, article.imageUrl == nil ? 16 : 20)
                 .padding(.bottom, 40)
-            }
-        }
-        .background(ColorTheme.background(colorScheme).ignoresSafeArea())
-        .navigationTitle("Article")
-        .navigationBarTitleDisplayMode(.inline)
-        .task { await service.track(article: article, action: "view") }
-        .sheet(isPresented: $showSafari) {
-            if let url = URL(string: article.sourceUrl) {
-                SafariView(url: url)
-                    .ignoresSafeArea()
             }
         }
     }

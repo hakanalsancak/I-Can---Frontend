@@ -14,33 +14,35 @@ struct CommunityProfileView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                if let profile {
-                    header(profile)
-                    statsRow(profile.stats)
-                    if !profile.isSelf {
-                        HStack(spacing: 10) {
-                            followButton(profile)
-                            messageButton(profile)
+        ZStack {
+            ColorTheme.background(colorScheme).ignoresSafeArea()
+            ScrollView {
+                VStack(spacing: 16) {
+                    if let profile {
+                        header(profile)
+                        statsRow(profile.stats)
+                        if !profile.isSelf {
+                            HStack(spacing: 10) {
+                                followButton(profile)
+                                messageButton(profile)
+                            }
                         }
+                        if let bio = profile.bio, !bio.isEmpty {
+                            bioBlock(bio)
+                        }
+                    } else if isLoading {
+                        ProgressView().padding(.top, 60)
+                    } else if loadFailed {
+                        Text("Couldn't load profile.")
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 60)
                     }
-                    if let bio = profile.bio, !bio.isEmpty {
-                        bioBlock(bio)
-                    }
-                } else if isLoading {
-                    ProgressView().padding(.top, 60)
-                } else if loadFailed {
-                    Text("Couldn't load profile.")
-                        .foregroundStyle(.secondary)
-                        .padding(.top, 60)
+                    Spacer()
                 }
-                Spacer()
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 16)
         }
-        .background(ColorTheme.background(colorScheme).ignoresSafeArea())
         .navigationTitle("Profile")
         .navigationBarTitleDisplayMode(.inline)
         .task { await load() }

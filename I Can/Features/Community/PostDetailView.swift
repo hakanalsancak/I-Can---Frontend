@@ -16,6 +16,17 @@ struct PostDetailView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
+        ZStack {
+            ColorTheme.background(colorScheme).ignoresSafeArea()
+            content
+        }
+        .navigationTitle("Post")
+        .navigationBarTitleDisplayMode(.inline)
+        .task { await initialLoad() }
+    }
+
+    @ViewBuilder
+    private var content: some View {
         VStack(spacing: 0) {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 12) {
@@ -51,10 +62,6 @@ struct PostDetailView: View {
 
             commentBox
         }
-        .background(ColorTheme.background(colorScheme).ignoresSafeArea())
-        .navigationTitle("Post")
-        .navigationBarTitleDisplayMode(.inline)
-        .task { await initialLoad() }
     }
 
     private func commentRow(_ c: PostComment) -> some View {

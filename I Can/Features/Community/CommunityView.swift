@@ -16,6 +16,7 @@ struct CommunityView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            PageHeader("Community")
             segmentedControl
             Divider().opacity(0.3)
             contentForTab
@@ -27,7 +28,7 @@ struct CommunityView: View {
     }
 
     private var segmentedControl: some View {
-        HStack(spacing: 24) {
+        HStack(spacing: 0) {
             ForEach(CommunityTab.allCases) { tab in
                 Button {
                     withAnimation(.easeInOut(duration: 0.2)) { selected = tab }
@@ -35,7 +36,7 @@ struct CommunityView: View {
                     VStack(spacing: 6) {
                         HStack(spacing: 4) {
                             Text(tab.rawValue)
-                                .font(.system(size: 15, weight: selected == tab ? .semibold : .regular))
+                                .font(.system(size: 14, weight: selected == tab ? .semibold : .regular))
                                 .foregroundStyle(selected == tab ? .primary : .secondary)
                             if tab == .inbox && dmService.totalUnread > 0 {
                                 Text("\(dmService.totalUnread)")
@@ -50,13 +51,15 @@ struct CommunityView: View {
                             .fill(selected == tab ? ColorTheme.accent : .clear)
                             .frame(height: 2)
                     }
+                    .frame(maxWidth: .infinity)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
-            Spacer()
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 4)
+        .padding(.horizontal, 12)
+        .padding(.top, 12)
+        .padding(.bottom, 4)
     }
 
     @ViewBuilder
@@ -65,8 +68,7 @@ struct CommunityView: View {
         case .forYou:
             NavigationStack {
                 ForYouFeedView()
-                    .navigationTitle("Community")
-                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar(.hidden, for: .navigationBar)
             }
         case .friends:
             NavigationStack {

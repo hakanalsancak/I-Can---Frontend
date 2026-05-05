@@ -16,13 +16,15 @@ struct SportFeedView: View {
     ]
 
     var body: some View {
-        VStack(spacing: 0) {
-            filterBar
-            Divider().opacity(0.3)
-            content
+        ZStack {
+            ColorTheme.background(colorScheme).ignoresSafeArea()
+            VStack(spacing: 0) {
+                filterBar
+                Divider().opacity(0.3)
+                content
+            }
         }
-        .navigationTitle("Sport")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .navigationBar)
         .task { await initialLoad() }
     }
 
