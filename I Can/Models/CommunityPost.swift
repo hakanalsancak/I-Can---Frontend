@@ -94,6 +94,7 @@ enum AnyCodableValue: Codable, Hashable {
 struct CommunityFeedPage: Codable {
     let items: [CommunityPost]
     let nextCursor: String?
+    let nextOffset: Int?
 }
 
 struct CreatePostRequest: Encodable {

@@ -7,7 +7,7 @@ final class CommunityService {
 
     private(set) var forYouPosts: [CommunityPost] = []
     private(set) var isLoading = false
-    private(set) var nextCursor: String?
+    private(set) var nextOffset: Int?
     private(set) var hasReachedEnd = false
 
     private(set) var friendsPosts: [CommunityPost] = []
@@ -20,29 +20,25 @@ final class CommunityService {
     func loadForYou(refresh: Bool = false) async throws {
         if isLoading { return }
         if refresh {
-            nextCursor = nil
+            nextOffset = nil
             hasReachedEnd = false
         }
         isLoading = true
         defer { isLoading = false }
 
-        var endpoint = APIEndpoints.Community.forYou + "?limit=20"
-        if let cursor = nextCursor,
-           let encoded = cursor.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
-            endpoint += "&cursor=\(encoded)"
-        }
+        let offset = refresh ? 0 : (nextOffset ?? 0)
+        let endpoint = APIEndpoints.Community.forYou + "?limit=20&offset=\(offset)"
 
         let page: CommunityFeedPage = try await APIClient.shared.request(endpoint)
 
-        if refresh || nextCursor == nil {
+        if refresh {
             forYouPosts = page.items
         } else {
             let existing = Set(forYouPosts.map(\.id))
-            let merged = forYouPosts + page.items.filter { !existing.contains($0.id) }
-            forYouPosts = merged
+            forYouPosts.append(contentsOf: page.items.filter { !existing.contains($0.id) })
         }
-        nextCursor = page.nextCursor
-        if page.nextCursor == nil { hasReachedEnd = true }
+        nextOffset = page.nextOffset
+        if page.nextOffset == nil { hasReachedEnd = true }
     }
 
     func loadFriendsFeed(refresh: Bool = false) async throws {
