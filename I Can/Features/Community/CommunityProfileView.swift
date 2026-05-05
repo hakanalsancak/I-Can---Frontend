@@ -139,7 +139,7 @@ struct CommunityProfileView: View {
         } label: {
             Text(p.relation.isFollowing ? "Following" : "Follow")
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(p.relation.isFollowing ? .primary : .white)
+                .foregroundStyle(p.relation.isFollowing ? Color.primary : Color.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
                 .background(

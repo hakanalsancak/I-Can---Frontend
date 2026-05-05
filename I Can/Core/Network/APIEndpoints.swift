@@ -1,11 +1,7 @@
 import Foundation
 
 enum APIEndpoints {
-    #if DEBUG
-    static let baseURL = "https://i-can-backend-development.onrender.com"
-    #else
     static let baseURL = "https://i-can-backend.onrender.com"
-    #endif
 
     enum Auth {
         static let register = "/api/auth/register"
