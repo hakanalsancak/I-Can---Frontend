@@ -89,6 +89,10 @@ enum APIEndpoints {
         static func conversation(_ id: String) -> String { "/api/community/messages/conversations/\(id)" }
         static func sendMessage(_ id: String) -> String { "/api/community/messages/conversations/\(id)/messages" }
         static func markRead(_ id: String) -> String { "/api/community/messages/conversations/\(id)/read" }
+
+        static let reports = "/api/community/reports"
+        static func block(_ userId: String) -> String { "/api/community/blocks/\(userId)" }
+        static let blocks = "/api/community/blocks"
         static let posts = "/api/community/posts"
         static func post(_ id: String) -> String { "/api/community/posts/\(id)" }
 

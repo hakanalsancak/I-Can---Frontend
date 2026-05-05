@@ -33,10 +33,18 @@ struct ForYouFeedView: View {
         }
     }
 
+    private var visiblePosts: [CommunityPost] {
+        let mod = ModerationService.shared
+        return service.forYouPosts.filter {
+            !mod.hiddenPostIds.contains($0.id)
+            && !mod.blockedUserIds.contains($0.authorId)
+        }
+    }
+
     private var feedList: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
-                ForEach(service.forYouPosts) { post in
+                ForEach(visiblePosts) { post in
                     PostCardView(post: post)
                         .padding(.horizontal, 16)
                         .task {

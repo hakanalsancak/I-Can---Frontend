@@ -3,9 +3,15 @@ import SwiftUI
 struct PostCardView: View {
     let post: CommunityPost
     @State private var service = CommunityService.shared
+    @State private var moderation = ModerationService.shared
     @State private var likeBusy = false
     @State private var saveBusy = false
+    @State private var showReport = false
+    @State private var showBlockConfirm = false
     @Environment(\.colorScheme) private var colorScheme
+
+    private var currentUserId: String? { AuthService.shared.currentUser?.id }
+    private var isMyPost: Bool { post.authorId == currentUserId }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -78,6 +84,52 @@ struct PostCardView: View {
             Text(relativeTime)
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
+            menuButton
+        }
+        .sheet(isPresented: $showReport) {
+            ReportSheet(targetKind: "post", targetId: post.id) {}
+        }
+        .alert("Block this user?", isPresented: $showBlockConfirm) {
+            Button("Cancel", role: .cancel) {}
+            Button("Block", role: .destructive) {
+                Task { try? await moderation.block(userId: post.authorId) }
+            }
+        } message: {
+            Text("They won't see your profile or posts. You won't see theirs.")
+        }
+    }
+
+    private var menuButton: some View {
+        Menu {
+            if isMyPost {
+                Button(role: .destructive) {
+                    Task { try? await service.deletePost(id: post.id) }
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            } else {
+                Button {
+                    moderation.hidePost(post.id)
+                } label: {
+                    Label("Hide", systemImage: "eye.slash")
+                }
+                Button {
+                    showReport = true
+                } label: {
+                    Label("Report", systemImage: "flag")
+                }
+                Button(role: .destructive) {
+                    showBlockConfirm = true
+                } label: {
+                    Label("Block user", systemImage: "hand.raised")
+                }
+            }
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 16))
+                .foregroundStyle(.secondary)
+                .frame(width: 30, height: 30)
+                .contentShape(Rectangle())
         }
     }
 
