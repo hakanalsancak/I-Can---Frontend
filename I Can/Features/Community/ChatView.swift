@@ -1,6 +1,7 @@
 import SwiftUI
 import PhotosUI
 import AVFoundation
+import AVKit
 import UniformTypeIdentifiers
 
 struct ChatView: View {
@@ -30,6 +31,9 @@ struct ChatView: View {
     @State private var showProfile = false
     @State private var uploadProgress: Double = 0
     @State private var isUploading = false
+    @State private var openImageURL: IdentifiableURL?
+    @State private var openVideoURL: IdentifiableURL?
+    @FocusState private var inputFocused: Bool
 
     @Environment(\.colorScheme) private var colorScheme
     private let currentUserId: String? = AuthService.shared.currentUser?.id
@@ -38,7 +42,7 @@ struct ChatView: View {
 
     var body: some View {
         ZStack {
-            ColorTheme.background(colorScheme).ignoresSafeArea()
+            chatBackground.ignoresSafeArea()
             VStack(spacing: 0) {
                 messagesList
                 if isUploading {
@@ -75,59 +79,118 @@ struct ChatView: View {
                 AthleteProfileSheet(athleteId: other.id)
             }
         }
+        .fullScreenCover(item: $openImageURL) { wrapper in
+            ChatImageViewer(url: wrapper.url) { openImageURL = nil }
+        }
+        .fullScreenCover(item: $openVideoURL) { wrapper in
+            ChatVideoPlayerView(url: wrapper.url) { openVideoURL = nil }
+        }
+    }
+
+    // MARK: - Background
+
+    private var chatBackground: some View {
+        ZStack {
+            ColorTheme.background(colorScheme)
+            LinearGradient(
+                colors: colorScheme == .dark
+                    ? [Color(hex: "0A1628"), Color(hex: "0E1B30")]
+                    : [Color(hex: "EEF0F4"), Color(hex: "E8EBF1")],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .opacity(0.9)
+        }
     }
 
     // MARK: - Header
 
     private var chatHeader: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             backButton
             Button {
                 showProfile = true
             } label: {
                 HStack(spacing: 10) {
                     headerAvatar
-                        .frame(width: 36, height: 36)
+                        .frame(width: 38, height: 38)
                         .clipShape(Circle())
-                    VStack(alignment: .leading, spacing: 2) {
+                        .overlay(
+                            Circle().strokeBorder(Color.white.opacity(0.18), lineWidth: 0.5)
+                        )
+                    VStack(alignment: .leading, spacing: 1) {
                         Text(conversation.displayName)
-                            .font(.system(size: 15, weight: .semibold).width(.condensed))
-                            .foregroundStyle(.primary)
-                        if let sport = conversation.other?.sport {
-                            Text(sport.capitalized)
-                                .font(.system(size: 11).width(.condensed))
-                                .foregroundStyle(.secondary)
-                        }
+                            .font(.system(size: 16, weight: .semibold).width(.condensed))
+                            .foregroundStyle(ColorTheme.primaryText(colorScheme))
+                            .lineLimit(1)
+                        Text(headerSubtitle)
+                            .font(.system(size: 11.5).width(.condensed))
+                            .foregroundStyle(ColorTheme.secondaryText(colorScheme))
+                            .lineLimit(1)
                     }
                 }
             }
             .buttonStyle(.plain)
             Spacer()
+            Button {
+                showProfile = true
+            } label: {
+                Image(systemName: "info.circle")
+                    .font(.system(size: 18, weight: .regular))
+                    .foregroundStyle(ColorTheme.accent)
+                    .frame(width: 36, height: 36)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(.ultraThinMaterial)
+        .padding(.vertical, 8)
+        .background(
+            ZStack {
+                Rectangle().fill(.ultraThinMaterial)
+                ColorTheme.cardBackground(colorScheme).opacity(colorScheme == .dark ? 0.5 : 0.55)
+            }
+        )
         .overlay(alignment: .bottom) {
-            Rectangle().fill(Color.primary.opacity(0.08)).frame(height: 1)
+            Rectangle()
+                .fill(ColorTheme.separator(colorScheme))
+                .frame(height: 0.5)
         }
+    }
+
+    private var headerSubtitle: String {
+        if let sport = conversation.other?.sport, !sport.isEmpty {
+            return sport.capitalized
+        }
+        if let username = conversation.other?.username, !username.isEmpty {
+            return "@\(username)"
+        }
+        return "Tap to view profile"
     }
 
     @ViewBuilder
     private var headerAvatar: some View {
         if let urlStr = conversation.other?.photoUrl, let url = URL(string: urlStr) {
             AsyncImage(url: url) { phase in
-                if let image = phase.image { image.resizable().scaledToFill() }
-                else { Circle().fill(Color.secondary.opacity(0.2)) }
+                if let image = phase.image {
+                    image.resizable().scaledToFill()
+                } else {
+                    initialsCircle
+                }
             }
         } else {
-            Circle()
-                .fill(ColorTheme.accent.opacity(0.2))
-                .overlay(
-                    Text(initials(conversation.displayName))
-                        .font(.system(size: 13, weight: .semibold).width(.condensed))
-                        .foregroundStyle(ColorTheme.accent)
-                )
+            initialsCircle
         }
+    }
+
+    private var initialsCircle: some View {
+        Circle()
+            .fill(ColorTheme.accentGradient)
+            .overlay(
+                Text(initials(conversation.displayName))
+                    .font(.system(size: 14, weight: .semibold).width(.condensed))
+                    .foregroundStyle(.white)
+            )
     }
 
     @Environment(\.dismiss) private var dismiss
@@ -137,7 +200,7 @@ struct ChatView: View {
         } label: {
             Image(systemName: "chevron.left")
                 .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(.primary)
+                .foregroundStyle(ColorTheme.accent)
                 .frame(width: 36, height: 36)
                 .contentShape(Rectangle())
         }
@@ -151,33 +214,16 @@ struct ChatView: View {
         return (f + s).uppercased()
     }
 
-    // MARK: - Messages list
+    // MARK: - Chat items (dates + grouped messages)
 
-    private var messagesList: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 8) {
-                    ForEach(orderedMessages) { msg in
-                        bubble(for: msg)
-                            .id(msg.id)
-                            .padding(.horizontal, 12)
-                            .task { await loadMoreIfNeeded(currentItem: msg) }
-                    }
-                    Color.clear.frame(height: 4).id("bottomAnchor")
-                }
-                .padding(.vertical, 8)
-            }
-            .onChange(of: orderedMessages.count) { _, _ in
-                if let lastId = orderedMessages.last?.id {
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        proxy.scrollTo(lastId, anchor: .bottom)
-                    }
-                }
-            }
-            .onAppear {
-                if let lastId = orderedMessages.last?.id {
-                    proxy.scrollTo(lastId, anchor: .bottom)
-                }
+    private enum ChatItem: Identifiable {
+        case dateHeader(Date, id: String)
+        case message(DMMessage, isFirstInGroup: Bool, isLastInGroup: Bool)
+
+        var id: String {
+            switch self {
+            case .dateHeader(_, let id): return "date-\(id)"
+            case .message(let m, _, _): return "msg-\(m.id)"
             }
         }
     }
@@ -186,13 +232,167 @@ struct ChatView: View {
         messages.sorted { ($0.createdAtDate ?? .distantPast) < ($1.createdAtDate ?? .distantPast) }
     }
 
+    private var chatItems: [ChatItem] {
+        let ordered = orderedMessages
+        var items: [ChatItem] = []
+        let cal = Calendar.current
+        let groupWindow: TimeInterval = 180  // 3 minutes
+
+        for (index, msg) in ordered.enumerated() {
+            let prev = index > 0 ? ordered[index - 1] : nil
+            let next = index + 1 < ordered.count ? ordered[index + 1] : nil
+
+            // Day separator when day changes (or first message)
+            let msgDay = msg.createdAtDate ?? Date()
+            if let prev = prev,
+               let prevDate = prev.createdAtDate,
+               cal.isDate(prevDate, inSameDayAs: msgDay) {
+                // same day, no header
+            } else {
+                let id = String(Int(cal.startOfDay(for: msgDay).timeIntervalSince1970))
+                items.append(.dateHeader(msgDay, id: id))
+            }
+
+            // Grouping: same sender + within 3 min of neighbor
+            let isFirst: Bool = {
+                guard let prev = prev,
+                      prev.senderId == msg.senderId,
+                      let pd = prev.createdAtDate,
+                      let md = msg.createdAtDate,
+                      cal.isDate(pd, inSameDayAs: md),
+                      md.timeIntervalSince(pd) < groupWindow
+                else { return true }
+                return false
+            }()
+            let isLast: Bool = {
+                guard let next = next,
+                      next.senderId == msg.senderId,
+                      let nd = next.createdAtDate,
+                      let md = msg.createdAtDate,
+                      cal.isDate(nd, inSameDayAs: md),
+                      nd.timeIntervalSince(md) < groupWindow
+                else { return true }
+                return false
+            }()
+            items.append(.message(msg, isFirstInGroup: isFirst, isLastInGroup: isLast))
+        }
+        return items
+    }
+
+    // MARK: - Messages list
+
+    private var messagesList: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(Array(chatItems.enumerated()), id: \.element.id) { idx, item in
+                        chatItemRow(item, prev: idx > 0 ? chatItems[idx - 1] : nil)
+                            .id(item.id)
+                    }
+                    Color.clear.frame(height: 6).id("bottomAnchor")
+                }
+                .padding(.vertical, 8)
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .onChange(of: orderedMessages.count) { _, _ in
+                if let last = orderedMessages.last?.id {
+                    withAnimation(.easeOut(duration: 0.22)) {
+                        proxy.scrollTo("msg-\(last)", anchor: .bottom)
+                    }
+                }
+            }
+            .onChange(of: inputFocused) { _, focused in
+                if focused, let last = orderedMessages.last?.id {
+                    withAnimation(.easeOut(duration: 0.18)) {
+                        proxy.scrollTo("msg-\(last)", anchor: .bottom)
+                    }
+                }
+            }
+            .onAppear {
+                if let last = orderedMessages.last?.id {
+                    proxy.scrollTo("msg-\(last)", anchor: .bottom)
+                }
+            }
+        }
+    }
+
     @ViewBuilder
-    private func bubble(for msg: DMMessage) -> some View {
+    private func chatItemRow(_ item: ChatItem, prev: ChatItem?) -> some View {
+        switch item {
+        case .dateHeader(let date, _):
+            dateSeparator(date)
+                .padding(.top, prev == nil ? 4 : 14)
+                .padding(.bottom, 8)
+        case .message(let msg, let isFirst, let isLast):
+            let topPadding: CGFloat = {
+                guard let prev else { return 4 }
+                if case .dateHeader = prev { return 0 }
+                return isFirst ? 8 : 2
+            }()
+            let bottomPadding: CGFloat = isLast ? 2 : 0
+            bubble(for: msg, isFirstInGroup: isFirst, isLastInGroup: isLast)
+                .padding(.horizontal, 10)
+                .padding(.top, topPadding)
+                .padding(.bottom, bottomPadding)
+                .task { await loadMoreIfNeeded(currentItem: msg) }
+        }
+    }
+
+    private func dateSeparator(_ date: Date) -> some View {
+        HStack {
+            Spacer()
+            Text(formatDateSeparator(date))
+                .font(.system(size: 11, weight: .semibold).width(.condensed))
+                .tracking(0.4)
+                .foregroundStyle(ColorTheme.secondaryText(colorScheme))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 5)
+                .background(
+                    Capsule()
+                        .fill(ColorTheme.cardBackground(colorScheme).opacity(0.85))
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(ColorTheme.separator(colorScheme), lineWidth: 0.5)
+                )
+            Spacer()
+        }
+    }
+
+    private func formatDateSeparator(_ date: Date) -> String {
+        let cal = Calendar.current
+        if cal.isDateInToday(date) { return "Today" }
+        if cal.isDateInYesterday(date) { return "Yesterday" }
+        if let days = cal.dateComponents([.day], from: date, to: Date()).day, days < 7 {
+            let f = DateFormatter()
+            f.dateFormat = "EEEE"
+            return f.string(from: date)
+        }
+        let f = DateFormatter()
+        f.locale = .current
+        f.dateFormat = DateFormatter.dateFormat(fromTemplate: "MMM d, yyyy", options: 0, locale: .current) ?? "MMM d, yyyy"
+        return f.string(from: date)
+    }
+
+    @ViewBuilder
+    private func bubble(for msg: DMMessage, isFirstInGroup: Bool, isLastInGroup: Bool) -> some View {
         let mine = msg.senderId == currentUserId
         let onDelete: (() -> Void)? = mine
             ? { Task { await deleteMessage(msg) } }
             : nil
-        MessageBubble(message: msg, isMe: mine, onDelete: onDelete)
+        MessageBubble(
+            message: msg,
+            isMe: mine,
+            isFirstInGroup: isFirstInGroup,
+            isLastInGroup: isLastInGroup,
+            onDelete: onDelete,
+            onOpenImage: { url in openImageURL = IdentifiableURL(url: url) },
+            onOpenVideo: { url in openVideoURL = IdentifiableURL(url: url) }
+        )
+        .transition(.asymmetric(
+            insertion: .scale(scale: 0.9).combined(with: .opacity),
+            removal: .opacity
+        ))
     }
 
     // MARK: - Input bar
@@ -203,8 +403,10 @@ struct ChatView: View {
                 Text(m)
                     .font(.system(size: 12).width(.condensed))
                     .foregroundStyle(.red)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
-                    .padding(.bottom, 6)
+                    .padding(.top, 6)
+                    .padding(.bottom, 2)
             }
             if isRecording {
                 recordingBar
@@ -212,50 +414,87 @@ struct ChatView: View {
                 normalInputBar
             }
         }
-        .background(.ultraThinMaterial)
+        .background(
+            ZStack {
+                Rectangle().fill(.ultraThinMaterial)
+                ColorTheme.cardBackground(colorScheme).opacity(colorScheme == .dark ? 0.5 : 0.6)
+            }
+        )
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(ColorTheme.separator(colorScheme))
+                .frame(height: 0.5)
+        }
     }
 
     private var normalInputBar: some View {
-        HStack(spacing: 8) {
-            Button {
-                showAttachSheet = true
-            } label: {
-                Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 26))
-                    .foregroundStyle(ColorTheme.accent)
+        HStack(alignment: .bottom, spacing: 8) {
+            HStack(alignment: .bottom, spacing: 8) {
+                Button {
+                    showAttachSheet = true
+                } label: {
+                    Image(systemName: "paperclip")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(ColorTheme.accent)
+                        .frame(width: 30, height: 32)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                TextField("Message", text: $draft, axis: .vertical)
+                    .focused($inputFocused)
+                    .font(.system(size: 16).width(.condensed))
+                    .textFieldStyle(.plain)
+                    .lineLimit(1...5)
+                    .padding(.vertical, 7)
+            }
+            .padding(.horizontal, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(ColorTheme.elevatedBackground(colorScheme).opacity(colorScheme == .dark ? 0.7 : 0.9))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .stroke(ColorTheme.separator(colorScheme), lineWidth: 0.5)
+            )
+
+            sendOrMicButton
+                .frame(width: 40, height: 40)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .animation(.easeInOut(duration: 0.18), value: canSendText)
+    }
+
+    @ViewBuilder
+    private var sendOrMicButton: some View {
+        if canSendText {
+            Button { Task { await sendText() } } label: {
+                ZStack {
+                    Circle().fill(ColorTheme.accentGradient)
+                    Image(systemName: "arrow.up")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.white)
+                }
+                .shadow(color: ColorTheme.accent.opacity(0.35), radius: 4, x: 0, y: 2)
             }
             .buttonStyle(.plain)
-
-            TextField("Message", text: $draft, axis: .vertical)
-                .font(.system(size: 15).width(.condensed))
-                .textFieldStyle(.plain)
-                .padding(10)
-                .background(
-                    RoundedRectangle(cornerRadius: 18)
-                        .fill(Color.secondary.opacity(0.10))
-                )
-
-            if canSendText {
-                Button { Task { await sendText() } } label: {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.system(size: 28))
-                        .foregroundStyle(ColorTheme.accent)
+            .transition(.scale.combined(with: .opacity))
+        } else {
+            Button {
+                Task { await tapMic() }
+            } label: {
+                ZStack {
+                    Circle().fill(ColorTheme.accentGradient)
+                    Image(systemName: "mic.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.white)
                 }
-                .buttonStyle(.plain)
-                .disabled(!canSendText)
-            } else {
-                Button {
-                    Task { await tapMic() }
-                } label: {
-                    Image(systemName: "mic.circle.fill")
-                        .font(.system(size: 28))
-                        .foregroundStyle(.primary)
-                }
-                .buttonStyle(.plain)
+                .shadow(color: ColorTheme.accent.opacity(0.25), radius: 3, x: 0, y: 1)
             }
+            .buttonStyle(.plain)
+            .transition(.scale.combined(with: .opacity))
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
     }
 
     private var recordingBar: some View {
@@ -264,38 +503,53 @@ struct ChatView: View {
                 .fill(.red)
                 .frame(width: 10, height: 10)
                 .opacity(0.85)
-            Text("Recording \(formatDuration(recordingElapsed))")
+                .scaleEffect(isRecording ? 1.2 : 1.0)
+                .animation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true), value: isRecording)
+            Text("Recording  \(formatDuration(recordingElapsed))")
                 .font(.system(size: 14, weight: .semibold).width(.condensed).monospacedDigit())
+                .foregroundStyle(ColorTheme.primaryText(colorScheme))
             Spacer()
             Button {
                 stopRecording(submit: false)
             } label: {
                 Image(systemName: "trash")
-                    .font(.system(size: 18))
+                    .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(.red)
+                    .frame(width: 38, height: 38)
+                    .background(
+                        Circle().fill(Color.red.opacity(0.12))
+                    )
             }
             .buttonStyle(.plain)
             Button {
                 Task { await stopAndSendVoice() }
             } label: {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.system(size: 28))
-                    .foregroundStyle(ColorTheme.accent)
+                ZStack {
+                    Circle().fill(ColorTheme.accentGradient)
+                    Image(systemName: "arrow.up")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.white)
+                }
+                .frame(width: 40, height: 40)
+                .shadow(color: ColorTheme.accent.opacity(0.35), radius: 4, x: 0, y: 2)
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 14)
         .padding(.vertical, 10)
     }
 
     private var uploadBar: some View {
         HStack(spacing: 8) {
+            Image(systemName: "arrow.up.circle.fill")
+                .font(.system(size: 14))
+                .foregroundStyle(ColorTheme.accent)
             ProgressView(value: uploadProgress)
                 .progressViewStyle(.linear)
                 .tint(ColorTheme.accent)
             Text("\(Int(uploadProgress * 100))%")
                 .font(.system(size: 11).width(.condensed).monospacedDigit())
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTheme.secondaryText(colorScheme))
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 6)
@@ -351,7 +605,9 @@ struct ChatView: View {
                 kind: kind,
                 attachment: attachment
             )
-            messages.append(m)
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                messages.append(m)
+            }
             errorMessage = nil
         } catch {
             errorMessage = (error as? APIError)?.errorDescription ?? "Upload failed."
@@ -361,7 +617,6 @@ struct ChatView: View {
     // MARK: - Voice
 
     private func tapMic() async {
-        // Request mic permission up-front, with a clear error when denied.
         let granted = await requestMicPermission()
         guard granted else {
             errorMessage = "Microphone access denied. Enable it in Settings → I Can → Microphone."
@@ -496,7 +751,9 @@ struct ChatView: View {
         defer { isSending = false }
         do {
             let m = try await service.send(conversationId: conversation.id, body: trimmed)
-            messages.append(m)
+            withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+                messages.append(m)
+            }
             draft = ""
             errorMessage = nil
             try? await service.loadInbox()
@@ -507,7 +764,9 @@ struct ChatView: View {
 
     private func deleteMessage(_ msg: DMMessage) async {
         let snapshot = messages
-        messages.removeAll { $0.id == msg.id }
+        withAnimation(.easeInOut(duration: 0.2)) {
+            messages.removeAll { $0.id == msg.id }
+        }
         do {
             try await service.deleteMessage(
                 conversationId: conversation.id,
@@ -541,7 +800,9 @@ struct ChatView: View {
             let existing = Set(messages.map(\.id))
             let newOnes = page.items.filter { !existing.contains($0.id) }
             if !newOnes.isEmpty {
-                messages.append(contentsOf: newOnes)
+                withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+                    messages.append(contentsOf: newOnes)
+                }
                 await service.markRead(conversationId: conversation.id)
             }
         } catch {
@@ -564,6 +825,81 @@ private struct VideoTransfer: Transferable {
             try? FileManager.default.removeItem(at: copyURL)
             try FileManager.default.copyItem(at: received.file, to: copyURL)
             return Self(url: copyURL)
+        }
+    }
+}
+
+struct IdentifiableURL: Identifiable {
+    let url: URL
+    var id: String { url.absoluteString }
+}
+
+private struct ChatImageViewer: View {
+    let url: URL
+    let onClose: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            AsyncImage(url: url) { phase in
+                if let image = phase.image {
+                    image.resizable().scaledToFit()
+                } else {
+                    ProgressView().tint(.white)
+                }
+            }
+            VStack {
+                HStack {
+                    Spacer()
+                    Button(action: onClose) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(10)
+                            .background(Circle().fill(.black.opacity(0.5)))
+                    }
+                    .padding(16)
+                }
+                Spacer()
+            }
+        }
+    }
+}
+
+private struct ChatVideoPlayerView: View {
+    let url: URL
+    let onClose: () -> Void
+    @State private var player: AVPlayer?
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            if let player {
+                VideoPlayer(player: player)
+                    .ignoresSafeArea()
+            }
+            VStack {
+                HStack {
+                    Spacer()
+                    Button(action: onClose) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(10)
+                            .background(Circle().fill(.black.opacity(0.5)))
+                    }
+                    .padding(16)
+                }
+                Spacer()
+            }
+        }
+        .onAppear {
+            player = AVPlayer(url: url)
+            player?.play()
+        }
+        .onDisappear {
+            player?.pause()
+            player = nil
         }
     }
 }

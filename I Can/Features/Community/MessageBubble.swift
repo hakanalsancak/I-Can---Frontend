@@ -4,31 +4,21 @@ import AVKit
 struct MessageBubble: View {
     let message: DMMessage
     let isMe: Bool
+    var isFirstInGroup: Bool = true
+    var isLastInGroup: Bool = true
     var onDelete: (() -> Void)? = nil
-    @State private var showVideo = false
-    @State private var showImage = false
+    var onOpenImage: ((URL) -> Void)? = nil
+    var onOpenVideo: ((URL) -> Void)? = nil
+
     @State private var showDeleteConfirm = false
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        HStack {
-            if isMe { Spacer(minLength: 40) }
-            VStack(alignment: isMe ? .trailing : .leading, spacing: 2) {
-                content
-                    .contextMenu {
-                        if isMe, onDelete != nil {
-                            Button(role: .destructive) {
-                                showDeleteConfirm = true
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
-                    }
-                Text(timeString(message.createdAtDate))
-                    .font(.system(size: 10).width(.condensed))
-                    .foregroundStyle(.secondary)
-            }
-            if !isMe { Spacer(minLength: 40) }
+        HStack(alignment: .bottom, spacing: 0) {
+            if isMe { Spacer(minLength: 56) }
+            content
+                .contextMenu(menuItems: { menuContent })
+            if !isMe { Spacer(minLength: 56) }
         }
         .confirmationDialog(
             "Delete this message?",
@@ -41,103 +31,247 @@ struct MessageBubble: View {
     }
 
     @ViewBuilder
+    private var menuContent: some View {
+        let bodyText = message.body ?? ""
+        if !bodyText.isEmpty {
+            Button {
+                copyToPasteboard(bodyText)
+            } label: {
+                Label("Copy", systemImage: "doc.on.doc")
+            }
+        }
+        if isMe, onDelete != nil {
+            Button(role: .destructive) {
+                showDeleteConfirm = true
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+    }
+
+    // MARK: - Content router
+
+    @ViewBuilder
     private var content: some View {
         switch message.attachmentType {
         case "image":
-            imageContent
+            mediaBubble { imageContent }
         case "video":
-            videoContent
+            mediaBubble { videoContent }
         case "voice":
             VoiceBubble(
                 url: message.attachmentRef?.url,
                 durationMs: message.attachmentRef?.durationMs,
-                isMe: isMe
+                isMe: isMe,
+                isLastInGroup: isLastInGroup,
+                timeText: timeString(message.createdAtDate)
             )
         default:
             textBubble
         }
     }
 
+    // MARK: - Text bubble (WhatsApp-style inline timestamp)
+
     private var textBubble: some View {
-        Text(message.body ?? "")
-            .font(.system(size: 15).width(.condensed))
-            .foregroundStyle(isMe ? Color.white : .primary)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(isMe
-                          ? AnyShapeStyle(ColorTheme.accent)
-                          : AnyShapeStyle(Color.secondary.opacity(0.12)))
-            )
+        let body = message.body ?? ""
+        return ZStack(alignment: .bottomTrailing) {
+            Text(body)
+                .font(.system(size: 15.5).width(.condensed))
+                .foregroundStyle(isMe ? Color.white : ColorTheme.primaryText(colorScheme))
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.trailing, isMe ? 58 : 44)
+                .padding(.leading, 12)
+                .padding(.top, 7)
+                .padding(.bottom, 7)
+
+            metadataRow
+                .padding(.trailing, 10)
+                .padding(.bottom, 5)
+        }
+        .background(bubbleFill)
+        .clipShape(bubbleShape)
+        .overlay(bubbleShape.stroke(borderColor, lineWidth: 0.5))
+        .shadow(color: shadowColor, radius: 1.5, x: 0, y: 0.5)
+    }
+
+    // MARK: - Media bubble wrapper (image / video)
+
+    @ViewBuilder
+    private func mediaBubble<Inner: View>(@ViewBuilder _ inner: () -> Inner) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            inner()
+                .clipShape(bubbleShape)
+                .overlay(alignment: .bottomTrailing) {
+                    metadataRow
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill(Color.black.opacity(0.45))
+                        )
+                        .padding(8)
+                }
+            if let captionText = message.body, !captionText.isEmpty {
+                Text(captionText)
+                    .font(.system(size: 14).width(.condensed))
+                    .foregroundStyle(isMe ? Color.white : ColorTheme.primaryText(colorScheme))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(bubbleFill)
+            }
+        }
+        .background(bubbleFill)
+        .clipShape(bubbleShape)
+        .overlay(bubbleShape.stroke(borderColor, lineWidth: 0.5))
+        .shadow(color: shadowColor, radius: 1.5, x: 0, y: 0.5)
     }
 
     @ViewBuilder
     private var imageContent: some View {
         if let s = message.attachmentRef?.url, let url = URL(string: s) {
             Button {
-                showImage = true
+                onOpenImage?(url)
             } label: {
                 AsyncImage(url: url) { phase in
                     switch phase {
                     case .success(let image):
                         image.resizable().scaledToFill()
                     default:
-                        Rectangle().fill(Color.secondary.opacity(0.15))
+                        ZStack {
+                            Color.secondary.opacity(0.15)
+                            ProgressView()
+                        }
                     }
                 }
-                .frame(width: 220, height: 220)
+                .frame(width: 240, height: 240)
                 .clipped()
-                .contentShape(RoundedRectangle(cornerRadius: 14))
-                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .fullScreenCover(isPresented: $showImage) {
-                ImageViewer(url: url, onClose: { showImage = false })
-            }
-            if let body = message.body, !body.isEmpty {
-                Text(body)
-                    .font(.system(size: 14).width(.condensed))
-                    .padding(.top, 4)
-            }
         }
     }
 
     @ViewBuilder
     private var videoContent: some View {
         if let s = message.attachmentRef?.url, let url = URL(string: s) {
-            Button { showVideo = true } label: {
+            Button { onOpenVideo?(url) } label: {
                 ZStack {
-                    Rectangle().fill(Color.black.opacity(0.6))
-                    Image(systemName: "play.circle.fill")
-                        .font(.system(size: 44))
+                    LinearGradient(
+                        colors: [Color.black.opacity(0.55), Color.black.opacity(0.85)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    Image(systemName: "play.fill")
+                        .font(.system(size: 22, weight: .bold))
                         .foregroundStyle(.white)
+                        .padding(18)
+                        .background(Circle().fill(Color.black.opacity(0.45)))
                 }
-                .frame(width: 220, height: 220)
+                .frame(width: 240, height: 240)
                 .clipped()
-                .contentShape(RoundedRectangle(cornerRadius: 14))
-                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .fullScreenCover(isPresented: $showVideo) {
-                VideoPlayerView(url: url, onClose: { showVideo = false })
+        }
+    }
+
+    // MARK: - Metadata (time + sent check)
+
+    private var metadataRow: some View {
+        HStack(spacing: 3) {
+            Text(timeString(message.createdAtDate))
+                .font(.system(size: 10.5).width(.condensed).monospacedDigit())
+            if isMe {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 9, weight: .bold))
             }
         }
+        .foregroundStyle(isOnMedia ? Color.white : metadataColor)
+    }
+
+    private var isOnMedia: Bool {
+        message.attachmentType == "image" || message.attachmentType == "video"
+    }
+
+    // MARK: - Bubble styling
+
+    private var bubbleShape: UnevenRoundedRectangle {
+        let big: CGFloat = 18
+        let small: CGFloat = 6
+        let bottomLeading: CGFloat = isMe ? big : (isLastInGroup ? small : big)
+        let bottomTrailing: CGFloat = isMe ? (isLastInGroup ? small : big) : big
+        return UnevenRoundedRectangle(
+            topLeadingRadius: big,
+            bottomLeadingRadius: bottomLeading,
+            bottomTrailingRadius: bottomTrailing,
+            topTrailingRadius: big,
+            style: .continuous
+        )
+    }
+
+    private var bubbleFill: AnyShapeStyle {
+        if isMe {
+            return AnyShapeStyle(
+                LinearGradient(
+                    colors: [
+                        ColorTheme.accent,
+                        Color(hex: "358A90")
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+        } else {
+            return AnyShapeStyle(
+                colorScheme == .dark
+                ? Color(hex: "1F2D44")
+                : Color.white
+            )
+        }
+    }
+
+    private var borderColor: Color {
+        if isMe { return .clear }
+        return colorScheme == .dark
+            ? Color.white.opacity(0.06)
+            : Color.black.opacity(0.05)
+    }
+
+    private var shadowColor: Color {
+        colorScheme == .dark ? .clear : Color.black.opacity(0.06)
+    }
+
+    private var metadataColor: Color {
+        if isMe { return Color.white.opacity(0.85) }
+        return ColorTheme.tertiaryText(colorScheme)
     }
 
     private func timeString(_ date: Date?) -> String {
         guard let d = date else { return "" }
         let f = DateFormatter()
-        f.dateStyle = .none
-        f.timeStyle = .short
+        f.locale = .current
+        f.dateFormat = DateFormatter.dateFormat(fromTemplate: "j:mm", options: 0, locale: .current) ?? "HH:mm"
         return f.string(from: d)
     }
+
+    private func copyToPasteboard(_ string: String) {
+        #if canImport(UIKit)
+        UIPasteboard.general.string = string
+        #endif
+    }
 }
+
+// MARK: - Voice bubble
 
 private struct VoiceBubble: View {
     let url: String?
     let durationMs: Int?
     let isMe: Bool
+    let isLastInGroup: Bool
+    let timeText: String
+
     @State private var player: AVPlayer?
     @State private var isPlaying = false
     @State private var progress: Double = 0
@@ -145,39 +279,72 @@ private struct VoiceBubble: View {
     @State private var timeObserverToken: Any?
     @Environment(\.colorScheme) private var colorScheme
 
-    private let barCount = 22
+    private let barCount = 26
 
     var body: some View {
         Button {
             togglePlay()
         } label: {
             HStack(spacing: 10) {
-                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(isMe ? Color.white : ColorTheme.accent)
-                    .frame(width: 30, height: 30)
-                    .background(
-                        Circle().fill(isMe ? Color.white.opacity(0.2) : ColorTheme.accent.opacity(0.18))
-                    )
+                playIcon
                 waveform
-                Text(displayedTime())
-                    .font(.system(size: 12).width(.condensed).monospacedDigit())
-                    .foregroundStyle(isMe ? Color.white.opacity(0.8) : .secondary)
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(displayedTime())
+                        .font(.system(size: 11).width(.condensed).monospacedDigit())
+                        .foregroundStyle(isMe ? Color.white.opacity(0.85) : .secondary)
+                    Text(timeText)
+                        .font(.system(size: 9.5).width(.condensed).monospacedDigit())
+                        .foregroundStyle(isMe ? Color.white.opacity(0.7) : ColorTheme.tertiaryText(colorScheme))
+                }
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
-            .frame(minHeight: 44)
-            .contentShape(
-                RoundedRectangle(cornerRadius: 18)
-            )
-            .background(
-                RoundedRectangle(cornerRadius: 18)
-                    .fill(isMe
-                          ? AnyShapeStyle(ColorTheme.accent)
-                          : AnyShapeStyle(Color.secondary.opacity(0.12)))
-            )
+            .frame(minHeight: 48)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .background(bubbleFill)
+        .clipShape(bubbleShape)
+    }
+
+    private var bubbleShape: UnevenRoundedRectangle {
+        let big: CGFloat = 18
+        let small: CGFloat = 6
+        let bottomLeading: CGFloat = isMe ? big : (isLastInGroup ? small : big)
+        let bottomTrailing: CGFloat = isMe ? (isLastInGroup ? small : big) : big
+        return UnevenRoundedRectangle(
+            topLeadingRadius: big,
+            bottomLeadingRadius: bottomLeading,
+            bottomTrailingRadius: bottomTrailing,
+            topTrailingRadius: big,
+            style: .continuous
+        )
+    }
+
+    private var bubbleFill: AnyShapeStyle {
+        if isMe {
+            return AnyShapeStyle(
+                LinearGradient(
+                    colors: [ColorTheme.accent, Color(hex: "358A90")],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+        } else {
+            return AnyShapeStyle(
+                colorScheme == .dark ? Color(hex: "1F2D44") : Color.white
+            )
+        }
+    }
+
+    private var playIcon: some View {
+        Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+            .font(.system(size: 14, weight: .bold))
+            .foregroundStyle(isMe ? ColorTheme.accent : Color.white)
+            .frame(width: 34, height: 34)
+            .background(
+                Circle().fill(isMe ? Color.white : ColorTheme.accent)
+            )
     }
 
     private var waveform: some View {
@@ -187,14 +354,19 @@ private struct VoiceBubble: View {
                 let active = progress > threshold
                 Capsule()
                     .fill(barColor(active: active))
-                    .frame(width: 2, height: CGFloat(6 + (i % 5) * 4))
+                    .frame(width: 2.5, height: barHeight(for: i))
             }
         }
     }
 
+    private func barHeight(for i: Int) -> CGFloat {
+        let pattern: [CGFloat] = [8, 14, 20, 12, 6, 18, 22, 10, 16, 24, 14, 8]
+        return pattern[i % pattern.count]
+    }
+
     private func barColor(active: Bool) -> Color {
         if isMe {
-            return active ? .white : Color.white.opacity(0.35)
+            return active ? .white : Color.white.opacity(0.4)
         } else {
             return active ? ColorTheme.accent : ColorTheme.accent.opacity(0.3)
         }
@@ -208,15 +380,12 @@ private struct VoiceBubble: View {
         }
         guard let s = url, let url = URL(string: s) else { return }
 
-        // Route through the speaker and ignore the silent switch.
-        // Without this, default session routing may send audio to the
-        // receiver (earpiece) or be muted by silent mode entirely.
         do {
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(.playback, mode: .spokenAudio)
             try session.setActive(true, options: [])
         } catch {
-            // Best effort — continue and let AVPlayer try anyway.
+            // best effort
         }
 
         if player == nil {
@@ -231,7 +400,6 @@ private struct VoiceBubble: View {
                 progress = 0
                 elapsed = 0
             }
-            // 30Hz updates keep the waveform highlight smooth.
             let interval = CMTime(value: 1, timescale: 30)
             let token = p.addPeriodicTimeObserver(forInterval: interval, queue: .main) { time in
                 let current = CMTimeGetSeconds(time)
@@ -269,72 +437,3 @@ private struct VoiceBubble: View {
     }
 }
 
-private struct ImageViewer: View {
-    let url: URL
-    let onClose: () -> Void
-
-    var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-            AsyncImage(url: url) { phase in
-                if let image = phase.image {
-                    image.resizable().scaledToFit()
-                } else {
-                    ProgressView().tint(.white)
-                }
-            }
-            VStack {
-                HStack {
-                    Spacer()
-                    Button(action: onClose) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(.white)
-                            .padding(10)
-                            .background(Circle().fill(.black.opacity(0.5)))
-                    }
-                    .padding(16)
-                }
-                Spacer()
-            }
-        }
-    }
-}
-
-private struct VideoPlayerView: View {
-    let url: URL
-    let onClose: () -> Void
-    @State private var player: AVPlayer?
-
-    var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-            if let player {
-                VideoPlayer(player: player)
-                    .ignoresSafeArea()
-            }
-            VStack {
-                HStack {
-                    Spacer()
-                    Button(action: onClose) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(.white)
-                            .padding(10)
-                            .background(Circle().fill(.black.opacity(0.5)))
-                    }
-                    .padding(16)
-                }
-                Spacer()
-            }
-        }
-        .onAppear {
-            player = AVPlayer(url: url)
-            player?.play()
-        }
-        .onDisappear {
-            player?.pause()
-            player = nil
-        }
-    }
-}
