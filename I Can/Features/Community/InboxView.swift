@@ -54,21 +54,21 @@ struct InboxView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(c.displayName)
-                        .font(.system(size: 15, weight: c.unreadCount > 0 ? .semibold : .regular))
+                        .font(.system(size: 15, weight: c.unreadCount > 0 ? .semibold : .regular).width(.condensed))
                         .lineLimit(1)
                     Spacer()
                     Text(relativeTime(c.lastMessageDate))
-                        .font(.system(size: 11))
+                        .font(.system(size: 11).width(.condensed))
                         .foregroundStyle(.secondary)
                 }
                 if let lm = c.lastMessage {
                     Text(lm.body)
-                        .font(.system(size: 13))
+                        .font(.system(size: 13).width(.condensed))
                         .foregroundStyle(c.unreadCount > 0 ? .primary : .secondary)
                         .lineLimit(2)
                 } else {
                     Text("Say hi.")
-                        .font(.system(size: 13))
+                        .font(.system(size: 13).width(.condensed))
                         .foregroundStyle(.secondary)
                         .italic()
                 }
@@ -99,7 +99,7 @@ struct InboxView: View {
                 .fill(ColorTheme.accent.opacity(0.2))
                 .overlay(
                     Text(initials(c.displayName))
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.system(size: 15, weight: .semibold).width(.condensed))
                         .foregroundStyle(ColorTheme.accent)
                 )
         }
@@ -123,9 +123,9 @@ struct InboxView: View {
         VStack(spacing: 8) {
             Spacer()
             Text("No messages.")
-                .font(.system(size: 18, weight: .semibold))
+                .font(.system(size: 18, weight: .semibold).width(.condensed))
             Text("Reach out to someone after a good session.")
-                .font(.system(size: 14))
+                .font(.system(size: 14).width(.condensed))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
@@ -138,9 +138,9 @@ struct InboxView: View {
         VStack(spacing: 12) {
             Spacer()
             Text("Couldn't load inbox.")
-                .font(.system(size: 16, weight: .semibold))
+                .font(.system(size: 16, weight: .semibold).width(.condensed))
             if let m = errorMessage {
-                Text(m).font(.system(size: 13)).foregroundStyle(.secondary)
+                Text(m).font(.system(size: 13).width(.condensed)).foregroundStyle(.secondary)
             }
             Button("Retry") { Task { await refresh() } }
                 .buttonStyle(.borderedProminent)

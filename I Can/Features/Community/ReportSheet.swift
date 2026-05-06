@@ -16,7 +16,7 @@ struct ReportSheet: View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 0) {
                 Text("Why are you reporting this?")
-                    .font(.system(size: 14))
+                    .font(.system(size: 14).width(.condensed))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 16)
                     .padding(.top, 12)
@@ -54,7 +54,7 @@ struct ReportSheet: View {
 
                 if let error {
                     Text(error)
-                        .font(.system(size: 12))
+                        .font(.system(size: 12).width(.condensed))
                         .foregroundStyle(.red)
                         .padding(.horizontal, 16)
                         .padding(.bottom, 8)

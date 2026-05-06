@@ -14,7 +14,7 @@ struct MessageBubble: View {
             VStack(alignment: isMe ? .trailing : .leading, spacing: 2) {
                 content
                 Text(timeString(message.createdAtDate))
-                    .font(.system(size: 10))
+                    .font(.system(size: 10).width(.condensed))
                     .foregroundStyle(.secondary)
             }
             if !isMe { Spacer(minLength: 40) }
@@ -41,7 +41,7 @@ struct MessageBubble: View {
 
     private var textBubble: some View {
         Text(message.body ?? "")
-            .font(.system(size: 15))
+            .font(.system(size: 15).width(.condensed))
             .foregroundStyle(isMe ? Color.white : .primary)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
@@ -76,7 +76,7 @@ struct MessageBubble: View {
             }
             if let body = message.body, !body.isEmpty {
                 Text(body)
-                    .font(.system(size: 14))
+                    .font(.system(size: 14).width(.condensed))
                     .padding(.top, 4)
             }
         }
@@ -141,7 +141,7 @@ private struct VoiceBubble: View {
                 }
             }
             Text(formatDuration())
-                .font(.system(size: 12).monospacedDigit())
+                .font(.system(size: 12).width(.condensed).monospacedDigit())
                 .foregroundStyle(isMe ? Color.white.opacity(0.8) : .secondary)
         }
         .padding(.horizontal, 10)

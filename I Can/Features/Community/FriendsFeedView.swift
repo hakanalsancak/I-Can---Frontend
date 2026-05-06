@@ -80,15 +80,15 @@ struct FriendsFeedView: View {
         VStack(spacing: 8) {
             Spacer()
             Text("No posts yet.")
-                .font(.system(size: 18, weight: .semibold))
+                .font(.system(size: 18, weight: .semibold).width(.condensed))
             Text("Add training partners to see their work.")
-                .font(.system(size: 14))
+                .font(.system(size: 14).width(.condensed))
                 .foregroundStyle(.secondary)
             Button {
                 showFriendsManager = true
             } label: {
                 Text("Find friends")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 14, weight: .semibold).width(.condensed))
                     .foregroundStyle(Color.white)
                     .padding(.horizontal, 18)
                     .padding(.vertical, 10)
@@ -105,9 +105,9 @@ struct FriendsFeedView: View {
         VStack(spacing: 12) {
             Spacer()
             Text("Couldn't load the feed.")
-                .font(.system(size: 16, weight: .semibold))
+                .font(.system(size: 16, weight: .semibold).width(.condensed))
             if let m = errorMessage {
-                Text(m).font(.system(size: 13)).foregroundStyle(.secondary)
+                Text(m).font(.system(size: 13).width(.condensed)).foregroundStyle(.secondary)
             }
             Button("Retry") { Task { await refresh() } }
                 .buttonStyle(.borderedProminent)

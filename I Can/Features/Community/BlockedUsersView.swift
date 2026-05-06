@@ -48,9 +48,9 @@ struct BlockedUsersView: View {
             VStack(spacing: 6) {
                 Spacer()
                 Text("No one blocked.")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.system(size: 16, weight: .semibold).width(.condensed))
                 Text("Blocked users won't see your profile or posts.")
-                    .font(.system(size: 13))
+                    .font(.system(size: 13).width(.condensed))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
@@ -65,10 +65,10 @@ struct BlockedUsersView: View {
                             .clipShape(Circle())
                         VStack(alignment: .leading, spacing: 2) {
                             Text(user.displayName)
-                                .font(.system(size: 15, weight: .semibold))
+                                .font(.system(size: 15, weight: .semibold).width(.condensed))
                             if let s = user.sport {
                                 Text(s.capitalized)
-                                    .font(.system(size: 12))
+                                    .font(.system(size: 12).width(.condensed))
                                     .foregroundStyle(.secondary)
                             }
                         }
@@ -76,7 +76,7 @@ struct BlockedUsersView: View {
                         Button("Unblock") {
                             Task { await unblock(user) }
                         }
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: 13, weight: .semibold).width(.condensed))
                         .foregroundStyle(ColorTheme.accent)
                     }
                     .listRowBackground(Color.clear)
@@ -98,7 +98,7 @@ struct BlockedUsersView: View {
             Circle().fill(ColorTheme.accent.opacity(0.18))
                 .overlay(
                     Text(initials(user.displayName))
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: 13, weight: .semibold).width(.condensed))
                         .foregroundStyle(ColorTheme.accent)
                 )
         }

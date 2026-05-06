@@ -44,7 +44,7 @@ struct CommunityProfileView: View {
                                 .foregroundStyle(.secondary)
                             if let err = loadError {
                                 Text(err)
-                                    .font(.system(size: 12))
+                                    .font(.system(size: 12).width(.condensed))
                                     .foregroundStyle(.secondary.opacity(0.8))
                                     .multilineTextAlignment(.center)
                                     .padding(.horizontal, 20)
@@ -73,7 +73,7 @@ struct CommunityProfileView: View {
             Task { await openMessage(with: p) }
         } label: {
             Text("Message")
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: 15, weight: .semibold).width(.condensed))
                 .foregroundStyle(.primary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
@@ -121,10 +121,10 @@ struct CommunityProfileView: View {
                 .frame(width: 80, height: 80)
                 .clipShape(Circle())
             Text(p.displayName)
-                .font(.system(size: 20, weight: .semibold))
+                .font(.system(size: 20, weight: .semibold).width(.condensed))
             if let handle = p.handle {
                 Text("@\(handle)")
-                    .font(.system(size: 13))
+                    .font(.system(size: 13).width(.condensed))
                     .foregroundStyle(.secondary)
             }
             HStack(spacing: 6) {
@@ -140,7 +140,7 @@ struct CommunityProfileView: View {
                     Text(c.uppercased())
                 }
             }
-            .font(.system(size: 13))
+            .font(.system(size: 13).width(.condensed))
             .foregroundStyle(.secondary)
 
             if let team = p.team, !team.isEmpty {
@@ -149,7 +149,7 @@ struct CommunityProfileView: View {
                         .font(.system(size: 11))
                         .foregroundStyle(ColorTheme.accent)
                     Text(team)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: 13, weight: .semibold).width(.condensed))
                         .foregroundStyle(.primary)
                 }
                 .padding(.horizontal, 10)
@@ -170,7 +170,7 @@ struct CommunityProfileView: View {
             HStack(spacing: 8) {
                 Image(systemName: "person.badge.minus")
                 Text("Remove friend")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 14, weight: .semibold).width(.condensed))
             }
             .foregroundStyle(.red)
             .frame(maxWidth: .infinity)
@@ -221,7 +221,7 @@ struct CommunityProfileView: View {
                 .fill(ColorTheme.accent.opacity(0.2))
                 .overlay(
                     Text(initials(for: p))
-                        .font(.system(size: 24, weight: .semibold))
+                        .font(.system(size: 24, weight: .semibold).width(.condensed))
                         .foregroundStyle(ColorTheme.accent)
                 )
         }
@@ -254,9 +254,9 @@ struct CommunityProfileView: View {
     private func statCell(value: Int, label: String) -> some View {
         VStack(spacing: 4) {
             Text("\(value)")
-                .font(.system(size: 18, weight: .semibold).monospacedDigit())
+                .font(.system(size: 18, weight: .semibold).width(.condensed).monospacedDigit())
             Text(label)
-                .font(.system(size: 11))
+                .font(.system(size: 11).width(.condensed))
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
@@ -273,7 +273,7 @@ struct CommunityProfileView: View {
             Task { await toggleFollow(p) }
         } label: {
             Text(p.relation.isFollowing ? "Following" : "Follow")
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: 15, weight: .semibold).width(.condensed))
                 .foregroundStyle(p.relation.isFollowing ? Color.primary : Color.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
@@ -290,7 +290,7 @@ struct CommunityProfileView: View {
 
     private func bioBlock(_ bio: String) -> some View {
         Text(bio)
-            .font(.system(size: 14))
+            .font(.system(size: 14).width(.condensed))
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(12)
             .background(

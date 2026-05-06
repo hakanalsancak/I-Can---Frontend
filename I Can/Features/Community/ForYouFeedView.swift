@@ -77,7 +77,7 @@ struct ForYouFeedView: View {
                 if visiblePosts.count < 6 && !sportFeed.articles.isEmpty {
                     HStack {
                         Text("FROM AROUND THE GAME")
-                            .font(.system(size: 11, weight: .bold))
+                            .font(.system(size: 11, weight: .bold).width(.condensed))
                             .tracking(0.6)
                             .foregroundStyle(.secondary)
                         Spacer()
@@ -126,9 +126,9 @@ struct ForYouFeedView: View {
 
                 VStack(spacing: 6) {
                     Text("Quiet morning.")
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.system(size: 18, weight: .semibold).width(.condensed))
                     Text("Log a session and it'll show up here.")
-                        .font(.system(size: 13))
+                        .font(.system(size: 13).width(.condensed))
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity)
@@ -137,7 +137,7 @@ struct ForYouFeedView: View {
                 if !sportFeed.articles.isEmpty {
                     HStack {
                         Text("FROM AROUND THE GAME")
-                            .font(.system(size: 11, weight: .bold))
+                            .font(.system(size: 11, weight: .bold).width(.condensed))
                             .tracking(0.6)
                             .foregroundStyle(.secondary)
                         Spacer()
@@ -166,10 +166,10 @@ struct ForYouFeedView: View {
         VStack(spacing: 12) {
             Spacer()
             Text("Couldn't load the feed.")
-                .font(.system(size: 16, weight: .semibold))
+                .font(.system(size: 16, weight: .semibold).width(.condensed))
             if let msg = errorMessage {
                 Text(msg)
-                    .font(.system(size: 13))
+                    .font(.system(size: 13).width(.condensed))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
@@ -228,7 +228,7 @@ struct ForYouFeedView: View {
     private var featuredRail: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("FEATURED")
-                .font(.system(size: 11, weight: .bold))
+                .font(.system(size: 11, weight: .bold).width(.condensed))
                 .tracking(0.6)
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 16)
@@ -262,16 +262,16 @@ private struct FeaturedCardView: View {
                         .frame(width: 28, height: 28)
                         .overlay(
                             Text(initials)
-                                .font(.system(size: 11, weight: .semibold))
+                                .font(.system(size: 11, weight: .semibold).width(.condensed))
                                 .foregroundStyle(ColorTheme.accent)
                         )
                     VStack(alignment: .leading, spacing: 1) {
                         Text(post.displayName)
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.system(size: 12, weight: .semibold).width(.condensed))
                             .lineLimit(1)
                         if let s = post.authorSport {
                             Text(s.capitalized)
-                                .font(.system(size: 10))
+                                .font(.system(size: 10).width(.condensed))
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -279,7 +279,7 @@ private struct FeaturedCardView: View {
                 }
                 if let body = post.body {
                     Text(body)
-                        .font(.system(size: 13))
+                        .font(.system(size: 13).width(.condensed))
                         .foregroundStyle(.primary)
                         .lineLimit(4)
                         .multilineTextAlignment(.leading)
@@ -289,7 +289,7 @@ private struct FeaturedCardView: View {
                     Label("\(post.commentCount)", systemImage: "bubble.left")
                     Spacer()
                 }
-                .font(.system(size: 11).monospacedDigit())
+                .font(.system(size: 11).width(.condensed).monospacedDigit())
                 .foregroundStyle(.secondary)
             }
             .padding(12)
@@ -357,16 +357,16 @@ private struct InlineArticleRow: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             VStack(alignment: .leading, spacing: 4) {
                 Text(article.categoryLabel)
-                    .font(.system(size: 9, weight: .bold))
+                    .font(.system(size: 9, weight: .bold).width(.condensed))
                     .tracking(0.5)
                     .foregroundStyle(ColorTheme.accent)
                 Text(article.title)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 14, weight: .semibold).width(.condensed))
                     .foregroundStyle(.primary)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
                 Text(article.sourceName)
-                    .font(.system(size: 11))
+                    .font(.system(size: 11).width(.condensed))
                     .foregroundStyle(.secondary)
             }
             Spacer()

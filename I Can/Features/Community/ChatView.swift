@@ -91,11 +91,11 @@ struct ChatView: View {
                         .clipShape(Circle())
                     VStack(alignment: .leading, spacing: 2) {
                         Text(conversation.displayName)
-                            .font(.system(size: 15, weight: .semibold))
+                            .font(.system(size: 15, weight: .semibold).width(.condensed))
                             .foregroundStyle(.primary)
                         if let sport = conversation.other?.sport {
                             Text(sport.capitalized)
-                                .font(.system(size: 11))
+                                .font(.system(size: 11).width(.condensed))
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -124,7 +124,7 @@ struct ChatView: View {
                 .fill(ColorTheme.accent.opacity(0.2))
                 .overlay(
                     Text(initials(conversation.displayName))
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: 13, weight: .semibold).width(.condensed))
                         .foregroundStyle(ColorTheme.accent)
                 )
         }
@@ -195,7 +195,7 @@ struct ChatView: View {
         VStack(spacing: 0) {
             if let m = errorMessage {
                 Text(m)
-                    .font(.system(size: 12))
+                    .font(.system(size: 12).width(.condensed))
                     .foregroundStyle(.red)
                     .padding(.horizontal, 16)
                     .padding(.bottom, 6)
@@ -221,7 +221,7 @@ struct ChatView: View {
             .buttonStyle(.plain)
 
             TextField("Message", text: $draft, axis: .vertical)
-                .font(.system(size: 15))
+                .font(.system(size: 15).width(.condensed))
                 .textFieldStyle(.plain)
                 .padding(10)
                 .background(
@@ -259,7 +259,7 @@ struct ChatView: View {
                 .frame(width: 10, height: 10)
                 .opacity(0.85)
             Text("Recording \(formatDuration(recordingElapsed))")
-                .font(.system(size: 14, weight: .semibold).monospacedDigit())
+                .font(.system(size: 14, weight: .semibold).width(.condensed).monospacedDigit())
             Spacer()
             Button {
                 stopRecording(submit: false)
@@ -288,7 +288,7 @@ struct ChatView: View {
                 .progressViewStyle(.linear)
                 .tint(ColorTheme.accent)
             Text("\(Int(uploadProgress * 100))%")
-                .font(.system(size: 11).monospacedDigit())
+                .font(.system(size: 11).width(.condensed).monospacedDigit())
                 .foregroundStyle(.secondary)
         }
         .padding(.horizontal, 16)

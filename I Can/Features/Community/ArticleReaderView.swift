@@ -32,22 +32,22 @@ struct ArticleReaderView: View {
 
                 VStack(alignment: .leading, spacing: 16) {
                     Text(article.categoryLabel)
-                        .font(.system(size: 11, weight: .bold))
+                        .font(.system(size: 11, weight: .bold).width(.condensed))
                         .tracking(0.5)
                         .foregroundStyle(ColorTheme.accent)
 
                     Text(article.title)
-                        .font(.system(size: 22, weight: .semibold))
+                        .font(.system(size: 22, weight: .semibold).width(.condensed))
                         .fixedSize(horizontal: false, vertical: true)
 
                     Text("\(article.sourceName) · \(relativeTime)")
-                        .font(.system(size: 12))
+                        .font(.system(size: 12).width(.condensed))
                         .foregroundStyle(.secondary)
 
                     if !article.bullets.isEmpty {
                         Divider().opacity(0.3)
                         Text("Key takeaways")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.system(size: 13, weight: .semibold).width(.condensed))
                             .foregroundStyle(.secondary)
                         VStack(alignment: .leading, spacing: 10) {
                             ForEach(article.bullets, id: \.self) { bullet in
@@ -57,7 +57,7 @@ struct ArticleReaderView: View {
                                         .foregroundStyle(ColorTheme.accent)
                                         .padding(.top, 4)
                                     Text(bullet)
-                                        .font(.system(size: 15))
+                                        .font(.system(size: 15).width(.condensed))
                                         .fixedSize(horizontal: false, vertical: true)
                                 }
                             }
@@ -72,7 +72,7 @@ struct ArticleReaderView: View {
                     } label: {
                         HStack {
                             Text("Read full article")
-                                .font(.system(size: 15, weight: .semibold))
+                                .font(.system(size: 15, weight: .semibold).width(.condensed))
                             Spacer()
                             Image(systemName: "arrow.up.right.square")
                         }

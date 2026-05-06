@@ -36,7 +36,7 @@ struct SportFeedView: View {
                         Task { await applyFilter(f.value) }
                     } label: {
                         Text(f.label)
-                            .font(.system(size: 13, weight: selectedFilter == f.id ? .semibold : .regular))
+                            .font(.system(size: 13, weight: selectedFilter == f.id ? .semibold : .regular).width(.condensed))
                             .foregroundStyle(selectedFilter == f.id ? Color.white : .primary)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 7)
@@ -94,9 +94,9 @@ struct SportFeedView: View {
         VStack(spacing: 6) {
             Spacer()
             Text("Pulling fresh content.")
-                .font(.system(size: 16, weight: .semibold))
+                .font(.system(size: 16, weight: .semibold).width(.condensed))
             Text("Check back in a minute.")
-                .font(.system(size: 13))
+                .font(.system(size: 13).width(.condensed))
                 .foregroundStyle(.secondary)
             Spacer()
         }
@@ -107,9 +107,9 @@ struct SportFeedView: View {
         VStack(spacing: 12) {
             Spacer()
             Text("Couldn't load articles.")
-                .font(.system(size: 16, weight: .semibold))
+                .font(.system(size: 16, weight: .semibold).width(.condensed))
             if let m = errorMessage {
-                Text(m).font(.system(size: 13)).foregroundStyle(.secondary)
+                Text(m).font(.system(size: 13).width(.condensed)).foregroundStyle(.secondary)
             }
             Button("Retry") { Task { await refresh() } }
                 .buttonStyle(.borderedProminent)
@@ -154,13 +154,13 @@ private struct ArticleCardView: View {
                 HStack(spacing: 8) {
                     categoryBadge
                     Text(relativeTime)
-                        .font(.system(size: 11))
+                        .font(.system(size: 11).width(.condensed))
                         .foregroundStyle(.secondary)
                     Spacer()
                 }
 
                 Text(article.title)
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.system(size: 17, weight: .semibold).width(.condensed))
                     .foregroundStyle(.primary)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
@@ -172,7 +172,7 @@ private struct ArticleCardView: View {
                                 Text("•")
                                     .foregroundStyle(.secondary)
                                 Text(bullet)
-                                    .font(.system(size: 13))
+                                    .font(.system(size: 13).width(.condensed))
                                     .foregroundStyle(.secondary)
                                     .multilineTextAlignment(.leading)
                                     .fixedSize(horizontal: false, vertical: true)
@@ -183,7 +183,7 @@ private struct ArticleCardView: View {
 
                 HStack(spacing: 8) {
                     Text(article.sourceName.uppercased())
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(.system(size: 10, weight: .semibold).width(.condensed))
                         .tracking(0.6)
                         .foregroundStyle(.secondary)
                     Spacer()
@@ -210,7 +210,7 @@ private struct ArticleCardView: View {
 
     private var categoryBadge: some View {
         Text(article.categoryLabel)
-            .font(.system(size: 10, weight: .bold))
+            .font(.system(size: 10, weight: .bold).width(.condensed))
             .tracking(0.6)
             .foregroundStyle(ColorTheme.accent)
             .padding(.horizontal, 8)

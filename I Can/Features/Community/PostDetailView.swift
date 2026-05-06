@@ -39,7 +39,7 @@ struct PostDetailView: View {
 
                     if !comments.isEmpty {
                         Text("Comments")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.system(size: 13, weight: .semibold).width(.condensed))
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 16)
                             .padding(.top, 8)
@@ -72,13 +72,13 @@ struct PostDetailView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(c.displayName)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: 13, weight: .semibold).width(.condensed))
                     Text(relative(c.createdAtDate))
-                        .font(.system(size: 11))
+                        .font(.system(size: 11).width(.condensed))
                         .foregroundStyle(.secondary)
                 }
                 Text(c.body)
-                    .font(.system(size: 14))
+                    .font(.system(size: 14).width(.condensed))
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer()
@@ -100,7 +100,7 @@ struct PostDetailView: View {
             Circle().fill(ColorTheme.accent.opacity(0.18))
                 .overlay(
                     Text(initials(c.displayName))
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.system(size: 11, weight: .semibold).width(.condensed))
                         .foregroundStyle(ColorTheme.accent)
                 )
         }
@@ -124,14 +124,14 @@ struct PostDetailView: View {
         VStack(spacing: 0) {
             if let error {
                 Text(error)
-                    .font(.system(size: 12))
+                    .font(.system(size: 12).width(.condensed))
                     .foregroundStyle(.red)
                     .padding(.horizontal, 16)
                     .padding(.bottom, 6)
             }
             HStack(spacing: 8) {
                 TextField("Add something useful…", text: $draft, axis: .vertical)
-                    .font(.system(size: 14))
+                    .font(.system(size: 14).width(.condensed))
                     .textFieldStyle(.plain)
                     .padding(10)
                     .background(

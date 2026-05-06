@@ -21,7 +21,7 @@ struct PostCardView: View {
             }
             if let body = post.body, !body.isEmpty {
                 Text(body)
-                    .font(.system(size: 15))
+                    .font(.system(size: 15).width(.condensed))
                     .foregroundStyle(.primary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -69,11 +69,11 @@ struct PostCardView: View {
                     avatar
                     VStack(alignment: .leading, spacing: 2) {
                         Text(post.displayName)
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.system(size: 14, weight: .semibold).width(.condensed))
                             .foregroundStyle(.primary)
                         if let sport = post.authorSport {
                             Text(sport.capitalized)
-                                .font(.system(size: 12))
+                                .font(.system(size: 12).width(.condensed))
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -82,7 +82,7 @@ struct PostCardView: View {
             .buttonStyle(.plain)
             Spacer()
             Text(relativeTime)
-                .font(.system(size: 12))
+                .font(.system(size: 12).width(.condensed))
                 .foregroundStyle(.secondary)
             menuButton
         }
@@ -151,7 +151,7 @@ struct PostCardView: View {
                 .frame(width: 36, height: 36)
                 .overlay(
                     Text(initials)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: 13, weight: .semibold).width(.condensed))
                         .foregroundStyle(ColorTheme.accent)
                 )
         }
@@ -179,7 +179,7 @@ struct PostCardView: View {
 
     private func badgeView(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 10, weight: .bold))
+            .font(.system(size: 10, weight: .bold).width(.condensed))
             .tracking(0.5)
             .foregroundStyle(ColorTheme.accent)
             .padding(.horizontal, 8)
@@ -200,7 +200,7 @@ struct PostCardView: View {
                         .animation(.spring(response: 0.25, dampingFraction: 0.6),
                                    value: post.likedByMe)
                     Text("\(post.likeCount)")
-                        .font(.system(size: 13).monospacedDigit())
+                        .font(.system(size: 13).width(.condensed).monospacedDigit())
                         .foregroundStyle(.secondary)
                 }
             }
@@ -214,7 +214,7 @@ struct PostCardView: View {
                     Image(systemName: "bubble.left")
                         .foregroundStyle(.secondary)
                     Text("\(post.commentCount)")
-                        .font(.system(size: 13).monospacedDigit())
+                        .font(.system(size: 13).width(.condensed).monospacedDigit())
                         .foregroundStyle(.secondary)
                 }
             }

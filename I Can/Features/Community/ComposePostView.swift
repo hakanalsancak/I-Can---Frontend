@@ -18,7 +18,7 @@ struct ComposePostView: View {
                 editor
                 if let msg = errorMessage {
                     Text(msg)
-                        .font(.system(size: 13))
+                        .font(.system(size: 13).width(.condensed))
                         .foregroundStyle(.red)
                         .padding(.horizontal, 16)
                         .padding(.bottom, 8)
@@ -45,7 +45,7 @@ struct ComposePostView: View {
     private var editor: some View {
         VStack(alignment: .leading, spacing: 8) {
             TextEditor(text: $draft)
-                .font(.system(size: 16))
+                .font(.system(size: 16).width(.condensed))
                 .frame(minHeight: 200)
                 .scrollContentBackground(.hidden)
                 .padding(.horizontal, 12)
@@ -53,7 +53,7 @@ struct ComposePostView: View {
                 .overlay(alignment: .topLeading) {
                     if draft.isEmpty {
                         Text("What's on your mind?")
-                            .font(.system(size: 16))
+                            .font(.system(size: 16).width(.condensed))
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 17)
                             .padding(.top, 16)
@@ -64,7 +64,7 @@ struct ComposePostView: View {
             HStack {
                 Spacer()
                 Text("\(draft.count)/\(maxChars)")
-                    .font(.system(size: 12).monospacedDigit())
+                    .font(.system(size: 12).width(.condensed).monospacedDigit())
                     .foregroundStyle(draft.count > maxChars ? .red : .secondary)
             }
             .padding(.horizontal, 16)

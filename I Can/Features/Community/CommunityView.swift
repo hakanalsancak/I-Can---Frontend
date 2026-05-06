@@ -36,11 +36,11 @@ struct CommunityView: View {
                     VStack(spacing: 6) {
                         HStack(spacing: 4) {
                             Text(tab.rawValue)
-                                .font(.system(size: 14, weight: selected == tab ? .semibold : .regular))
+                                .font(.system(size: 14, weight: selected == tab ? .semibold : .regular).width(.condensed))
                                 .foregroundStyle(selected == tab ? .primary : .secondary)
                             if tab == .inbox && dmService.totalUnread > 0 {
                                 Text("\(dmService.totalUnread)")
-                                    .font(.system(size: 10, weight: .bold).monospacedDigit())
+                                    .font(.system(size: 10, weight: .bold).width(.condensed).monospacedDigit())
                                     .foregroundStyle(Color.white)
                                     .padding(.horizontal, 5)
                                     .padding(.vertical, 1)
@@ -94,9 +94,9 @@ private struct CommunityComingSoonView: View {
         VStack(spacing: 12) {
             Spacer()
             Text(title)
-                .font(.system(size: 20, weight: .semibold))
+                .font(.system(size: 20, weight: .semibold).width(.condensed))
             Text(message)
-                .font(.system(size: 14))
+                .font(.system(size: 14).width(.condensed))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
