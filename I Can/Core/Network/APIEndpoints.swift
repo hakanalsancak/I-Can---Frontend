@@ -80,9 +80,6 @@ enum APIEndpoints {
     }
 
     enum Community {
-        static let forYou = "/api/community/feed/foryou"
-        static let friendsFeed = "/api/community/feed/friends"
-        static let featured = "/api/community/featured"
         static let sportFeed = "/api/community/sport-feed"
         static let trackArticle = "/api/community/sport-feed/track-interaction"
 
@@ -98,20 +95,6 @@ enum APIEndpoints {
         static let reports = "/api/community/reports"
         static func block(_ userId: String) -> String { "/api/community/blocks/\(userId)" }
         static let blocks = "/api/community/blocks"
-        static let posts = "/api/community/posts"
-        static func post(_ id: String) -> String { "/api/community/posts/\(id)" }
-
-        static let myProfile = "/api/community/users/me"
-        static let myHandle = "/api/community/users/me/handle"
-        static let myBio = "/api/community/users/me/bio"
-        static let myNotifications = "/api/community/users/me/notifications"
-        static func userProfile(_ id: String) -> String { "/api/community/users/\(id)" }
-        static func follow(_ id: String) -> String { "/api/community/users/\(id)/follow" }
-
-        static func like(_ postId: String) -> String { "/api/community/posts/\(postId)/like" }
-        static func save(_ postId: String) -> String { "/api/community/posts/\(postId)/save" }
-        static func comments(_ postId: String) -> String { "/api/community/posts/\(postId)/comments" }
-        static func deleteComment(_ id: String) -> String { "/api/community/comments/\(id)" }
     }
 
 }

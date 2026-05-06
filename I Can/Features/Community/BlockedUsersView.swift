@@ -49,7 +49,7 @@ struct BlockedUsersView: View {
                 Spacer()
                 Text("No one blocked.")
                     .font(.system(size: 16, weight: .semibold).width(.condensed))
-                Text("Blocked users won't see your profile or posts.")
+                Text("Blocked users won't see your profile or message you.")
                     .font(.system(size: 13).width(.condensed))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

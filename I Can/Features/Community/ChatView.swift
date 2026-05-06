@@ -70,9 +70,9 @@ struct ChatView: View {
             Button("Video") { pickerMode = .video; showPhotoPicker = true }
             Button("Cancel", role: .cancel) {}
         }
-        .navigationDestination(isPresented: $showProfile) {
+        .sheet(isPresented: $showProfile) {
             if let other = conversation.other {
-                CommunityProfileView(userId: other.id)
+                AthleteProfileSheet(athleteId: other.id)
             }
         }
     }

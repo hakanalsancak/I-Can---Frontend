@@ -1,7 +1,6 @@
 import SwiftUI
 
 enum CommunityTab: String, CaseIterable, Identifiable {
-    case forYou = "For You"
     case friends = "Friends"
     case sport = "Sport"
     case inbox = "Inbox"
@@ -10,7 +9,7 @@ enum CommunityTab: String, CaseIterable, Identifiable {
 }
 
 struct CommunityView: View {
-    @State private var selected: CommunityTab = .forYou
+    @State private var selected: CommunityTab = .friends
     @State private var dmService = DMService.shared
     @Environment(\.colorScheme) private var colorScheme
 
@@ -65,11 +64,6 @@ struct CommunityView: View {
     @ViewBuilder
     private var contentForTab: some View {
         switch selected {
-        case .forYou:
-            NavigationStack {
-                ForYouFeedView()
-                    .toolbar(.hidden, for: .navigationBar)
-            }
         case .friends:
             NavigationStack {
                 FriendsFeedView()
@@ -82,25 +76,6 @@ struct CommunityView: View {
             NavigationStack {
                 InboxView()
             }
-        }
-    }
-}
-
-private struct CommunityComingSoonView: View {
-    let title: String
-    let message: String
-
-    var body: some View {
-        VStack(spacing: 12) {
-            Spacer()
-            Text(title)
-                .font(.system(size: 20, weight: .semibold).width(.condensed))
-            Text(message)
-                .font(.system(size: 14).width(.condensed))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
-            Spacer()
         }
     }
 }

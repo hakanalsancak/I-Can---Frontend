@@ -23,23 +23,9 @@ enum ReportReason: String, CaseIterable, Identifiable {
 final class ModerationService {
     static let shared = ModerationService()
 
-    /// Local set of post / user ids the current user has chosen to hide. Posts hidden
-    /// here will be filtered out client-side until refresh. Persisted across launches.
-    private(set) var hiddenPostIds: Set<String> = []
     private(set) var blockedUserIds: Set<String> = []
 
-    private let hiddenPostsKey = "community.hiddenPosts"
-
-    private init() {
-        if let arr = UserDefaults.standard.stringArray(forKey: hiddenPostsKey) {
-            hiddenPostIds = Set(arr)
-        }
-    }
-
-    func hidePost(_ id: String) {
-        hiddenPostIds.insert(id)
-        UserDefaults.standard.set(Array(hiddenPostIds), forKey: hiddenPostsKey)
-    }
+    private init() {}
 
     func report(targetKind: String, targetId: String, reason: ReportReason, note: String? = nil) async throws {
         struct Body: Encodable {
