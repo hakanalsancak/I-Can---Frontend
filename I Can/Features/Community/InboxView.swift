@@ -165,23 +165,22 @@ struct InboxView: View {
                 } header: {
                     sectionHeader(title: "Pinned", icon: "pin.fill")
                 }
-            }
-            if !regular.isEmpty {
-                Section {
-                    ForEach(regular) { row($0) }
-                } header: {
-                    if !pinned.isEmpty {
+                if !regular.isEmpty {
+                    Section {
+                        ForEach(regular) { row($0) }
+                    } header: {
                         sectionHeader(title: "All Chats", icon: nil)
-                    } else {
-                        Color.clear.frame(height: 0)
                     }
                 }
+            } else {
+                ForEach(regular) { row($0) }
             }
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .background(ColorTheme.background(colorScheme))
         .environment(\.defaultMinListRowHeight, 0)
+        .contentMargins(.top, 0, for: .scrollContent)
     }
 
     private func sectionHeader(title: String, icon: String?) -> some View {
