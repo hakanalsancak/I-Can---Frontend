@@ -131,6 +131,14 @@ final class DMService {
         )
     }
 
+    func deleteMessage(conversationId: String, messageId: String) async throws {
+        struct Resp: Decodable { let ok: Bool }
+        let _: Resp = try await APIClient.shared.request(
+            APIEndpoints.Community.deleteMessage(conversationId, messageId),
+            method: "DELETE"
+        )
+    }
+
     func markRead(conversationId: String) async {
         struct Resp: Decodable { let lastReadAt: String? }
         do {

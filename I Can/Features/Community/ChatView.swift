@@ -158,13 +158,10 @@ struct ChatView: View {
             ScrollView {
                 LazyVStack(spacing: 8) {
                     ForEach(orderedMessages) { msg in
-                        MessageBubble(
-                            message: msg,
-                            isMe: msg.senderId == currentUserId
-                        )
-                        .id(msg.id)
-                        .padding(.horizontal, 12)
-                        .task { await loadMoreIfNeeded(currentItem: msg) }
+                        bubble(for: msg)
+                            .id(msg.id)
+                            .padding(.horizontal, 12)
+                            .task { await loadMoreIfNeeded(currentItem: msg) }
                     }
                     Color.clear.frame(height: 4).id("bottomAnchor")
                 }
@@ -187,6 +184,15 @@ struct ChatView: View {
 
     private var orderedMessages: [DMMessage] {
         messages.sorted { ($0.createdAtDate ?? .distantPast) < ($1.createdAtDate ?? .distantPast) }
+    }
+
+    @ViewBuilder
+    private func bubble(for msg: DMMessage) -> some View {
+        let mine = msg.senderId == currentUserId
+        let onDelete: (() -> Void)? = mine
+            ? { Task { await deleteMessage(msg) } }
+            : nil
+        MessageBubble(message: msg, isMe: mine, onDelete: onDelete)
     }
 
     // MARK: - Input bar
@@ -496,6 +502,22 @@ struct ChatView: View {
             try? await service.loadInbox()
         } catch {
             errorMessage = (error as? APIError)?.errorDescription ?? "Couldn't send."
+        }
+    }
+
+    private func deleteMessage(_ msg: DMMessage) async {
+        let snapshot = messages
+        messages.removeAll { $0.id == msg.id }
+        do {
+            try await service.deleteMessage(
+                conversationId: conversation.id,
+                messageId: msg.id
+            )
+            errorMessage = nil
+            try? await service.loadInbox()
+        } catch {
+            messages = snapshot
+            errorMessage = (error as? APIError)?.errorDescription ?? "Couldn't delete."
         }
     }
 

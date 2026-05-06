@@ -89,6 +89,9 @@ enum APIEndpoints {
         static let conversations = "/api/community/messages/conversations"
         static func conversation(_ id: String) -> String { "/api/community/messages/conversations/\(id)" }
         static func sendMessage(_ id: String) -> String { "/api/community/messages/conversations/\(id)/messages" }
+        static func deleteMessage(_ conversationId: String, _ messageId: String) -> String {
+            "/api/community/messages/conversations/\(conversationId)/messages/\(messageId)"
+        }
         static func markRead(_ id: String) -> String { "/api/community/messages/conversations/\(id)/read" }
         static let uploadMedia = "/api/community/messages/upload"
 

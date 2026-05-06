@@ -4,8 +4,10 @@ import AVKit
 struct MessageBubble: View {
     let message: DMMessage
     let isMe: Bool
+    var onDelete: (() -> Void)? = nil
     @State private var showVideo = false
     @State private var showImage = false
+    @State private var showDeleteConfirm = false
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -13,11 +15,28 @@ struct MessageBubble: View {
             if isMe { Spacer(minLength: 40) }
             VStack(alignment: isMe ? .trailing : .leading, spacing: 2) {
                 content
+                    .contextMenu {
+                        if isMe, onDelete != nil {
+                            Button(role: .destructive) {
+                                showDeleteConfirm = true
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                    }
                 Text(timeString(message.createdAtDate))
                     .font(.system(size: 10).width(.condensed))
                     .foregroundStyle(.secondary)
             }
             if !isMe { Spacer(minLength: 40) }
+        }
+        .confirmationDialog(
+            "Delete this message?",
+            isPresented: $showDeleteConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) { onDelete?() }
+            Button("Cancel", role: .cancel) {}
         }
     }
 
@@ -68,6 +87,8 @@ struct MessageBubble: View {
                     }
                 }
                 .frame(width: 220, height: 220)
+                .clipped()
+                .contentShape(RoundedRectangle(cornerRadius: 14))
                 .clipShape(RoundedRectangle(cornerRadius: 14))
             }
             .buttonStyle(.plain)
@@ -93,6 +114,8 @@ struct MessageBubble: View {
                         .foregroundStyle(.white)
                 }
                 .frame(width: 220, height: 220)
+                .clipped()
+                .contentShape(RoundedRectangle(cornerRadius: 14))
                 .clipShape(RoundedRectangle(cornerRadius: 14))
             }
             .buttonStyle(.plain)
@@ -117,13 +140,18 @@ private struct VoiceBubble: View {
     let isMe: Bool
     @State private var player: AVPlayer?
     @State private var isPlaying = false
+    @State private var progress: Double = 0
+    @State private var elapsed: TimeInterval = 0
+    @State private var timeObserverToken: Any?
     @Environment(\.colorScheme) private var colorScheme
 
+    private let barCount = 22
+
     var body: some View {
-        HStack(spacing: 10) {
-            Button {
-                togglePlay()
-            } label: {
+        Button {
+            togglePlay()
+        } label: {
+            HStack(spacing: 10) {
                 Image(systemName: isPlaying ? "pause.fill" : "play.fill")
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(isMe ? Color.white : ColorTheme.accent)
@@ -131,27 +159,45 @@ private struct VoiceBubble: View {
                     .background(
                         Circle().fill(isMe ? Color.white.opacity(0.2) : ColorTheme.accent.opacity(0.18))
                     )
+                waveform
+                Text(displayedTime())
+                    .font(.system(size: 12).width(.condensed).monospacedDigit())
+                    .foregroundStyle(isMe ? Color.white.opacity(0.8) : .secondary)
             }
-            .buttonStyle(.plain)
-            HStack(spacing: 2) {
-                ForEach(0..<14, id: \.self) { i in
-                    Capsule()
-                        .fill(isMe ? Color.white.opacity(0.6) : ColorTheme.accent.opacity(0.4))
-                        .frame(width: 2, height: CGFloat(6 + (i % 5) * 4))
-                }
-            }
-            Text(formatDuration())
-                .font(.system(size: 12).width(.condensed).monospacedDigit())
-                .foregroundStyle(isMe ? Color.white.opacity(0.8) : .secondary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .frame(minHeight: 44)
+            .contentShape(
+                RoundedRectangle(cornerRadius: 18)
+            )
+            .background(
+                RoundedRectangle(cornerRadius: 18)
+                    .fill(isMe
+                          ? AnyShapeStyle(ColorTheme.accent)
+                          : AnyShapeStyle(Color.secondary.opacity(0.12)))
+            )
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 18)
-                .fill(isMe
-                      ? AnyShapeStyle(ColorTheme.accent)
-                      : AnyShapeStyle(Color.secondary.opacity(0.12)))
-        )
+        .buttonStyle(.plain)
+    }
+
+    private var waveform: some View {
+        HStack(spacing: 2) {
+            ForEach(0..<barCount, id: \.self) { i in
+                let threshold = Double(i) / Double(barCount)
+                let active = progress > threshold
+                Capsule()
+                    .fill(barColor(active: active))
+                    .frame(width: 2, height: CGFloat(6 + (i % 5) * 4))
+            }
+        }
+    }
+
+    private func barColor(active: Bool) -> Color {
+        if isMe {
+            return active ? .white : Color.white.opacity(0.35)
+        } else {
+            return active ? ColorTheme.accent : ColorTheme.accent.opacity(0.3)
+        }
     }
 
     private func togglePlay() {
@@ -161,6 +207,18 @@ private struct VoiceBubble: View {
             return
         }
         guard let s = url, let url = URL(string: s) else { return }
+
+        // Route through the speaker and ignore the silent switch.
+        // Without this, default session routing may send audio to the
+        // receiver (earpiece) or be muted by silent mode entirely.
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, mode: .spokenAudio)
+            try session.setActive(true, options: [])
+        } catch {
+            // Best effort — continue and let AVPlayer try anyway.
+        }
+
         if player == nil {
             let p = AVPlayer(url: url)
             NotificationCenter.default.addObserver(
@@ -170,16 +228,44 @@ private struct VoiceBubble: View {
             ) { _ in
                 isPlaying = false
                 p.seek(to: .zero)
+                progress = 0
+                elapsed = 0
             }
+            // 30Hz updates keep the waveform highlight smooth.
+            let interval = CMTime(value: 1, timescale: 30)
+            let token = p.addPeriodicTimeObserver(forInterval: interval, queue: .main) { time in
+                let current = CMTimeGetSeconds(time)
+                guard current.isFinite else { return }
+                elapsed = current
+                let total = resolveDurationSeconds(p)
+                if total > 0 {
+                    progress = min(1, max(0, current / total))
+                }
+            }
+            timeObserverToken = token
             player = p
         }
         player?.play()
         isPlaying = true
     }
 
-    private func formatDuration() -> String {
-        let s = (durationMs ?? 0) / 1000
-        return String(format: "%d:%02d", s / 60, s % 60)
+    private func resolveDurationSeconds(_ p: AVPlayer) -> Double {
+        if let ms = durationMs, ms > 0 {
+            return Double(ms) / 1000.0
+        }
+        let d = p.currentItem?.duration ?? .zero
+        let s = CMTimeGetSeconds(d)
+        return s.isFinite && s > 0 ? s : 0
+    }
+
+    private func displayedTime() -> String {
+        let seconds: Int
+        if isPlaying || (elapsed > 0 && progress < 1) {
+            seconds = Int(elapsed)
+        } else {
+            seconds = (durationMs ?? 0) / 1000
+        }
+        return String(format: "%d:%02d", seconds / 60, seconds % 60)
     }
 }
 
