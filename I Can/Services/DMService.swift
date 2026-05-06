@@ -16,13 +16,34 @@ final class DMService {
     private(set) var conversations: [DMConversation] = []
     private(set) var isLoadingInbox = false
 
+    private(set) var pinnedIds: Set<String> = []
+    private(set) var mutedIds: Set<String> = []
+    private(set) var archivedIds: Set<String> = []
+    private(set) var hiddenIds: Set<String> = []
+    private(set) var manualUnreadIds: Set<String> = []
+
+    private var loadedLocalUserId: String?
+
     private init() {}
 
     var totalUnread: Int {
-        conversations.reduce(0) { $0 + $1.unreadCount }
+        var total = 0
+        for c in conversations {
+            if hiddenIds.contains(c.id) { continue }
+            if archivedIds.contains(c.id) { continue }
+            if mutedIds.contains(c.id) { continue }
+            let count = manualUnreadIds.contains(c.id) ? max(c.unreadCount, 1) : c.unreadCount
+            total += count
+        }
+        return total
+    }
+
+    var visibleConversations: [DMConversation] {
+        conversations.filter { !hiddenIds.contains($0.id) }
     }
 
     func loadInbox() async throws {
+        reloadLocalState()
         if isLoadingInbox { return }
         isLoadingInbox = true
         defer { isLoadingInbox = false }
@@ -30,6 +51,94 @@ final class DMService {
             APIEndpoints.Community.conversations
         )
         conversations = page.items
+        prunePersistedState()
+    }
+
+    // MARK: - Local conversation state (per-user)
+
+    func reloadLocalState() {
+        let uid = AuthService.shared.currentUser?.id ?? "anon"
+        if loadedLocalUserId == uid { return }
+        loadedLocalUserId = uid
+        let d = UserDefaults.standard
+        pinnedIds = readSet(d, name: "pinned")
+        mutedIds = readSet(d, name: "muted")
+        archivedIds = readSet(d, name: "archived")
+        hiddenIds = readSet(d, name: "hidden")
+        manualUnreadIds = readSet(d, name: "manualUnread")
+    }
+
+    func togglePin(_ id: String) {
+        if pinnedIds.contains(id) { pinnedIds.remove(id) } else { pinnedIds.insert(id) }
+        persist("pinned", pinnedIds)
+    }
+
+    func toggleMute(_ id: String) {
+        if mutedIds.contains(id) { mutedIds.remove(id) } else { mutedIds.insert(id) }
+        persist("muted", mutedIds)
+    }
+
+    func setArchived(_ id: String, _ archived: Bool) {
+        if archived {
+            archivedIds.insert(id)
+            pinnedIds.remove(id)
+            persist("pinned", pinnedIds)
+        } else {
+            archivedIds.remove(id)
+        }
+        persist("archived", archivedIds)
+    }
+
+    func setManualUnread(_ id: String, _ unread: Bool) {
+        if unread { manualUnreadIds.insert(id) } else { manualUnreadIds.remove(id) }
+        persist("manualUnread", manualUnreadIds)
+    }
+
+    /// Hides a conversation locally — equivalent to "Delete chat" in WhatsApp.
+    /// Backend keeps the thread; if a new message arrives, it'll resurface on next load.
+    func hideConversation(_ id: String) {
+        hiddenIds.insert(id)
+        pinnedIds.remove(id)
+        archivedIds.remove(id)
+        manualUnreadIds.remove(id)
+        persist("pinned", pinnedIds)
+        persist("archived", archivedIds)
+        persist("manualUnread", manualUnreadIds)
+        persist("hidden", hiddenIds)
+        conversations.removeAll { $0.id == id }
+    }
+
+    /// Drops persisted ids that no longer exist server-side, except `hidden`
+    /// which is intentionally sticky so a deleted chat stays gone unless a
+    /// new message brings it back (mirrors WhatsApp behavior).
+    private func prunePersistedState() {
+        let live = Set(conversations.map { $0.id })
+        prune(&pinnedIds, live: live, name: "pinned")
+        prune(&mutedIds, live: live, name: "muted")
+        prune(&archivedIds, live: live, name: "archived")
+        prune(&manualUnreadIds, live: live, name: "manualUnread")
+    }
+
+    private func prune(_ set: inout Set<String>, live: Set<String>, name: String) {
+        let filtered = set.intersection(live)
+        if filtered != set {
+            set = filtered
+            persist(name, set)
+        }
+    }
+
+    private func readSet(_ d: UserDefaults, name: String) -> Set<String> {
+        let key = storageKey(name)
+        return Set((d.array(forKey: key) as? [String]) ?? [])
+    }
+
+    private func persist(_ name: String, _ set: Set<String>) {
+        UserDefaults.standard.set(Array(set), forKey: storageKey(name))
+    }
+
+    private func storageKey(_ name: String) -> String {
+        let uid = loadedLocalUserId ?? AuthService.shared.currentUser?.id ?? "anon"
+        return "dm.local.\(uid).\(name)"
     }
 
     @discardableResult
@@ -146,6 +255,10 @@ final class DMService {
                 APIEndpoints.Community.markRead(conversationId),
                 method: "POST"
             )
+            if manualUnreadIds.contains(conversationId) {
+                manualUnreadIds.remove(conversationId)
+                persist("manualUnread", manualUnreadIds)
+            }
             if let i = conversations.firstIndex(where: { $0.id == conversationId }) {
                 let c = conversations[i]
                 conversations[i] = DMConversation(
