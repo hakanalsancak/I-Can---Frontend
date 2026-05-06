@@ -118,10 +118,13 @@ final class AuthService {
         }
     }
 
-    func updatePrivacy(hideHeightWeight: Bool) async throws {
-        struct PrivacyUpdate: Encodable { let hideHeightWeight: Bool }
+    func updatePrivacy(hideHeightWeight: Bool? = nil, hideLogs: Bool? = nil) async throws {
+        var body: [String: Bool] = [:]
+        if let hideHeightWeight { body["hideHeightWeight"] = hideHeightWeight }
+        if let hideLogs { body["hideLogs"] = hideLogs }
+        guard !body.isEmpty else { return }
         let user: User = try await APIClient.shared.request(
-            APIEndpoints.Auth.profile, method: "PUT", body: PrivacyUpdate(hideHeightWeight: hideHeightWeight)
+            APIEndpoints.Auth.profile, method: "PUT", body: body
         )
         currentUser = user
     }

@@ -34,6 +34,7 @@ enum APIEndpoints {
         static func respondRequest(_ id: String) -> String { "/api/friends/request/\(id)" }
         static func cancelRequest(_ id: String) -> String { "/api/friends/request/\(id)" }
         static func profile(_ id: String) -> String { "/api/friends/profile/\(id)" }
+        static func profileLogs(_ id: String) -> String { "/api/friends/profile/\(id)/logs" }
         static func remove(_ id: String) -> String { "/api/friends/\(id)" }
     }
 

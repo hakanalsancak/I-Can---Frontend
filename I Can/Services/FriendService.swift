@@ -93,4 +93,10 @@ final class FriendService {
     func getFriendProfile(id: String) async throws -> AthleteProfile {
         try await APIClient.shared.request(APIEndpoints.Friends.profile(id))
     }
+
+    func getFriendLogs(id: String, limit: Int = 14) async throws -> [FriendDailyLog] {
+        let endpoint = APIEndpoints.Friends.profileLogs(id) + "?limit=\(limit)"
+        let response: FriendDailyLogsResponse = try await APIClient.shared.request(endpoint)
+        return response.logs
+    }
 }

@@ -12,6 +12,9 @@ struct AthleteProfileSheet: View {
     @State private var showRemoveConfirmation = false
     @State private var presentedConversation: DMConversation?
     @State private var messageBusy = false
+    @State private var dailyLogs: [FriendDailyLog] = []
+    @State private var logsLoading = false
+    @State private var logsError: String?
 
     var body: some View {
         NavigationStack {
@@ -29,6 +32,7 @@ struct AthleteProfileSheet: View {
                             badgesRow(profile)
                             statsRow(profile)
                             detailsSection(profile)
+                            logsSection(profile)
 
                             messageButton
 
@@ -534,10 +538,223 @@ struct AthleteProfileSheet: View {
     private func loadProfile() async {
         isLoading = true
         do {
-            profile = try await FriendService.shared.getFriendProfile(id: athleteId)
+            let p = try await FriendService.shared.getFriendProfile(id: athleteId)
+            profile = p
+            isLoading = false
+            if p.logsHidden != true {
+                await loadLogs()
+            }
         } catch {
             errorMessage = error.localizedDescription
+            isLoading = false
         }
-        isLoading = false
+    }
+
+    private func loadLogs() async {
+        logsLoading = true
+        logsError = nil
+        do {
+            dailyLogs = try await FriendService.shared.getFriendLogs(id: athleteId)
+        } catch {
+            logsError = "Couldn't load logs"
+        }
+        logsLoading = false
+    }
+
+    // MARK: - Logs Section
+
+    @ViewBuilder
+    private func logsSection(_ p: AthleteProfile) -> some View {
+        if p.logsHidden == true {
+            hiddenLogsCard
+                .padding(.horizontal, 20)
+        } else {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(ColorTheme.accent)
+                    Text("RECENT LOGS")
+                        .font(.system(size: 11, weight: .heavy).width(.condensed))
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                        .tracking(1)
+                }
+
+                if logsLoading && dailyLogs.isEmpty {
+                    HStack {
+                        Spacer()
+                        ProgressView().tint(ColorTheme.accent)
+                        Spacer()
+                    }
+                    .padding(.vertical, 24)
+                } else if let error = logsError {
+                    Text(error)
+                        .font(.system(size: 13, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 24)
+                } else if dailyLogs.isEmpty {
+                    emptyLogsCard
+                } else {
+                    VStack(spacing: 10) {
+                        ForEach(dailyLogs) { log in
+                            friendLogCard(log)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+        }
+    }
+
+    private var hiddenLogsCard: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "lock.fill")
+                .font(.system(size: 22, weight: .medium))
+                .foregroundColor(ColorTheme.secondaryText(colorScheme).opacity(0.6))
+            Text("Logs are private")
+                .font(.system(size: 14, weight: .bold).width(.condensed))
+                .foregroundColor(ColorTheme.primaryText(colorScheme))
+            Text("This athlete has hidden their daily logs.")
+                .font(.system(size: 12, weight: .medium).width(.condensed))
+                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                .multilineTextAlignment(.center)
+        }
+        .padding(.vertical, 20)
+        .frame(maxWidth: .infinity)
+        .background(ColorTheme.cardBackground(colorScheme))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(ColorTheme.separator(colorScheme).opacity(0.5), lineWidth: 1)
+        )
+    }
+
+    private var emptyLogsCard: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "tray")
+                .font(.system(size: 22, weight: .medium))
+                .foregroundColor(ColorTheme.secondaryText(colorScheme).opacity(0.5))
+            Text("No logs yet")
+                .font(.system(size: 13, weight: .semibold).width(.condensed))
+                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+        }
+        .padding(.vertical, 24)
+        .frame(maxWidth: .infinity)
+        .background(ColorTheme.cardBackground(colorScheme))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private func friendLogCard(_ log: FriendDailyLog) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text(formatLogDate(log))
+                    .font(.system(size: 14, weight: .bold).width(.condensed))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+                Spacer()
+                Text("\(log.completedSections.count)/3")
+                    .font(.system(size: 12, weight: .heavy, design: .rounded))
+                    .foregroundColor(log.completedSections.count == 3 ? Color(hex: "22C55E") : ColorTheme.accent)
+            }
+
+            HStack(spacing: 8) {
+                logPill(icon: "figure.run", label: "Training", color: ColorTheme.training, done: log.hasTraining)
+                logPill(icon: "leaf.fill", label: "Nutrition", color: ColorTheme.nutrition, done: log.hasNutrition)
+                logPill(icon: "moon.fill", label: "Sleep", color: ColorTheme.sleep, done: log.hasSleep)
+            }
+
+            if let training = log.training, !training.sessions.isEmpty {
+                logRow(icon: "figure.run", color: ColorTheme.training, text: trainingSummary(training))
+            }
+            if let nutrition = log.nutrition, let summary = nutritionSummary(nutrition) {
+                logRow(icon: "leaf.fill", color: ColorTheme.nutrition, text: summary)
+            }
+            if let sleep = log.sleep, let hours = sleep.durationHours, hours > 0 {
+                logRow(
+                    icon: "moon.fill", color: ColorTheme.sleep,
+                    text: formatSleepDuration(hours) + " · " + (sleep.sleepTime ?? "--") + " → " + (sleep.wakeTime ?? "--")
+                )
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(ColorTheme.cardBackground(colorScheme))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
+    }
+
+    private func logPill(icon: String, label: String, color: Color, done: Bool) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: icon)
+                .font(.system(size: 10, weight: .bold))
+            Text(label)
+                .font(.system(size: 11, weight: .bold).width(.condensed))
+        }
+        .foregroundColor(done ? color : ColorTheme.tertiaryText(colorScheme))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background((done ? color : ColorTheme.tertiaryText(colorScheme)).opacity(done ? 0.12 : 0.06))
+        .clipShape(Capsule())
+    }
+
+    private func logRow(icon: String, color: Color, text: String) -> some View {
+        HStack(alignment: .top, spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(color)
+                .padding(.top, 2)
+            Text(text)
+                .font(.system(size: 12, weight: .medium).width(.condensed))
+                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                .lineLimit(2)
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func formatLogDate(_ log: FriendDailyLog) -> String {
+        guard let date = log.date else { return log.entryDate }
+        let cal = Calendar.current
+        if cal.isDateInToday(date) { return "Today" }
+        if cal.isDateInYesterday(date) { return "Yesterday" }
+        let f = DateFormatter()
+        f.dateFormat = "EEE, MMM d"
+        return f.string(from: date)
+    }
+
+    private func trainingSummary(_ t: FriendTrainingData) -> String {
+        let count = t.sessions.count
+        let total = t.totalDuration
+        if count == 1, let s = t.sessions.first {
+            let type = s.trainingTypeDisplay
+            if total > 0 { return "\(type) · \(total) min" }
+            return type
+        }
+        let types = Array(Set(t.sessions.map { $0.trainingTypeDisplay })).sorted()
+        let typeStr = types.isEmpty ? "Training" : types.joined(separator: " + ")
+        if total > 0 { return "\(typeStr) · \(total) min" }
+        return typeStr
+    }
+
+    private func nutritionSummary(_ n: FriendNutrition) -> String? {
+        var meals: [String] = []
+        if let v = n.breakfast, !v.isEmpty { meals.append("Breakfast") }
+        if let v = n.lunch, !v.isEmpty { meals.append("Lunch") }
+        if let v = n.dinner, !v.isEmpty { meals.append("Dinner") }
+        if meals.isEmpty {
+            if let s = n.healthScore, s > 0 { return "Health score \(s)/100" }
+            return nil
+        }
+        let base = meals.joined(separator: ", ")
+        if let s = n.healthScore, s > 0 {
+            return "\(base) · \(s)/100"
+        }
+        return base
+    }
+
+    private func formatSleepDuration(_ hours: Double) -> String {
+        let h = Int(hours)
+        let m = Int((hours - Double(h)) * 60.0 + 0.5)
+        if m == 0 { return "\(h)h" }
+        return "\(h)h \(m)m"
     }
 }

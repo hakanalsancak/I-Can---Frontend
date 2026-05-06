@@ -15,6 +15,7 @@ struct SettingsView: View {
     @State private var showMailComposer = false
     @State private var saveError: String?
     @State private var hideHeightWeight: Bool
+    @State private var hideLogs: Bool
 
     private var currentUsername: String {
         AuthService.shared.currentUser?.username ?? ""
@@ -28,6 +29,7 @@ struct SettingsView: View {
         let user = AuthService.shared.currentUser
         _notificationFrequency = State(initialValue: Double(user?.notificationFrequency ?? 1))
         _hideHeightWeight = State(initialValue: user?.hideHeightWeight ?? false)
+        _hideLogs = State(initialValue: user?.hideLogs ?? false)
     }
 
     var body: some View {
@@ -186,6 +188,33 @@ struct SettingsView: View {
                                 .font(.system(size: 15, weight: .semibold).width(.condensed))
                                 .foregroundColor(ColorTheme.primaryText(colorScheme))
                             Text("Friends won't see your height and weight")
+                                .font(.system(size: 11, weight: .medium).width(.condensed))
+                                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                        }
+                    }
+                }
+                .tint(ColorTheme.accent)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+
+                Divider().padding(.leading, 64).opacity(0.4)
+
+                Toggle(isOn: $hideLogs) {
+                    HStack(spacing: 12) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(Color(hex: "F59E0B").opacity(0.12))
+                                .frame(width: 36, height: 36)
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(Color(hex: "F59E0B"))
+                        }
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Hide Daily Logs")
+                                .font(.system(size: 15, weight: .semibold).width(.condensed))
+                                .foregroundColor(ColorTheme.primaryText(colorScheme))
+                            Text("Friends won't see your training, nutrition or sleep")
                                 .font(.system(size: 11, weight: .medium).width(.condensed))
                                 .foregroundColor(ColorTheme.secondaryText(colorScheme))
                         }
@@ -559,10 +588,16 @@ struct SettingsView: View {
                 fullName: nil,
                 age: nil
             )
-            // Save privacy preference
+            // Save privacy preferences (only the fields that changed)
             let currentHide = AuthService.shared.currentUser?.hideHeightWeight ?? false
-            if hideHeightWeight != currentHide {
-                try await AuthService.shared.updatePrivacy(hideHeightWeight: hideHeightWeight)
+            let currentHideLogs = AuthService.shared.currentUser?.hideLogs ?? false
+            let hideHeightWeightChanged = hideHeightWeight != currentHide
+            let hideLogsChanged = hideLogs != currentHideLogs
+            if hideHeightWeightChanged || hideLogsChanged {
+                try await AuthService.shared.updatePrivacy(
+                    hideHeightWeight: hideHeightWeightChanged ? hideHeightWeight : nil,
+                    hideLogs: hideLogsChanged ? hideLogs : nil
+                )
             }
             try await NotificationService.shared.updatePreferences(
                 frequency: Int(notificationFrequency)
