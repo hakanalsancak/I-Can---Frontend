@@ -550,9 +550,20 @@ private final class VoiceRecorder {
     private var recorder: AVAudioRecorder?
     private var fileURL: URL?
 
+    @available(iOS, deprecated: 18.0)
+    private static func legacyBluetoothOption() -> AVAudioSession.CategoryOptions {
+        .allowBluetooth
+    }
+
     func start() throws {
         let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetooth])
+        let bluetoothOption: AVAudioSession.CategoryOptions
+        if #available(iOS 18.0, *) {
+            bluetoothOption = .allowBluetoothHFP
+        } else {
+            bluetoothOption = Self.legacyBluetoothOption()
+        }
+        try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, bluetoothOption])
         try session.setActive(true)
 
         let url = FileManager.default.temporaryDirectory

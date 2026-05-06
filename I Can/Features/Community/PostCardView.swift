@@ -237,14 +237,14 @@ struct PostCardView: View {
         #if canImport(UIKit)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         #endif
-        try? await service.toggleLike(postId: post.id)
+        _ = try? await service.toggleLike(postId: post.id)
     }
 
     private func tapSave() async {
         guard !saveBusy else { return }
         saveBusy = true
         defer { saveBusy = false }
-        try? await service.toggleSave(postId: post.id)
+        _ = try? await service.toggleSave(postId: post.id)
     }
 
     private var relativeTime: String {
