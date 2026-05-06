@@ -50,15 +50,29 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
         let payload = response.notification.request.content.userInfo
-        if let type = payload["type"] as? String, type == "report_ready" {
-            var info: [String: Any] = [:]
-            if let id = payload["reportId"] as? String { info["reportId"] = id }
-            if let rt = payload["reportType"] as? String { info["reportType"] = rt }
-            DispatchQueue.main.async {
-                NotificationCenter.default.post(name: .switchToReportsTab, object: nil)
-                if !info.isEmpty {
-                    NotificationCenter.default.post(name: .openReport, object: nil, userInfo: info)
+        if let type = payload["type"] as? String {
+            switch type {
+            case "report_ready":
+                var info: [String: Any] = [:]
+                if let id = payload["reportId"] as? String { info["reportId"] = id }
+                if let rt = payload["reportType"] as? String { info["reportType"] = rt }
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: .switchToReportsTab, object: nil)
+                    if !info.isEmpty {
+                        NotificationCenter.default.post(name: .openReport, object: nil, userInfo: info)
+                    }
                 }
+            case "community.dm":
+                var info: [String: Any] = [:]
+                if let cid = payload["conversationId"] as? String { info["conversationId"] = cid }
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: .switchToCommunityTab, object: nil)
+                    if !info.isEmpty {
+                        NotificationCenter.default.post(name: .openConversation, object: nil, userInfo: info)
+                    }
+                }
+            default:
+                break
             }
         }
         completionHandler()

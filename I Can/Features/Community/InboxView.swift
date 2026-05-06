@@ -8,6 +8,7 @@ struct InboxView: View {
     @State private var query: String = ""
     @State private var filter: InboxFilter = .all
     @State private var pendingDeleteId: String?
+    @State private var deepLinkConversation: DMConversation?
     @FocusState private var searchFieldFocused: Bool
 
     @Environment(\.colorScheme) private var colorScheme
@@ -28,6 +29,25 @@ struct InboxView: View {
             }
         } message: { _ in
             Text("Messages will be removed from this device. New messages will bring the chat back.")
+        }
+        .navigationDestination(item: $deepLinkConversation) { c in
+            ChatView(conversation: c)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openConversation)) { note in
+            guard let id = note.userInfo?["conversationId"] as? String else { return }
+            Task { await openDeepLink(conversationId: id) }
+        }
+    }
+
+    private func openDeepLink(conversationId id: String) async {
+        if let existing = service.conversations.first(where: { $0.id == id }) {
+            deepLinkConversation = existing
+            return
+        }
+        // Conversation not yet cached — refresh inbox, then try again.
+        try? await service.loadInbox()
+        if let found = service.conversations.first(where: { $0.id == id }) {
+            deepLinkConversation = found
         }
     }
 

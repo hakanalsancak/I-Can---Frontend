@@ -24,6 +24,9 @@ struct CommunityView: View {
         .task {
             try? await dmService.loadInbox()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .openConversation)) { _ in
+            withAnimation(.easeInOut(duration: 0.2)) { selected = .inbox }
+        }
     }
 
     private var segmentedControl: some View {

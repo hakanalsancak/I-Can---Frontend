@@ -22,6 +22,7 @@ struct User: Codable, Identifiable {
     var weight: Double?
     var hideHeightWeight: Bool?
     var hideLogs: Bool?
+    var communityNotificationsEnabled: Bool?
 
     var isGuest: Bool {
         guard let email = email else { return true }

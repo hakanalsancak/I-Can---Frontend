@@ -98,12 +98,18 @@ final class NotificationService {
         )
     }
 
-    func updatePreferences(frequency: Int) async throws {
-        struct PrefRequest: Encodable { let notificationFrequency: Int }
+    func updatePreferences(frequency: Int? = nil, communityNotificationsEnabled: Bool? = nil) async throws {
+        struct PrefRequest: Encodable {
+            let notificationFrequency: Int?
+            let communityNotificationsEnabled: Bool?
+        }
         let _: NotificationPrefResponse = try await APIClient.shared.request(
             APIEndpoints.Notifications.preferences,
             method: "PUT",
-            body: PrefRequest(notificationFrequency: frequency)
+            body: PrefRequest(
+                notificationFrequency: frequency,
+                communityNotificationsEnabled: communityNotificationsEnabled
+            )
         )
     }
 
@@ -237,5 +243,6 @@ final class NotificationService {
 }
 
 struct NotificationPrefResponse: Codable {
-    let notificationFrequency: Int
+    let notificationFrequency: Int?
+    let communityNotificationsEnabled: Bool?
 }

@@ -57,17 +57,23 @@ final class HomeViewModel {
 
     func loadData() async {
         isLoading = true
-        async let streakTask: () = loadStreak()
-        async let entryTask: () = loadTodayEntry()
-        _ = await (streakTask, entryTask)
+        async let streakTask: Bool = loadStreak()
+        async let entryTask: Bool = loadTodayEntry()
+        let (_, entryLoaded) = await (streakTask, entryTask)
         isLoading = false
         hasLoadedInitially = true
 
-        let frequency = AuthService.shared.currentUser?.notificationFrequency ?? 1
-        NotificationService.shared.scheduleAllNotifications(
-            frequency: frequency,
-            hasLoggedToday: hasLoggedToday
-        )
+        // Only (re)schedule the streak reminder when we have authoritative
+        // data on whether the user logged today. A transient API failure
+        // leaves todayEntry == nil — scheduling on that would fire a false
+        // "you haven't logged" reminder for users who already did.
+        if entryLoaded {
+            let frequency = AuthService.shared.currentUser?.notificationFrequency ?? 1
+            NotificationService.shared.scheduleAllNotifications(
+                frequency: frequency,
+                hasLoggedToday: hasLoggedToday
+            )
+        }
 
         // Load analytics in background
         await loadAnalytics()
@@ -81,30 +87,41 @@ final class HomeViewModel {
         await loadTodayEntry()
     }
 
-    private func loadStreak() async {
+    @discardableResult
+    private func loadStreak() async -> Bool {
         do {
             streak = try await StreakService.shared.getStreak()
+            return true
         } catch {
             // Streak will show 0
+            return false
         }
     }
 
-    private func loadTodayEntry() async {
+    /// Returns true when the API call resolved authoritatively (either an
+    /// entry was found or the server confirmed there is none for today).
+    /// Returns false on transient failures so callers can avoid acting on
+    /// stale state.
+    @discardableResult
+    private func loadTodayEntry() async -> Bool {
         do {
             let today = Date().apiDateString
             let entry = try await EntryService.shared.getEntry(date: today)
             todayEntry = entry
             parseDailyLogData(from: entry)
+            return true
         } catch let error as APIError {
             switch error {
             case .serverError(let msg) where msg.lowercased().contains("no entry") || msg.contains("404"):
                 todayEntry = nil
                 resetSections()
+                return true
             default:
-                break
+                return false
             }
         } catch {
             // Keep existing entry on transient failures
+            return false
         }
     }
 

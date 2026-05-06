@@ -16,6 +16,7 @@ struct SettingsView: View {
     @State private var saveError: String?
     @State private var hideHeightWeight: Bool
     @State private var hideLogs: Bool
+    @State private var communityNotificationsEnabled: Bool
 
     private var currentUsername: String {
         AuthService.shared.currentUser?.username ?? ""
@@ -30,6 +31,7 @@ struct SettingsView: View {
         _notificationFrequency = State(initialValue: Double(user?.notificationFrequency ?? 1))
         _hideHeightWeight = State(initialValue: user?.hideHeightWeight ?? false)
         _hideLogs = State(initialValue: user?.hideLogs ?? false)
+        _communityNotificationsEnabled = State(initialValue: user?.communityNotificationsEnabled ?? true)
     }
 
     var body: some View {
@@ -157,6 +159,20 @@ struct SettingsView: View {
                 }
                 Slider(value: $notificationFrequency, in: 0...3, step: 1)
                     .tint(ColorTheme.accent)
+
+                Divider().opacity(0.4)
+
+                Toggle(isOn: $communityNotificationsEnabled) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Community messages")
+                            .font(.system(size: 15, weight: .medium).width(.condensed))
+                            .foregroundColor(ColorTheme.primaryText(colorScheme))
+                        Text("Push notifications for direct messages")
+                            .font(.system(size: 11, weight: .medium).width(.condensed))
+                            .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                    }
+                }
+                .tint(ColorTheme.accent)
             }
             .padding(16)
             .background(ColorTheme.cardBackground(colorScheme))
@@ -599,9 +615,15 @@ struct SettingsView: View {
                     hideLogs: hideLogsChanged ? hideLogs : nil
                 )
             }
+            let currentCommunity = AuthService.shared.currentUser?.communityNotificationsEnabled ?? true
+            let communityChanged = communityNotificationsEnabled != currentCommunity
             try await NotificationService.shared.updatePreferences(
-                frequency: Int(notificationFrequency)
+                frequency: Int(notificationFrequency),
+                communityNotificationsEnabled: communityChanged ? communityNotificationsEnabled : nil
             )
+            if communityChanged {
+                AuthService.shared.currentUser?.communityNotificationsEnabled = communityNotificationsEnabled
+            }
             let hasLogged = HomeViewModel.shared.hasLoggedToday
             NotificationService.shared.scheduleAllNotifications(
                 frequency: Int(notificationFrequency),

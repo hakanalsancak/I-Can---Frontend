@@ -66,10 +66,13 @@ struct MainTabView: View {
             UITabBar.appearance().scrollEdgeAppearance = appearance
         }
         .onReceive(NotificationCenter.default.publisher(for: .switchToAICoachTab)) { _ in
-            withAnimation { selectedTab = 2 }
+            withAnimation { selectedTab = 3 }
         }
         .onReceive(NotificationCenter.default.publisher(for: .switchToReportsTab)) { _ in
             withAnimation { selectedTab = 2 }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .switchToCommunityTab)) { _ in
+            withAnimation { selectedTab = 4 }
         }
     }
 

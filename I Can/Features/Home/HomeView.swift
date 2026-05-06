@@ -789,4 +789,6 @@ struct LogCardButtonStyle: ButtonStyle {
 extension Notification.Name {
     static let switchToAICoachTab = Notification.Name("switchToAICoachTab")
     static let switchToReportsTab = Notification.Name("switchToReportsTab")
+    static let switchToCommunityTab = Notification.Name("switchToCommunityTab")
+    static let openConversation = Notification.Name("openConversation")
 }
