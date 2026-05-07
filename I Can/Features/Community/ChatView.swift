@@ -8,12 +8,22 @@ struct ChatView: View {
     let conversation: DMConversation
 
     @State private var service = DMService.shared
+    /// Always kept in chronological (ascending) order. Mutate only via the
+    /// helpers below (`appendOutgoing`, `mergeIncoming`, `replacePending`,
+    /// `setInitial`, `mergeOlder`) so the invariant + `messagesVersion` are
+    /// kept in sync.
     @State private var messages: [DMMessage] = []
+    /// Bumped on every mutation. Used by `ChatMessagesView` so its Equatable
+    /// short-circuits when nothing changed (e.g. on every keystroke).
+    @State private var messagesVersion: UInt64 = 0
+    /// Bumped only when we want the list to scroll to the latest message
+    /// (new outgoing message, new incoming poll batch, keyboard focus). Pure
+    /// pagination must NOT bump this.
+    @State private var scrollToBottomToken: UInt64 = 0
     @State private var draft: String = ""
     @State private var nextCursor: String?
     @State private var hasReachedEnd = false
     @State private var isLoading = false
-    @State private var isSending = false
     @State private var errorMessage: String?
     @State private var pollTask: Task<Void, Never>?
 
@@ -56,6 +66,9 @@ struct ChatView: View {
             chatHeader
         }
         .task { await initialLoad() }
+        .onChange(of: inputFocused) { _, focused in
+            if focused { scrollToBottomToken &+= 1 }
+        }
         .onDisappear {
             pollTask?.cancel()
             stopRecording(submit: false)
@@ -214,185 +227,19 @@ struct ChatView: View {
         return (f + s).uppercased()
     }
 
-    // MARK: - Chat items (dates + grouped messages)
-
-    private enum ChatItem: Identifiable {
-        case dateHeader(Date, id: String)
-        case message(DMMessage, isFirstInGroup: Bool, isLastInGroup: Bool)
-
-        var id: String {
-            switch self {
-            case .dateHeader(_, let id): return "date-\(id)"
-            case .message(let m, _, _): return "msg-\(m.id)"
-            }
-        }
-    }
-
-    private var orderedMessages: [DMMessage] {
-        messages.sorted { ($0.createdAtDate ?? .distantPast) < ($1.createdAtDate ?? .distantPast) }
-    }
-
-    private var chatItems: [ChatItem] {
-        let ordered = orderedMessages
-        var items: [ChatItem] = []
-        let cal = Calendar.current
-        let groupWindow: TimeInterval = 180  // 3 minutes
-
-        for (index, msg) in ordered.enumerated() {
-            let prev = index > 0 ? ordered[index - 1] : nil
-            let next = index + 1 < ordered.count ? ordered[index + 1] : nil
-
-            // Day separator when day changes (or first message)
-            let msgDay = msg.createdAtDate ?? Date()
-            if let prev = prev,
-               let prevDate = prev.createdAtDate,
-               cal.isDate(prevDate, inSameDayAs: msgDay) {
-                // same day, no header
-            } else {
-                let id = String(Int(cal.startOfDay(for: msgDay).timeIntervalSince1970))
-                items.append(.dateHeader(msgDay, id: id))
-            }
-
-            // Grouping: same sender + within 3 min of neighbor
-            let isFirst: Bool = {
-                guard let prev = prev,
-                      prev.senderId == msg.senderId,
-                      let pd = prev.createdAtDate,
-                      let md = msg.createdAtDate,
-                      cal.isDate(pd, inSameDayAs: md),
-                      md.timeIntervalSince(pd) < groupWindow
-                else { return true }
-                return false
-            }()
-            let isLast: Bool = {
-                guard let next = next,
-                      next.senderId == msg.senderId,
-                      let nd = next.createdAtDate,
-                      let md = msg.createdAtDate,
-                      cal.isDate(nd, inSameDayAs: md),
-                      nd.timeIntervalSince(md) < groupWindow
-                else { return true }
-                return false
-            }()
-            items.append(.message(msg, isFirstInGroup: isFirst, isLastInGroup: isLast))
-        }
-        return items
-    }
-
-    // MARK: - Messages list
-
     private var messagesList: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(Array(chatItems.enumerated()), id: \.element.id) { idx, item in
-                        chatItemRow(item, prev: idx > 0 ? chatItems[idx - 1] : nil)
-                            .id(item.id)
-                    }
-                    Color.clear.frame(height: 6).id("bottomAnchor")
-                }
-                .padding(.vertical, 8)
-            }
-            .scrollDismissesKeyboard(.interactively)
-            .onChange(of: orderedMessages.count) { _, _ in
-                if let last = orderedMessages.last?.id {
-                    withAnimation(.easeOut(duration: 0.22)) {
-                        proxy.scrollTo("msg-\(last)", anchor: .bottom)
-                    }
-                }
-            }
-            .onChange(of: inputFocused) { _, focused in
-                if focused, let last = orderedMessages.last?.id {
-                    withAnimation(.easeOut(duration: 0.18)) {
-                        proxy.scrollTo("msg-\(last)", anchor: .bottom)
-                    }
-                }
-            }
-            .onAppear {
-                if let last = orderedMessages.last?.id {
-                    proxy.scrollTo("msg-\(last)", anchor: .bottom)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func chatItemRow(_ item: ChatItem, prev: ChatItem?) -> some View {
-        switch item {
-        case .dateHeader(let date, _):
-            dateSeparator(date)
-                .padding(.top, prev == nil ? 4 : 14)
-                .padding(.bottom, 8)
-        case .message(let msg, let isFirst, let isLast):
-            let topPadding: CGFloat = {
-                guard let prev else { return 4 }
-                if case .dateHeader = prev { return 0 }
-                return isFirst ? 8 : 2
-            }()
-            let bottomPadding: CGFloat = isLast ? 2 : 0
-            bubble(for: msg, isFirstInGroup: isFirst, isLastInGroup: isLast)
-                .padding(.horizontal, 10)
-                .padding(.top, topPadding)
-                .padding(.bottom, bottomPadding)
-                .task { await loadMoreIfNeeded(currentItem: msg) }
-        }
-    }
-
-    private func dateSeparator(_ date: Date) -> some View {
-        HStack {
-            Spacer()
-            Text(formatDateSeparator(date))
-                .font(.system(size: 11, weight: .semibold).width(.condensed))
-                .tracking(0.4)
-                .foregroundStyle(ColorTheme.secondaryText(colorScheme))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 5)
-                .background(
-                    Capsule()
-                        .fill(ColorTheme.cardBackground(colorScheme).opacity(0.85))
-                )
-                .overlay(
-                    Capsule()
-                        .stroke(ColorTheme.separator(colorScheme), lineWidth: 0.5)
-                )
-            Spacer()
-        }
-    }
-
-    private func formatDateSeparator(_ date: Date) -> String {
-        let cal = Calendar.current
-        if cal.isDateInToday(date) { return "Today" }
-        if cal.isDateInYesterday(date) { return "Yesterday" }
-        if let days = cal.dateComponents([.day], from: date, to: Date()).day, days < 7 {
-            let f = DateFormatter()
-            f.dateFormat = "EEEE"
-            return f.string(from: date)
-        }
-        let f = DateFormatter()
-        f.locale = .current
-        f.dateFormat = DateFormatter.dateFormat(fromTemplate: "MMM d, yyyy", options: 0, locale: .current) ?? "MMM d, yyyy"
-        return f.string(from: date)
-    }
-
-    @ViewBuilder
-    private func bubble(for msg: DMMessage, isFirstInGroup: Bool, isLastInGroup: Bool) -> some View {
-        let mine = msg.senderId == currentUserId
-        let onDelete: (() -> Void)? = mine
-            ? { Task { await deleteMessage(msg) } }
-            : nil
-        MessageBubble(
-            message: msg,
-            isMe: mine,
-            isFirstInGroup: isFirstInGroup,
-            isLastInGroup: isLastInGroup,
-            onDelete: onDelete,
+        ChatMessagesView(
+            messages: messages,
+            messagesVersion: messagesVersion,
+            scrollToken: scrollToBottomToken,
+            currentUserId: currentUserId,
+            colorScheme: colorScheme,
+            onDelete: { msg in Task { await deleteMessage(msg) } },
             onOpenImage: { url in openImageURL = IdentifiableURL(url: url) },
-            onOpenVideo: { url in openVideoURL = IdentifiableURL(url: url) }
+            onOpenVideo: { url in openVideoURL = IdentifiableURL(url: url) },
+            onLoadMore: { msg in Task { await loadMoreIfNeeded(currentItem: msg) } }
         )
-        .transition(.asymmetric(
-            insertion: .scale(scale: 0.9).combined(with: .opacity),
-            removal: .opacity
-        ))
+        .equatable()
     }
 
     // MARK: - Input bar
@@ -469,7 +316,7 @@ struct ChatView: View {
     @ViewBuilder
     private var sendOrMicButton: some View {
         if canSendText {
-            Button { Task { await sendText() } } label: {
+            Button { sendText() } label: {
                 ZStack {
                     Circle().fill(ColorTheme.accentGradient)
                     Image(systemName: "arrow.up")
@@ -558,7 +405,7 @@ struct ChatView: View {
 
     private var canSendText: Bool {
         let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        return !trimmed.isEmpty && trimmed.count <= 2000 && !isSending
+        return !trimmed.isEmpty && trimmed.count <= 2000
     }
 
     // MARK: - PhotosPicker plumbing
@@ -605,9 +452,7 @@ struct ChatView: View {
                 kind: kind,
                 attachment: attachment
             )
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                messages.append(m)
-            }
+            appendOutgoing(m)
             errorMessage = nil
         } catch {
             errorMessage = (error as? APIError)?.errorDescription ?? "Upload failed."
@@ -725,10 +570,9 @@ struct ChatView: View {
                 cursor: cursor
             )
             if refresh {
-                messages = page.items
+                setInitial(page.items)
             } else {
-                let existing = Set(messages.map(\.id))
-                messages.append(contentsOf: page.items.filter { !existing.contains($0.id) })
+                mergeOlder(page.items)
             }
             nextCursor = page.nextCursor
             hasReachedEnd = page.nextCursor == nil
@@ -739,33 +583,50 @@ struct ChatView: View {
 
     private func loadMoreIfNeeded(currentItem: DMMessage) async {
         guard !hasReachedEnd, !isLoading else { return }
-        let ordered = orderedMessages
-        guard let idx = ordered.firstIndex(of: currentItem) else { return }
+        guard let idx = messages.firstIndex(where: { $0.id == currentItem.id }) else { return }
         if idx <= 5 { await loadOlder(refresh: false) }
     }
 
-    private func sendText() async {
+    /// Optimistic send — clears the draft and renders a placeholder bubble
+    /// immediately so the input feels responsive. The placeholder is replaced
+    /// with the server message on success, or removed and the draft restored
+    /// on failure.
+    private func sendText() {
         let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        isSending = true
-        defer { isSending = false }
-        do {
-            let m = try await service.send(conversationId: conversation.id, body: trimmed)
-            withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
-                messages.append(m)
+
+        let pendingId = "pending-\(UUID().uuidString)"
+        let placeholder = DMMessage(
+            id: pendingId,
+            conversationId: conversation.id,
+            senderId: currentUserId ?? "",
+            body: trimmed,
+            attachmentType: nil,
+            attachmentRef: nil,
+            createdAt: DMDate.now()
+        )
+
+        draft = ""
+        errorMessage = nil
+        appendOutgoing(placeholder)
+
+        Task {
+            do {
+                let m = try await service.send(conversationId: conversation.id, body: trimmed)
+                replaceMessage(id: pendingId, with: m)
+            } catch {
+                removeMessage(id: pendingId)
+                errorMessage = (error as? APIError)?.errorDescription ?? "Couldn't send."
+                if draft.isEmpty { draft = trimmed }
             }
-            draft = ""
-            errorMessage = nil
-            try? await service.loadInbox()
-        } catch {
-            errorMessage = (error as? APIError)?.errorDescription ?? "Couldn't send."
         }
     }
 
     private func deleteMessage(_ msg: DMMessage) async {
         let snapshot = messages
+        let snapshotVersion = messagesVersion
         withAnimation(.easeInOut(duration: 0.2)) {
-            messages.removeAll { $0.id == msg.id }
+            removeMessage(id: msg.id)
         }
         do {
             try await service.deleteMessage(
@@ -773,9 +634,9 @@ struct ChatView: View {
                 messageId: msg.id
             )
             errorMessage = nil
-            try? await service.loadInbox()
         } catch {
             messages = snapshot
+            messagesVersion = snapshotVersion &+ 1
             errorMessage = (error as? APIError)?.errorDescription ?? "Couldn't delete."
         }
     }
@@ -797,17 +658,276 @@ struct ChatView: View {
                 conversationId: conversation.id,
                 limit: 20
             )
-            let existing = Set(messages.map(\.id))
-            let newOnes = page.items.filter { !existing.contains($0.id) }
-            if !newOnes.isEmpty {
-                withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
-                    messages.append(contentsOf: newOnes)
-                }
+            let added = mergeIncoming(page.items)
+            if added > 0 {
                 await service.markRead(conversationId: conversation.id)
             }
         } catch {
             // silent
         }
+    }
+
+    // MARK: - Sorted-message mutation helpers
+
+    /// Replaces all messages with the given collection (sorted ascending).
+    private func setInitial(_ items: [DMMessage]) {
+        messages = items.sorted(by: Self.ascending)
+        messagesVersion &+= 1
+        scrollToBottomToken &+= 1
+    }
+
+    /// Appends a message that is known to be the newest (just sent locally).
+    /// O(1) — preserves the sorted invariant since it goes at the end.
+    private func appendOutgoing(_ m: DMMessage) {
+        messages.append(m)
+        messagesVersion &+= 1
+        scrollToBottomToken &+= 1
+    }
+
+    /// Replaces the pending placeholder with the real server message in place.
+    /// Avoids a re-sort and avoids triggering scroll-to-bottom (the bubble is
+    /// already in view).
+    private func replaceMessage(id: String, with m: DMMessage) {
+        guard let idx = messages.firstIndex(where: { $0.id == id }) else { return }
+        messages[idx] = m
+        messagesVersion &+= 1
+    }
+
+    private func removeMessage(id: String) {
+        let before = messages.count
+        messages.removeAll { $0.id == id }
+        if messages.count != before { messagesVersion &+= 1 }
+    }
+
+    /// Merges newer messages received from polling. Returns the number of
+    /// messages actually added.
+    @discardableResult
+    private func mergeIncoming(_ incoming: [DMMessage]) -> Int {
+        if incoming.isEmpty { return 0 }
+        let existing = Set(messages.map(\.id))
+        let newOnes = incoming.filter { !existing.contains($0.id) }
+        if newOnes.isEmpty { return 0 }
+        // Polling returns newer messages — they go at the end. Sort the tail
+        // we just added to be safe (small, cheap).
+        messages.append(contentsOf: newOnes)
+        messages.sort(by: Self.ascending)
+        messagesVersion &+= 1
+        scrollToBottomToken &+= 1
+        return newOnes.count
+    }
+
+    /// Merges older messages from a pagination fetch. Does NOT scroll to
+    /// bottom — the user is reading older history.
+    private func mergeOlder(_ older: [DMMessage]) {
+        if older.isEmpty { return }
+        let existing = Set(messages.map(\.id))
+        let toAdd = older.filter { !existing.contains($0.id) }
+        if toAdd.isEmpty { return }
+        messages.append(contentsOf: toAdd)
+        messages.sort(by: Self.ascending)
+        messagesVersion &+= 1
+    }
+
+    private static func ascending(_ a: DMMessage, _ b: DMMessage) -> Bool {
+        (a.createdAtDate ?? .distantPast) < (b.createdAtDate ?? .distantPast)
+    }
+}
+
+// MARK: - Messages list (Equatable subview)
+
+/// Dedicated subview for the message list. The Equatable conformance lets
+/// SwiftUI skip re-rendering the entire transcript while the user is typing
+/// in the input field — `messagesVersion` only changes on real mutations,
+/// so keystrokes that update the parent `draft` no longer thrash the list.
+private struct ChatMessagesView: View, Equatable {
+    let messages: [DMMessage]
+    let messagesVersion: UInt64
+    let scrollToken: UInt64
+    let currentUserId: String?
+    let colorScheme: ColorScheme
+    let onDelete: (DMMessage) -> Void
+    let onOpenImage: (URL) -> Void
+    let onOpenVideo: (URL) -> Void
+    let onLoadMore: (DMMessage) -> Void
+
+    static func == (lhs: ChatMessagesView, rhs: ChatMessagesView) -> Bool {
+        lhs.messagesVersion == rhs.messagesVersion
+            && lhs.scrollToken == rhs.scrollToken
+            && lhs.currentUserId == rhs.currentUserId
+            && lhs.colorScheme == rhs.colorScheme
+    }
+
+    private enum ChatItem: Identifiable {
+        case dateHeader(Date, id: String)
+        case message(DMMessage, isFirstInGroup: Bool, isLastInGroup: Bool)
+
+        var id: String {
+            switch self {
+            case .dateHeader(_, let id): return "date-\(id)"
+            case .message(let m, _, _): return "msg-\(m.id)"
+            }
+        }
+    }
+
+    var body: some View {
+        let items = buildItems()
+        let lastMessageId = messages.last?.id
+
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(Array(items.enumerated()), id: \.element.id) { idx, item in
+                        row(item, prev: idx > 0 ? items[idx - 1] : nil)
+                            .id(item.id)
+                    }
+                    Color.clear.frame(height: 6).id("bottomAnchor")
+                }
+                .padding(.vertical, 8)
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .onAppear {
+                if let last = lastMessageId {
+                    proxy.scrollTo("msg-\(last)", anchor: .bottom)
+                }
+            }
+            .onChange(of: scrollToken) { _, _ in
+                guard let last = lastMessageId else { return }
+                withAnimation(.easeOut(duration: 0.22)) {
+                    proxy.scrollTo("msg-\(last)", anchor: .bottom)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func row(_ item: ChatItem, prev: ChatItem?) -> some View {
+        switch item {
+        case .dateHeader(let date, _):
+            dateSeparator(date)
+                .padding(.top, prev == nil ? 4 : 14)
+                .padding(.bottom, 8)
+        case .message(let msg, let isFirst, let isLast):
+            let topPadding: CGFloat = {
+                guard let prev else { return 4 }
+                if case .dateHeader = prev { return 0 }
+                return isFirst ? 8 : 2
+            }()
+            bubble(for: msg, isFirstInGroup: isFirst, isLastInGroup: isLast)
+                .padding(.horizontal, 10)
+                .padding(.top, topPadding)
+                .padding(.bottom, isLast ? 2 : 0)
+                .task { onLoadMore(msg) }
+        }
+    }
+
+    @ViewBuilder
+    private func bubble(for msg: DMMessage, isFirstInGroup: Bool, isLastInGroup: Bool) -> some View {
+        let mine = msg.senderId == currentUserId
+        MessageBubble(
+            message: msg,
+            isMe: mine,
+            isFirstInGroup: isFirstInGroup,
+            isLastInGroup: isLastInGroup,
+            onDelete: mine ? { onDelete(msg) } : nil,
+            onOpenImage: { url in onOpenImage(url) },
+            onOpenVideo: { url in onOpenVideo(url) }
+        )
+        .opacity(msg.id.hasPrefix("pending-") ? 0.7 : 1.0)
+        .transition(.asymmetric(
+            insertion: .scale(scale: 0.9).combined(with: .opacity),
+            removal: .opacity
+        ))
+    }
+
+    private func dateSeparator(_ date: Date) -> some View {
+        HStack {
+            Spacer()
+            Text(Self.formatDateSeparator(date))
+                .font(.system(size: 11, weight: .semibold).width(.condensed))
+                .tracking(0.4)
+                .foregroundStyle(ColorTheme.secondaryText(colorScheme))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 5)
+                .background(
+                    Capsule()
+                        .fill(ColorTheme.cardBackground(colorScheme).opacity(0.85))
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(ColorTheme.separator(colorScheme), lineWidth: 0.5)
+                )
+            Spacer()
+        }
+    }
+
+    /// Build the [ChatItem] list (date headers + grouped messages) once per
+    /// real mutation. `messages` is already in ascending order.
+    private func buildItems() -> [ChatItem] {
+        var items: [ChatItem] = []
+        items.reserveCapacity(messages.count + 4)
+        let cal = Calendar.current
+        let groupWindow: TimeInterval = 180
+        var prevDate: Date?
+
+        for index in 0..<messages.count {
+            let msg = messages[index]
+            let msgDate = msg.createdAtDate ?? Date()
+
+            if let prev = prevDate, cal.isDate(prev, inSameDayAs: msgDate) {
+                // same day, no header
+            } else {
+                let dayId = String(Int(cal.startOfDay(for: msgDate).timeIntervalSince1970))
+                items.append(.dateHeader(msgDate, id: dayId))
+            }
+
+            let prevMsg = index > 0 ? messages[index - 1] : nil
+            let nextMsg = index + 1 < messages.count ? messages[index + 1] : nil
+
+            let isFirst: Bool = {
+                guard let p = prevMsg,
+                      p.senderId == msg.senderId,
+                      let pd = p.createdAtDate,
+                      cal.isDate(pd, inSameDayAs: msgDate),
+                      msgDate.timeIntervalSince(pd) < groupWindow
+                else { return true }
+                return false
+            }()
+            let isLast: Bool = {
+                guard let n = nextMsg,
+                      n.senderId == msg.senderId,
+                      let nd = n.createdAtDate,
+                      cal.isDate(nd, inSameDayAs: msgDate),
+                      nd.timeIntervalSince(msgDate) < groupWindow
+                else { return true }
+                return false
+            }()
+            items.append(.message(msg, isFirstInGroup: isFirst, isLastInGroup: isLast))
+            prevDate = msgDate
+        }
+        return items
+    }
+
+    private static let weekdayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEEE"
+        return f
+    }()
+
+    private static let longDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = .current
+        f.dateFormat = DateFormatter.dateFormat(fromTemplate: "MMM d, yyyy", options: 0, locale: .current) ?? "MMM d, yyyy"
+        return f
+    }()
+
+    private static func formatDateSeparator(_ date: Date) -> String {
+        let cal = Calendar.current
+        if cal.isDateInToday(date) { return "Today" }
+        if cal.isDateInYesterday(date) { return "Yesterday" }
+        if let days = cal.dateComponents([.day], from: date, to: Date()).day, days < 7 {
+            return weekdayFormatter.string(from: date)
+        }
+        return longDateFormatter.string(from: date)
     }
 }
 

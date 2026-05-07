@@ -168,6 +168,7 @@ final class DMService {
             method: "POST",
             body: Body(body: body)
         )
+        locallyApplyOutgoing(message: m, conversationId: conversationId)
         return m
     }
 
@@ -187,7 +188,32 @@ final class DMService {
             method: "POST",
             body: Body(body: body, attachmentType: kind, attachmentRef: attachment)
         )
+        locallyApplyOutgoing(message: m, conversationId: conversationId)
         return m
+    }
+
+    /// Updates the matching conversation in-memory to reflect a just-sent
+    /// message, so the inbox preview stays current without a full network
+    /// refetch. Pinned/archived/etc. flags are preserved.
+    private func locallyApplyOutgoing(message: DMMessage, conversationId: String) {
+        guard let i = conversations.firstIndex(where: { $0.id == conversationId }) else { return }
+        let c = conversations[i]
+        let preview = DMConversationLastMessage(
+            senderId: message.senderId,
+            body: message.body ?? "",
+            createdAt: message.createdAt
+        )
+        conversations[i] = DMConversation(
+            id: c.id,
+            isGroup: c.isGroup,
+            title: c.title,
+            isRequest: false,
+            lastMessageAt: message.createdAt,
+            lastReadAt: message.createdAt,
+            unreadCount: 0,
+            other: c.other,
+            lastMessage: preview
+        )
     }
 
     /// Uploads bytes to /messages/upload via multipart and returns the Cloudinary URL + metadata.

@@ -1,5 +1,48 @@
 import Foundation
 
+/// Shared ISO8601 parsing with memoization. Naive `ISO8601DateFormatter()`
+/// allocations in property getters were the single largest source of chat-typing
+/// lag — a 100-message conversation would allocate 100s of formatters per
+/// keystroke during render-time sorts.
+enum DMDate {
+    private static let withFractional: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+    private static let plain: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime]
+        return f
+    }()
+    private static let cacheLock = NSLock()
+    private static var cache: [String: Date] = [:]
+    private static let cacheLimit = 4096
+
+    static func parse(_ string: String) -> Date? {
+        cacheLock.lock()
+        if let hit = cache[string] {
+            cacheLock.unlock()
+            return hit
+        }
+        cacheLock.unlock()
+
+        let parsed = withFractional.date(from: string) ?? plain.date(from: string)
+
+        if let parsed {
+            cacheLock.lock()
+            if cache.count >= cacheLimit { cache.removeAll(keepingCapacity: true) }
+            cache[string] = parsed
+            cacheLock.unlock()
+        }
+        return parsed
+    }
+
+    static func now() -> String {
+        withFractional.string(from: Date())
+    }
+}
+
 struct DMConversationOther: Codable, Hashable {
     let id: String
     let fullName: String?
@@ -38,12 +81,7 @@ struct DMConversation: Identifiable, Codable, Hashable {
 
     var lastMessageDate: Date? {
         guard let s = lastMessageAt else { return nil }
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let d = f.date(from: s) { return d }
-        let p = ISO8601DateFormatter()
-        p.formatOptions = [.withInternetDateTime]
-        return p.date(from: s)
+        return DMDate.parse(s)
     }
 }
 
@@ -68,12 +106,7 @@ struct DMMessage: Identifiable, Codable, Hashable {
     let createdAt: String
 
     var createdAtDate: Date? {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let d = f.date(from: createdAt) { return d }
-        let p = ISO8601DateFormatter()
-        p.formatOptions = [.withInternetDateTime]
-        return p.date(from: createdAt)
+        DMDate.parse(createdAt)
     }
 }
 
