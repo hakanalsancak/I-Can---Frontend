@@ -14,7 +14,7 @@ struct FriendsListContent: View {
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 24) {
+            LazyVStack(spacing: 24) {
                 searchBar
                     .padding(.horizontal, 20)
 

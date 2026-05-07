@@ -357,6 +357,7 @@ struct InboxView: View {
         }
     }
 
+    @ViewBuilder
     private func previewText(for c: DMConversation, isUnread: Bool) -> some View {
         let primary: Color = isUnread
             ? ColorTheme.primaryText(colorScheme)
@@ -365,22 +366,18 @@ struct InboxView: View {
         if let lm = c.lastMessage {
             let mine = lm.senderId == AuthService.shared.currentUser?.id
             let preview = previewBody(lm.body)
-            return AnyView(
-                (
-                    Text(mine ? "You: " : "")
-                        .foregroundStyle(ColorTheme.tertiaryText(colorScheme))
-                    + Text(preview)
-                        .foregroundStyle(primary)
-                )
-                .font(.system(size: 14, weight: isUnread ? .medium : .regular).width(.condensed))
-            )
-        } else {
-            return AnyView(
-                Text("Tap to start the conversation")
-                    .font(.system(size: 14).width(.condensed))
-                    .italic()
+            (
+                Text(mine ? "You: " : "")
                     .foregroundStyle(ColorTheme.tertiaryText(colorScheme))
+                + Text(preview)
+                    .foregroundStyle(primary)
             )
+            .font(.system(size: 14, weight: isUnread ? .medium : .regular).width(.condensed))
+        } else {
+            Text("Tap to start the conversation")
+                .font(.system(size: 14).width(.condensed))
+                .italic()
+                .foregroundStyle(ColorTheme.tertiaryText(colorScheme))
         }
     }
 
@@ -608,24 +605,36 @@ struct InboxView: View {
 
     // MARK: - Time formatting
 
+    private static let timeOfDayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = .current
+        f.dateFormat = DateFormatter.dateFormat(fromTemplate: "j:mm", options: 0, locale: .current) ?? "HH:mm"
+        return f
+    }()
+
+    private static let weekdayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEE"
+        return f
+    }()
+
+    private static let shortDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = DateFormatter.dateFormat(fromTemplate: "M/d/yy", options: 0, locale: .current) ?? "M/d/yy"
+        return f
+    }()
+
     private func formatTime(_ date: Date?) -> String {
         guard let date else { return "" }
         let cal = Calendar.current
         if cal.isDateInToday(date) {
-            let f = DateFormatter()
-            f.locale = .current
-            f.dateFormat = DateFormatter.dateFormat(fromTemplate: "j:mm", options: 0, locale: .current) ?? "HH:mm"
-            return f.string(from: date)
+            return Self.timeOfDayFormatter.string(from: date)
         }
         if cal.isDateInYesterday(date) { return "Yesterday" }
         if let days = cal.dateComponents([.day], from: date, to: Date()).day, days < 7 {
-            let f = DateFormatter()
-            f.dateFormat = "EEE"
-            return f.string(from: date)
+            return Self.weekdayFormatter.string(from: date)
         }
-        let f = DateFormatter()
-        f.dateFormat = DateFormatter.dateFormat(fromTemplate: "M/d/yy", options: 0, locale: .current) ?? "M/d/yy"
-        return f.string(from: date)
+        return Self.shortDateFormatter.string(from: date)
     }
 
     // MARK: - Loading

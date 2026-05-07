@@ -248,12 +248,16 @@ struct MessageBubble: View {
         return ColorTheme.tertiaryText(colorScheme)
     }
 
-    private func timeString(_ date: Date?) -> String {
-        guard let d = date else { return "" }
+    private static let timeFormatter: DateFormatter = {
         let f = DateFormatter()
         f.locale = .current
         f.dateFormat = DateFormatter.dateFormat(fromTemplate: "j:mm", options: 0, locale: .current) ?? "HH:mm"
-        return f.string(from: d)
+        return f
+    }()
+
+    private func timeString(_ date: Date?) -> String {
+        guard let d = date else { return "" }
+        return Self.timeFormatter.string(from: d)
     }
 
     private func copyToPasteboard(_ string: String) {
