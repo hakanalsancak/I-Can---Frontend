@@ -65,6 +65,16 @@ struct ChatView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             chatHeader
         }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 20, coordinateSpace: .local)
+                .onEnded { value in
+                    if value.translation.width > 80
+                        && abs(value.translation.height) < 60
+                        && value.predictedEndTranslation.width > value.translation.width {
+                        dismiss()
+                    }
+                }
+        )
         .task { await initialLoad() }
         .onChange(of: inputFocused) { _, focused in
             if focused { scrollToBottomToken &+= 1 }
@@ -240,6 +250,11 @@ struct ChatView: View {
             onLoadMore: { msg in Task { await loadMoreIfNeeded(currentItem: msg) } }
         )
         .equatable()
+        .simultaneousGesture(
+            TapGesture().onEnded {
+                if inputFocused { inputFocused = false }
+            }
+        )
     }
 
     // MARK: - Input bar
