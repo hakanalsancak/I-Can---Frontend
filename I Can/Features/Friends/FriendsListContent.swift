@@ -30,9 +30,7 @@ struct FriendsListContent: View {
             .padding(.top, 16)
             .padding(.bottom, 100)
         }
-        .onTapGesture {
-            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-        }
+        .scrollDismissesKeyboard(.immediately)
         .refreshable { await viewModel.loadAll() }
     }
 
@@ -368,30 +366,36 @@ fileprivate struct SearchResultCard: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            RingAvatar(name: user.fullName, photoUrl: user.profilePhotoUrl, size: 48, colorScheme: colorScheme)
-                .onTapGesture { onTap() }
+            Button {
+                HapticManager.impact(.light)
+                onTap()
+            } label: {
+                HStack(spacing: 14) {
+                    RingAvatar(name: user.fullName, photoUrl: user.profilePhotoUrl, size: 48, colorScheme: colorScheme)
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text(user.fullName ?? "Athlete")
-                    .font(.system(size: 16, weight: .bold).width(.condensed))
-                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(user.fullName ?? "Athlete")
+                            .font(.system(size: 16, weight: .bold).width(.condensed))
+                            .foregroundColor(ColorTheme.primaryText(colorScheme))
 
-                if let username = user.username {
-                    Text("@\(username)")
-                        .font(.system(size: 13, weight: .medium).width(.condensed))
-                        .foregroundColor(ColorTheme.accent.opacity(0.8))
+                        if let username = user.username {
+                            Text("@\(username)")
+                                .font(.system(size: 13, weight: .medium).width(.condensed))
+                                .foregroundColor(ColorTheme.accent.opacity(0.8))
+                        }
+
+                        if let team = user.team, !team.isEmpty {
+                            Text(team)
+                                .font(.system(size: 12, weight: .medium).width(.condensed))
+                                .foregroundColor(ColorTheme.secondaryText(colorScheme).opacity(0.7))
+                        }
+                    }
+
+                    Spacer(minLength: 0)
                 }
-
-                if let team = user.team, !team.isEmpty {
-                    Text(team)
-                        .font(.system(size: 12, weight: .medium).width(.condensed))
-                        .foregroundColor(ColorTheme.secondaryText(colorScheme).opacity(0.7))
-                }
+                .contentShape(Rectangle())
             }
-            .onTapGesture { onTap() }
-
-            Spacer()
-                .onTapGesture { onTap() }
+            .buttonStyle(.plain)
 
             friendStatusButton
         }
