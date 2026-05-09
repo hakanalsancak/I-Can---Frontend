@@ -134,7 +134,8 @@ struct AthleteProfileSheet: View {
                     fullName: p.fullName,
                     username: p.username,
                     photoUrl: p.profilePhotoUrl,
-                    sport: p.sport
+                    sport: p.sport,
+                    lastSeenAt: nil
                 ),
                 lastMessage: nil
             )

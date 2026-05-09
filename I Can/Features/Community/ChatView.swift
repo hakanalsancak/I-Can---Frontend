@@ -27,6 +27,13 @@ struct ChatView: View {
     @State private var errorMessage: String?
     @State private var pollTask: Task<Void, Never>?
 
+    /// Refreshed on every `loadMessages` response. Drives the "Online" /
+    /// "Last seen…" subtitle so it stays live while the chat is open.
+    @State private var otherLastSeenAt: String?
+    /// Re-evaluated on a 30s timer so the subtitle text demotes from
+    /// "Online" → "Last seen Xm ago" without needing a server poke.
+    @State private var presenceTick: Int = 0
+
     @State private var photoPickerItem: PhotosPickerItem?
     @State private var showAttachSheet = false
     @State private var showPhotoPicker = false
@@ -146,10 +153,7 @@ struct ChatView: View {
                             .font(.system(size: 16, weight: .semibold).width(.condensed))
                             .foregroundStyle(ColorTheme.primaryText(colorScheme))
                             .lineLimit(1)
-                        Text(headerSubtitle)
-                            .font(.system(size: 11.5).width(.condensed))
-                            .foregroundStyle(ColorTheme.secondaryText(colorScheme))
-                            .lineLimit(1)
+                        headerSubtitleView
                     }
                 }
             }
@@ -181,7 +185,34 @@ struct ChatView: View {
         }
     }
 
-    private var headerSubtitle: String {
+    @ViewBuilder
+    private var headerSubtitleView: some View {
+        // `presenceTick` is read so the body refreshes on the 30s timer.
+        let _ = presenceTick
+
+        if DMPresence.isOnline(otherLastSeenAt) {
+            HStack(spacing: 5) {
+                Circle()
+                    .fill(Color(red: 0.20, green: 0.80, blue: 0.40))
+                    .frame(width: 7, height: 7)
+                Text("Online")
+                    .foregroundStyle(Color(red: 0.20, green: 0.70, blue: 0.36))
+            }
+            .font(.system(size: 11.5, weight: .semibold).width(.condensed))
+        } else if let lastSeen = DMPresence.lastSeenDescription(otherLastSeenAt) {
+            Text(lastSeen)
+                .font(.system(size: 11.5).width(.condensed))
+                .foregroundStyle(ColorTheme.secondaryText(colorScheme))
+                .lineLimit(1)
+        } else {
+            Text(staticHeaderFallback)
+                .font(.system(size: 11.5).width(.condensed))
+                .foregroundStyle(ColorTheme.secondaryText(colorScheme))
+                .lineLimit(1)
+        }
+    }
+
+    private var staticHeaderFallback: String {
         if let sport = conversation.other?.sport, !sport.isEmpty {
             return sport.capitalized
         }
@@ -569,9 +600,24 @@ struct ChatView: View {
     // MARK: - Loading
 
     private func initialLoad() async {
+        otherLastSeenAt = conversation.other?.lastSeenAt
         await loadOlder(refresh: true)
         await service.markRead(conversationId: conversation.id)
         startPolling()
+        startPresenceTicker()
+    }
+
+    /// Pure local timer: re-renders the subtitle every 30s so an "Online"
+    /// label demotes to "Last seen…" once the window expires, even if the
+    /// poll task is delayed.
+    private func startPresenceTicker() {
+        Task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(30))
+                guard !Task.isCancelled else { return }
+                presenceTick &+= 1
+            }
+        }
     }
 
     private func loadOlder(refresh: Bool) async {
@@ -591,6 +637,7 @@ struct ChatView: View {
             }
             nextCursor = page.nextCursor
             hasReachedEnd = page.nextCursor == nil
+            applyPresence(page.otherLastSeenAt)
         } catch {
             // silent
         }
@@ -686,12 +733,27 @@ struct ChatView: View {
                 limit: 20
             )
             let added = mergeIncoming(page.items)
+            applyPresence(page.otherLastSeenAt)
             if added > 0 {
                 await service.markRead(conversationId: conversation.id)
             }
         } catch {
             // silent
         }
+    }
+
+    /// Only adopts a server-supplied timestamp if it's strictly newer than
+    /// what we have. Prevents an out-of-order poll from rolling presence
+    /// backwards (e.g. a slow request returning after a faster one).
+    private func applyPresence(_ incoming: String?) {
+        guard let incoming else { return }
+        if let current = otherLastSeenAt,
+           let currentDate = DMDate.parse(current),
+           let incomingDate = DMDate.parse(incoming),
+           incomingDate <= currentDate {
+            return
+        }
+        otherLastSeenAt = incoming
     }
 
     // MARK: - Sorted-message mutation helpers

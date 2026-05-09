@@ -49,12 +49,58 @@ struct DMConversationOther: Codable, Hashable {
     let username: String?
     let photoUrl: String?
     let sport: String?
+    let lastSeenAt: String?
 
     var displayName: String {
         if let n = fullName, !n.isEmpty { return n }
         if let u = username, !u.isEmpty { return u }
         return "Athlete"
     }
+}
+
+/// Treats a user as online if they made an authenticated request within the
+/// last `windowSeconds`. Matches the 30s presence-write debounce on the
+/// server with a generous buffer to avoid flapping while polls are in flight.
+enum DMPresence {
+    static let onlineWindow: TimeInterval = 90
+
+    static func isOnline(_ lastSeenAt: String?) -> Bool {
+        guard let s = lastSeenAt, let d = DMDate.parse(s) else { return false }
+        return Date().timeIntervalSince(d) < onlineWindow
+    }
+
+    /// "Last seen 4 minutes ago" / "Last seen yesterday at 21:14" / etc.
+    /// Returns nil if no timestamp is available.
+    static func lastSeenDescription(_ lastSeenAt: String?) -> String? {
+        guard let s = lastSeenAt, let d = DMDate.parse(s) else { return nil }
+        let elapsed = Date().timeIntervalSince(d)
+        if elapsed < 60 { return "Last seen just now" }
+        let minutes = Int(elapsed / 60)
+        if minutes < 60 { return "Last seen \(minutes) min ago" }
+        let hours = minutes / 60
+        if hours < 24 { return "Last seen \(hours) hr ago" }
+        let cal = Calendar.current
+        if cal.isDateInYesterday(d) {
+            return "Last seen yesterday at \(timeFormatter.string(from: d))"
+        }
+        let days = cal.dateComponents([.day], from: d, to: Date()).day ?? 0
+        if days < 7 { return "Last seen \(days) days ago" }
+        return "Last seen \(dateFormatter.string(from: d))"
+    }
+
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = .current
+        f.dateFormat = DateFormatter.dateFormat(fromTemplate: "j:mm", options: 0, locale: .current) ?? "HH:mm"
+        return f
+    }()
+
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = .current
+        f.dateFormat = DateFormatter.dateFormat(fromTemplate: "MMM d", options: 0, locale: .current) ?? "MMM d"
+        return f
+    }()
 }
 
 struct DMConversationLastMessage: Codable, Hashable {
@@ -133,4 +179,5 @@ struct DMMessage: Identifiable, Codable, Hashable {
 struct DMMessagesPage: Codable {
     let items: [DMMessage]
     let nextCursor: String?
+    let otherLastSeenAt: String?
 }

@@ -406,6 +406,23 @@ struct InboxView: View {
         .overlay(
             Circle().strokeBorder(ColorTheme.separator(colorScheme), lineWidth: 0.5)
         )
+        .overlay(alignment: .bottomTrailing) {
+            if DMPresence.isOnline(c.other?.lastSeenAt) {
+                onlineDot
+            }
+        }
+    }
+
+    /// Small green dot anchored to the avatar's bottom-right. The white
+    /// outer ring is what makes it readable against any photo background.
+    private var onlineDot: some View {
+        Circle()
+            .fill(Color(red: 0.20, green: 0.80, blue: 0.40))
+            .frame(width: 13, height: 13)
+            .overlay(
+                Circle().strokeBorder(ColorTheme.background(colorScheme), lineWidth: 2)
+            )
+            .offset(x: 1, y: 1)
     }
 
     private func avatarInitials(_ name: String) -> some View {
