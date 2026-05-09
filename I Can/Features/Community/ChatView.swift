@@ -618,7 +618,9 @@ struct ChatView: View {
             body: trimmed,
             attachmentType: nil,
             attachmentRef: nil,
-            createdAt: DMDate.now()
+            createdAt: DMDate.now(),
+            deliveredAt: nil,
+            readAt: nil
         )
 
         draft = ""
@@ -629,6 +631,10 @@ struct ChatView: View {
             do {
                 let m = try await service.send(conversationId: conversation.id, body: trimmed)
                 replaceMessage(id: pendingId, with: m)
+                // Restart polling so the next tick fires from "now", not from
+                // wherever the previous sleep was. Keeps the receipt update
+                // latency bounded by `pollInterval`, even if the user was idle.
+                startPolling()
             } catch {
                 removeMessage(id: pendingId)
                 errorMessage = (error as? APIError)?.errorDescription ?? "Couldn't send."
@@ -656,11 +662,17 @@ struct ChatView: View {
         }
     }
 
+    /// Polling interval. Tight enough that delivered → read tick transitions
+    /// feel near-instant when both users are in the chat; loose enough that
+    /// it's not hammering the server. WhatsApp uses a websocket for this —
+    /// a short poll is the lightweight stand-in.
+    private static let pollInterval: Duration = .seconds(3)
+
     private func startPolling() {
         pollTask?.cancel()
         pollTask = Task {
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(8))
+                try? await Task.sleep(for: Self.pollInterval)
                 guard !Task.isCancelled else { return }
                 await pollLatest()
             }
@@ -714,21 +726,45 @@ struct ChatView: View {
         if messages.count != before { messagesVersion &+= 1 }
     }
 
-    /// Merges newer messages received from polling. Returns the number of
-    /// messages actually added.
+    /// Merges a poll response. Always rebuilds the array fresh — in-place
+    /// element mutation was too easy for SwiftUI's diff to elide, which kept
+    /// the sender's ticks frozen at one gray after the recipient delivered
+    /// or read the message. Replacing the storage guarantees the bubbles
+    /// re-render. Returns the number of brand-new messages so the caller
+    /// knows whether to mark the conversation as read.
     @discardableResult
     private func mergeIncoming(_ incoming: [DMMessage]) -> Int {
         if incoming.isEmpty { return 0 }
-        let existing = Set(messages.map(\.id))
-        let newOnes = incoming.filter { !existing.contains($0.id) }
-        if newOnes.isEmpty { return 0 }
-        // Polling returns newer messages — they go at the end. Sort the tail
-        // we just added to be safe (small, cheap).
-        messages.append(contentsOf: newOnes)
-        messages.sort(by: Self.ascending)
+        let incomingById = Dictionary(uniqueKeysWithValues: incoming.map { ($0.id, $0) })
+
+        var rebuilt: [DMMessage] = []
+        rebuilt.reserveCapacity(messages.count + incoming.count)
+        var seenIds = Set<String>()
+        var changed = false
+
+        for current in messages {
+            seenIds.insert(current.id)
+            if let updated = incomingById[current.id], updated != current {
+                rebuilt.append(updated)
+                changed = true
+            } else {
+                rebuilt.append(current)
+            }
+        }
+
+        var added = 0
+        for msg in incoming where !seenIds.contains(msg.id) {
+            rebuilt.append(msg)
+            added += 1
+            changed = true
+        }
+
+        guard changed else { return 0 }
+        if added > 0 { rebuilt.sort(by: Self.ascending) }
+        messages = rebuilt
         messagesVersion &+= 1
-        scrollToBottomToken &+= 1
-        return newOnes.count
+        if added > 0 { scrollToBottomToken &+= 1 }
+        return added
     }
 
     /// Merges older messages from a pagination fetch. Does NOT scroll to

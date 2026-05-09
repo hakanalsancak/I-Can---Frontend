@@ -104,9 +104,29 @@ struct DMMessage: Identifiable, Codable, Hashable {
     let attachmentType: String?
     let attachmentRef: DMAttachmentRef?
     let createdAt: String
+    let deliveredAt: String?
+    let readAt: String?
 
     var createdAtDate: Date? {
         DMDate.parse(createdAt)
+    }
+
+    /// Read-receipt state for a message I sent. Recipient-side messages always
+    /// resolve to `.none` so callers can render nothing.
+    enum ReceiptState {
+        case none      // not my message, or pending placeholder
+        case sending   // optimistic local placeholder, no server id yet
+        case sent      // server confirmed, recipient hasn't fetched
+        case delivered // recipient pulled the conversation
+        case read      // recipient opened the chat after delivery
+    }
+
+    func receiptState(currentUserId: String?) -> ReceiptState {
+        guard let currentUserId, senderId == currentUserId else { return .none }
+        if id.hasPrefix("pending-") { return .sending }
+        if readAt != nil { return .read }
+        if deliveredAt != nil { return .delivered }
+        return .sent
     }
 }
 

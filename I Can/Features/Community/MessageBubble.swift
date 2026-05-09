@@ -13,6 +13,14 @@ struct MessageBubble: View {
     @State private var showDeleteConfirm = false
     @Environment(\.colorScheme) private var colorScheme
 
+    private var receiptState: DMMessage.ReceiptState {
+        guard isMe else { return .none }
+        if message.id.hasPrefix("pending-") { return .sending }
+        if message.readAt != nil { return .read }
+        if message.deliveredAt != nil { return .delivered }
+        return .sent
+    }
+
     var body: some View {
         HStack(alignment: .bottom, spacing: 0) {
             if isMe { Spacer(minLength: 56) }
@@ -184,11 +192,28 @@ struct MessageBubble: View {
             Text(timeString(message.createdAtDate))
                 .font(.system(size: 10.5).width(.condensed).monospacedDigit())
             if isMe {
-                Image(systemName: "checkmark")
-                    .font(.system(size: 9, weight: .bold))
+                ReadReceiptTicks(
+                    state: receiptState,
+                    baseColor: tickBaseColor,
+                    readColor: tickReadColor
+                )
             }
         }
         .foregroundStyle(isOnMedia ? Color.white : metadataColor)
+    }
+
+    /// Color of the "sent" / "delivered" ticks. Designed to read as muted
+    /// against whatever surface the bubble sits on.
+    private var tickBaseColor: Color {
+        if isOnMedia { return Color.white.opacity(0.9) }
+        if isMe { return Color.white.opacity(0.75) }
+        return ColorTheme.tertiaryText(colorScheme)
+    }
+
+    /// Color of the "read" ticks. Bright sky blue mirrors WhatsApp's
+    /// convention and contrasts cleanly with the teal outgoing bubble.
+    private var tickReadColor: Color {
+        Color(hex: "5DC3FF")
     }
 
     private var isOnMedia: Bool {
@@ -438,6 +463,56 @@ private struct VoiceBubble: View {
             seconds = (durationMs ?? 0) / 1000
         }
         return String(format: "%d:%02d", seconds / 60, seconds % 60)
+    }
+}
+
+// MARK: - Read receipt ticks
+
+/// WhatsApp-style delivery indicator:
+///   • `.sending`   — small clock icon (still in flight to the server)
+///   • `.sent`      — single tick in `baseColor`
+///   • `.delivered` — double tick in `baseColor`
+///   • `.read`      — double tick in `readColor`
+private struct ReadReceiptTicks: View {
+    let state: DMMessage.ReceiptState
+    let baseColor: Color
+    let readColor: Color
+
+    var body: some View {
+        Group {
+            switch state {
+            case .none:
+                EmptyView()
+            case .sending:
+                Image(systemName: "clock")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(baseColor.opacity(0.85))
+            case .sent:
+                Image(systemName: "checkmark")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(baseColor)
+            case .delivered:
+                doubleTick(color: baseColor)
+            case .read:
+                doubleTick(color: readColor)
+            }
+        }
+        .animation(.easeInOut(duration: 0.18), value: state)
+    }
+
+    /// Two checkmarks offset horizontally so they read as a pair without
+    /// pulling in a custom SF Symbol. The 6.5pt nudge is tuned so the second
+    /// stroke nests inside the first — matches WhatsApp's compact glyph.
+    private func doubleTick(color: Color) -> some View {
+        ZStack(alignment: .leading) {
+            Image(systemName: "checkmark")
+                .offset(x: 0)
+            Image(systemName: "checkmark")
+                .offset(x: 3.5)
+        }
+        .font(.system(size: 9, weight: .bold))
+        .foregroundStyle(color)
+        .frame(width: 13, alignment: .leading)
     }
 }
 
