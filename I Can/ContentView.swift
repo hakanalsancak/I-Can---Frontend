@@ -18,7 +18,7 @@ struct ContentView: View {
     @Environment(\.requestReview) private var requestReview
 
     private static let feedbackCampaignSeenKey = "lastSeenFeedbackCampaign"
-    private static let feedbackCampaignMinAccountAgeDays: Double = 3
+    static let hasLoggedFirstEntryKey = "hasLoggedFirstEntry"
 
     private var showingSplash: Bool {
         isLoading || (authService.isAuthenticated && authService.hasCompletedOnboarding && !SubscriptionService.shared.statusChecked)
@@ -186,24 +186,11 @@ struct ContentView: View {
         let lastSeen = UserDefaults.standard.string(forKey: Self.feedbackCampaignSeenKey)
         guard lastSeen != campaign else { return }
 
-        // Only prompt users who've actually used the app — skip brand-new signups.
-        // If createdAt is missing or unparseable, suppress the popup to be safe.
-        guard let createdAtString = authService.currentUser?.createdAt,
-              let createdAt = Self.parseISODate(createdAtString)
-        else { return }
-        let ageDays = Date().timeIntervalSince(createdAt) / 86_400
-        guard ageDays >= Self.feedbackCampaignMinAccountAgeDays else { return }
+        // Only prompt users who've actually used the app — require at least one
+        // logged daily entry. Brand-new accounts that have never logged stay quiet.
+        guard UserDefaults.standard.bool(forKey: Self.hasLoggedFirstEntryKey) else { return }
 
         showFeedbackCampaign = true
-    }
-
-    private static func parseISODate(_ string: String) -> Date? {
-        let withFractional = ISO8601DateFormatter()
-        withFractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let d = withFractional.date(from: string) { return d }
-        let plain = ISO8601DateFormatter()
-        plain.formatOptions = [.withInternetDateTime]
-        return plain.date(from: string)
     }
 
     private func loadInitialState() async {

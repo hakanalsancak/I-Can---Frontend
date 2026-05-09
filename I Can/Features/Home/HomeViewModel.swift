@@ -90,7 +90,11 @@ final class HomeViewModel {
     @discardableResult
     private func loadStreak() async -> Bool {
         do {
-            streak = try await StreakService.shared.getStreak()
+            let info = try await StreakService.shared.getStreak()
+            streak = info
+            if info.longestStreak > 0 || info.currentStreak > 0 {
+                UserDefaults.standard.set(true, forKey: ContentView.hasLoggedFirstEntryKey)
+            }
             return true
         } catch {
             // Streak will show 0
@@ -109,6 +113,7 @@ final class HomeViewModel {
             let entry = try await EntryService.shared.getEntry(date: today)
             todayEntry = entry
             parseDailyLogData(from: entry)
+            UserDefaults.standard.set(true, forKey: ContentView.hasLoggedFirstEntryKey)
             return true
         } catch let error as APIError {
             switch error {
@@ -327,6 +332,7 @@ final class HomeViewModel {
             )
             todayEntry = response.entry
             streak = response.streak
+            UserDefaults.standard.set(true, forKey: ContentView.hasLoggedFirstEntryKey)
             NotificationService.shared.cancelStreakReminder()
 
             // Refresh analytics after save
