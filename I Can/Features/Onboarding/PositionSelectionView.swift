@@ -21,6 +21,10 @@ struct PositionSelectionView: View {
             return ["Heavyweight", "Light Heavyweight", "Middleweight", "Welterweight", "Lightweight", "Featherweight", "Bantamweight", "Flyweight"]
         case "cricket":
             return ["Batsman", "Bowler (Pace)", "Bowler (Spin)", "All-Rounder", "Wicket-Keeper"]
+        case "volleyball":
+            return ["Setter", "Outside Hitter", "Opposite Hitter", "Middle Blocker", "Libero", "Defensive Specialist"]
+        case "baseball":
+            return ["Pitcher", "Catcher", "First Base", "Second Base", "Third Base", "Shortstop", "Left Field", "Center Field", "Right Field", "Designated Hitter"]
         default:
             return ["Player"]
         }

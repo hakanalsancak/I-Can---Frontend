@@ -37,6 +37,8 @@ struct EditProfileSheet: View {
         ("football", "Football", "football"),
         ("boxing", "Boxing", "figure.boxing"),
         ("cricket", "Cricket", "cricket.ball"),
+        ("volleyball", "Volleyball", "volleyball"),
+        ("baseball", "Baseball", "baseball"),
     ]
 
     init(viewModel: ProfileViewModel) {
@@ -536,6 +538,8 @@ struct EditProfileSheet: View {
         case "football": return ["Quarterback", "Running Back", "Wide Receiver", "Tight End", "Offensive Line", "Defensive Line", "Linebacker", "Cornerback", "Safety", "Kicker / Punter"]
         case "boxing": return ["Heavyweight", "Light Heavyweight", "Middleweight", "Welterweight", "Lightweight", "Featherweight", "Bantamweight", "Flyweight"]
         case "cricket": return ["Batsman", "Bowler (Pace)", "Bowler (Spin)", "All-Rounder", "Wicket-Keeper"]
+        case "volleyball": return ["Setter", "Outside Hitter", "Opposite Hitter", "Middle Blocker", "Libero", "Defensive Specialist"]
+        case "baseball": return ["Pitcher", "Catcher", "First Base", "Second Base", "Third Base", "Shortstop", "Left Field", "Center Field", "Right Field", "Designated Hitter"]
         default: return ["Player"]
         }
     }

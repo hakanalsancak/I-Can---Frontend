@@ -1021,6 +1021,8 @@ struct TrainingLogView: View {
         case "boxing": return "METHOD OF RESULT"
         case "tennis": return "HOW THE MATCH WENT"
         case "cricket": return "RESULT BY"
+        case "volleyball": return "SET RESULT"
+        case "baseball": return "GAME RESULT"
         default: return "GAME STYLE"
         }
     }
@@ -1030,6 +1032,8 @@ struct TrainingLogView: View {
         case "boxing": return "figure.boxing"
         case "tennis": return "tennis.racket"
         case "cricket": return "figure.cricket"
+        case "volleyball": return "volleyball.fill"
+        case "baseball": return "baseball.fill"
         default: return "chart.line.uptrend.xyaxis"
         }
     }
@@ -1040,6 +1044,8 @@ struct TrainingLogView: View {
         case "basketball": return "e.g. Point Guard, Small Forward, Center..."
         case "football": return "e.g. Quarterback, Wide Receiver, Linebacker..."
         case "cricket": return "e.g. Batsman, Bowler, All-Rounder..."
+        case "volleyball": return "e.g. Setter, Outside Hitter, Libero..."
+        case "baseball": return "e.g. Pitcher, Catcher, Shortstop..."
         default: return "Your position"
         }
     }
@@ -1079,6 +1085,10 @@ struct TrainingLogView: View {
             return [("touchdowns", "Touchdowns", "football.fill"), ("yardsGained", "Yards", "arrow.right"), ("tackles", "Tackles", "shield.fill")]
         case "cricket":
             return [("runsScored", "Runs", "figure.cricket"), ("wicketsTaken", "Wickets", "flame.fill"), ("catches", "Catches", "hand.raised.fill")]
+        case "volleyball":
+            return [("kills", "Kills", "volleyball.fill"), ("aces", "Aces", "bolt.fill"), ("blocks", "Blocks", "shield.fill"), ("digs", "Digs", "hand.raised.fill")]
+        case "baseball":
+            return [("hits", "Hits", "baseball.fill"), ("homeRuns", "Home Runs", "star.fill"), ("rbis", "RBIs", "arrow.up.circle"), ("stolenBases", "Stolen Bases", "bolt.fill")]
         default:
             return [("points", "Points / Score", "star.fill")]
         }
@@ -2118,6 +2128,8 @@ private struct SheetMatchForm: View {
         case "basketball": return "e.g. Point Guard, Small Forward, Center..."
         case "football": return "e.g. Quarterback, Wide Receiver, Linebacker..."
         case "cricket": return "e.g. Batsman, Bowler, All-Rounder..."
+        case "volleyball": return "e.g. Setter, Outside Hitter, Libero..."
+        case "baseball": return "e.g. Pitcher, Catcher, Shortstop..."
         default: return "Your position"
         }
     }
@@ -2136,6 +2148,10 @@ private struct SheetMatchForm: View {
             return [("touchdowns", "Touchdowns", "football.fill"), ("yardsGained", "Yards", "arrow.right"), ("tackles", "Tackles", "shield.fill")]
         case "cricket":
             return [("runsScored", "Runs", "figure.cricket"), ("wicketsTaken", "Wickets", "flame.fill"), ("catches", "Catches", "hand.raised.fill")]
+        case "volleyball":
+            return [("kills", "Kills", "volleyball.fill"), ("aces", "Aces", "bolt.fill"), ("blocks", "Blocks", "shield.fill"), ("digs", "Digs", "hand.raised.fill")]
+        case "baseball":
+            return [("hits", "Hits", "baseball.fill"), ("homeRuns", "Home Runs", "star.fill"), ("rbis", "RBIs", "arrow.up.circle"), ("stolenBases", "Stolen Bases", "bolt.fill")]
         default:
             return [("points", "Points / Score", "star.fill")]
         }

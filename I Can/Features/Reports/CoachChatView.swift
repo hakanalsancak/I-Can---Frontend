@@ -564,6 +564,10 @@ struct CoachChatView: View {
             return "Get me a personalised serving power program"
         case "cricket":
             return "Get me a personalised bowling speed program"
+        case "volleyball":
+            return "Get me a personalised vertical jump program"
+        case "baseball":
+            return "Get me a personalised pitching velocity program"
         default:
             return "Get me a personalised training program"
         }

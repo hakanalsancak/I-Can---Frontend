@@ -426,6 +426,24 @@ struct TrainingSession: Codable, Equatable, Identifiable {
                 ("duckworth_lewis", "DLS Method"),
                 ("innings", "By Innings")
             ]
+        case "volleyball":
+            return [
+                ("sweep", "Sweep (3-0)"),
+                ("four_sets", "Four Sets (3-1)"),
+                ("five_sets", "Five Sets (3-2)"),
+                ("tiebreak", "Tiebreak Set"),
+                ("comeback", "Comeback"),
+                ("dominant", "Dominant")
+            ]
+        case "baseball":
+            return [
+                ("shutout", "Shutout"),
+                ("walk_off", "Walk-Off"),
+                ("extra_innings", "Extra Innings"),
+                ("mercy_rule", "Mercy Rule"),
+                ("close_game", "Close Game"),
+                ("comeback", "Comeback")
+            ]
         default:
             return [
                 ("dominant", "Dominant"),
@@ -449,6 +467,10 @@ struct TrainingSession: Codable, Equatable, Identifiable {
             return ["Full Game", "Scrimmage", "Started", "Off Bench", "Win", "Loss", "Touchdown", "Turnover Free", "Key Play"]
         case "cricket":
             return ["T20", "ODI", "Test", "Practice Match", "Batted", "Bowled", "Fielded", "Win", "Loss", "Draw", "Man of Match"]
+        case "volleyball":
+            return ["Full Match", "Scrimmage", "Tournament", "Started", "Off Bench", "Win", "Loss", "Set Won", "Ace Served", "Block", "Kill Streak"]
+        case "baseball":
+            return ["9 Innings", "Practice Game", "Tournament", "Started", "Off Bench", "Win", "Loss", "Hit", "Home Run", "RBI", "Stolen Base"]
         default:
             return ["Full Match", "Practice Match", "Tournament", "Started", "Substitute", "Win", "Loss", "Draw"]
         }
@@ -468,6 +490,10 @@ struct TrainingSession: Codable, Equatable, Identifiable {
             return ["Throwing Mechanics", "Route Running", "Catching", "Blocking", "Tackling Form", "Footwork", "Hand Placement", "Release", "Coverage", "Team Training"]
         case "cricket":
             return ["Batting Technique", "Bowling Action", "Spin", "Pace", "Swing", "Fielding Drills", "Catching", "Throwing", "Running Between Wickets", "Team Training"]
+        case "volleyball":
+            return ["Serving", "Setting", "Spiking", "Blocking", "Passing", "Digging", "Approach Footwork", "Jump Training", "Receiving", "Float Serve", "Jump Serve", "Team Training"]
+        case "baseball":
+            return ["Hitting", "Pitching Mechanics", "Fielding", "Catching", "Throwing", "Base Running", "Bunting", "Stealing", "Batting Cage", "Bullpen", "Sliding", "Team Training"]
         default:
             return ["Skill Drills", "Technique Work", "Repetition Training", "Form Correction", "Fundamentals", "Advanced Skills"]
         }
@@ -487,6 +513,10 @@ struct TrainingSession: Codable, Equatable, Identifiable {
             return ["Playbook Study", "Film Review", "Audibles", "Blitz Schemes", "Coverage Reads", "Red Zone", "2-Minute Drill", "Special Teams", "Game Planning"]
         case "cricket":
             return ["Field Placement", "Bowling Strategy", "Batting Order", "Match Situation", "Death Overs", "Powerplay", "DRS Strategy", "Pitch Reading", "Weather Tactics"]
+        case "volleyball":
+            return ["Rotation Strategy", "Serve Reception", "Block Coverage", "Defensive Schemes", "Set Calling", "Substitution Patterns", "Film Study", "Opponent Scouting", "Serving Targets"]
+        case "baseball":
+            return ["Pitch Selection", "Defensive Shifts", "Base Coaching", "Lineup Strategy", "Bullpen Management", "Stealing Signs", "Film Study", "Scouting Report", "Game Situation"]
         default:
             return ["Game Plan", "Strategy Review", "Video Analysis", "Positioning", "Team Tactics", "Set Plays"]
         }

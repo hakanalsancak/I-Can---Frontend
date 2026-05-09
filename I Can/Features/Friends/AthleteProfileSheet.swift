@@ -508,6 +508,8 @@ struct AthleteProfileSheet: View {
         case "football": return "football.fill"
         case "boxing": return "figure.boxing"
         case "cricket": return "cricket.ball.fill"
+        case "volleyball": return "volleyball.fill"
+        case "baseball": return "baseball.fill"
         default: return "figure.run"
         }
     }
@@ -520,6 +522,8 @@ struct AthleteProfileSheet: View {
         case "football": return Color(hex: "8B4513")
         case "boxing": return Color(hex: "EF4444")
         case "cricket": return Color(hex: "3B82F6")
+        case "volleyball": return Color(hex: "A855F7")
+        case "baseball": return Color(hex: "0EA5E9")
         default: return ColorTheme.accent
         }
     }

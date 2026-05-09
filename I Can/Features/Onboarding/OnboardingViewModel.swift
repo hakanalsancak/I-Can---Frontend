@@ -55,6 +55,8 @@ final class OnboardingViewModel {
         ("football", "Football", "football"),
         ("boxing", "Boxing", "figure.boxing"),
         ("cricket", "Cricket", "cricket.ball"),
+        ("volleyball", "Volleyball", "volleyball"),
+        ("baseball", "Baseball", "baseball"),
     ]
 
     let mantraExamples: [(quote: String, athlete: String)] = [
