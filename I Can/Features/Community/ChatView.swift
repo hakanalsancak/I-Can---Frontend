@@ -35,9 +35,9 @@ struct ChatView: View {
     @State private var presenceTick: Int = 0
 
     @State private var photoPickerItem: PhotosPickerItem?
-    @State private var showAttachSheet = false
     @State private var showPhotoPicker = false
     @State private var pickerMode: PickerMode = .photo
+    @State private var showCamera = false
 
     @State private var voiceRecorder = VoiceRecorder()
     @State private var isRecording = false
@@ -99,10 +99,16 @@ struct ChatView: View {
             guard let newItem else { return }
             Task { await handlePicked(newItem) }
         }
-        .confirmationDialog("Attach", isPresented: $showAttachSheet, titleVisibility: .hidden) {
-            Button("Photo") { pickerMode = .photo; showPhotoPicker = true }
-            Button("Video") { pickerMode = .video; showPhotoPicker = true }
-            Button("Cancel", role: .cancel) {}
+        .fullScreenCover(isPresented: $showCamera) {
+            CameraPicker(
+                cameraDevice: .rear,
+                onImagePicked: { image in
+                    showCamera = false
+                    Task { await handleCapturedPhoto(image) }
+                },
+                onCancel: { showCamera = false }
+            )
+            .ignoresSafeArea()
         }
         .sheet(isPresented: $showProfile) {
             if let other = conversation.other {
@@ -323,16 +329,7 @@ struct ChatView: View {
     private var normalInputBar: some View {
         HStack(alignment: .bottom, spacing: 8) {
             HStack(alignment: .bottom, spacing: 8) {
-                Button {
-                    showAttachSheet = true
-                } label: {
-                    Image(systemName: "paperclip")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(ColorTheme.accent)
-                        .frame(width: 30, height: 32)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
+                attachMenu
 
                 TextField("Message", text: $draft, axis: .vertical)
                     .focused($inputFocused)
@@ -357,6 +354,41 @@ struct ChatView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .animation(.easeInOut(duration: 0.18), value: canSendText)
+    }
+
+    /// Inline iOS menu anchored to the paperclip — the system pops it
+    /// directly above the button instead of using a bottom-sheet
+    /// confirmation dialog, which is what we want for an attachment picker.
+    private var attachMenu: some View {
+        Menu {
+            Button {
+                pickerMode = .photo
+                showPhotoPicker = true
+            } label: {
+                Label("Photo", systemImage: "photo")
+            }
+            Button {
+                pickerMode = .video
+                showPhotoPicker = true
+            } label: {
+                Label("Video", systemImage: "video")
+            }
+            if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                Button {
+                    showCamera = true
+                } label: {
+                    Label("Camera", systemImage: "camera")
+                }
+            }
+        } label: {
+            Image(systemName: "paperclip")
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(ColorTheme.accent)
+                .frame(width: 30, height: 32)
+                .contentShape(Rectangle())
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -481,6 +513,18 @@ struct ChatView: View {
         } catch {
             errorMessage = "Couldn't load that item."
         }
+    }
+
+    /// Converts a freshly-shot photo to JPEG and routes it through the same
+    /// upload + send pipeline the photo picker uses. 0.85 quality matches
+    /// what UIImagePickerController returns for `.original` images and keeps
+    /// the upload comfortably under the multer 100 MB cap.
+    private func handleCapturedPhoto(_ image: UIImage) async {
+        guard let data = image.jpegData(compressionQuality: 0.85) else {
+            errorMessage = "Couldn't process photo."
+            return
+        }
+        await uploadAndSend(data: data, kind: "image", mime: "image/jpeg", filename: "photo.jpg")
     }
 
     private func uploadAndSend(data: Data, kind: String, mime: String, filename: String) async {
