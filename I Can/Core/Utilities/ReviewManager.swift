@@ -1,17 +1,30 @@
 import StoreKit
 import SwiftUI
-import UIKit
 
+@MainActor
 enum ReviewManager {
-    @AppStorage("hasRequestedReview") private static var hasRequestedReview: Bool = false
+    private static let sessionCountKey = "authenticatedSessionCount"
+    private static let hasRequestedKey = "hasRequestedReview"
+    private static let triggerSessionCount = 2
+    private static var countedThisLaunch = false
 
-    static func requestReviewAfterFirstLog() {
-        guard !hasRequestedReview else { return }
-        hasRequestedReview = true
+    /// Records that the user is in an authenticated, onboarded session for this app launch
+    /// and presents the App Store rating prompt on their second such session.
+    static func recordAuthenticatedSession(request: RequestReviewAction) {
+        guard !countedThisLaunch else { return }
+        countedThisLaunch = true
 
-        guard let scene = UIApplication.shared.connectedScenes
-            .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene else { return }
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: hasRequestedKey) else { return }
 
-        SKStoreReviewController.requestReview(in: scene)
+        let next = defaults.integer(forKey: sessionCountKey) + 1
+        defaults.set(next, forKey: sessionCountKey)
+        guard next >= triggerSessionCount else { return }
+
+        defaults.set(true, forKey: hasRequestedKey)
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_200_000_000)
+            request()
+        }
     }
 }

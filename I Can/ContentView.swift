@@ -15,6 +15,7 @@ struct ContentView: View {
     @State private var logoScale: CGFloat = 0.8
     @State private var logoOpacity: Double = 0
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.requestReview) private var requestReview
 
     private static let feedbackCampaignSeenKey = "lastSeenFeedbackCampaign"
     private static let feedbackCampaignMinAccountAgeDays: Double = 3
@@ -92,6 +93,7 @@ struct ContentView: View {
                 Task {
                     try? await SubscriptionService.shared.checkStatus()
                 }
+                requestReviewIfReady()
             }
         }
         .onChange(of: authService.hasCompletedOnboarding) { _, newValue in
@@ -100,6 +102,9 @@ struct ContentView: View {
                 if !SubscriptionService.shared.isPremium {
                     showPostOnboardingSubscription = true
                 }
+            }
+            if newValue {
+                requestReviewIfReady()
             }
         }
     }
@@ -217,6 +222,12 @@ struct ContentView: View {
 
         try? await Task.sleep(nanoseconds: 600_000_000)
         presentFeedbackCampaignIfNeeded()
+        requestReviewIfReady()
+    }
+
+    private func requestReviewIfReady() {
+        guard authService.isAuthenticated, authService.hasCompletedOnboarding else { return }
+        ReviewManager.recordAuthenticatedSession(request: requestReview)
     }
 
     private func hydrateAuthenticatedSession() async {
