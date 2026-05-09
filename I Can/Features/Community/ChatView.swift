@@ -50,6 +50,9 @@ struct ChatView: View {
     @State private var isUploading = false
     @State private var openImageURL: IdentifiableURL?
     @State private var openVideoURL: IdentifiableURL?
+    /// The message the user is composing a reply to, if any. Cleared once
+    /// the reply is sent or the user taps the X on the banner.
+    @State private var replyTarget: DMMessage?
     @FocusState private var inputFocused: Bool
 
     @Environment(\.colorScheme) private var colorScheme
@@ -75,6 +78,10 @@ struct ChatView: View {
         .simultaneousGesture(
             DragGesture(minimumDistance: 20, coordinateSpace: .local)
                 .onEnded { value in
+                    // Restrict back-to-inbox swipe to drags that start from
+                    // the screen's left edge. Otherwise it conflicts with the
+                    // swipe-to-reply gesture on individual message bubbles.
+                    guard value.startLocation.x < 24 else { return }
                     if value.translation.width > 80
                         && abs(value.translation.height) < 60
                         && value.predictedEndTranslation.width > value.translation.width {
@@ -280,11 +287,16 @@ struct ChatView: View {
             messagesVersion: messagesVersion,
             scrollToken: scrollToBottomToken,
             currentUserId: currentUserId,
+            peerDisplayName: conversation.displayName,
             colorScheme: colorScheme,
             onDelete: { msg in Task { await deleteMessage(msg) } },
             onOpenImage: { url in openImageURL = IdentifiableURL(url: url) },
             onOpenVideo: { url in openVideoURL = IdentifiableURL(url: url) },
-            onLoadMore: { msg in Task { await loadMoreIfNeeded(currentItem: msg) } }
+            onLoadMore: { msg in Task { await loadMoreIfNeeded(currentItem: msg) } },
+            onReply: { msg in
+                withAnimation(.easeInOut(duration: 0.2)) { replyTarget = msg }
+                inputFocused = true
+            }
         )
         .equatable()
         .simultaneousGesture(
@@ -298,6 +310,9 @@ struct ChatView: View {
 
     private var inputBar: some View {
         VStack(spacing: 0) {
+            if let target = replyTarget {
+                replyBanner(target)
+            }
             if let m = errorMessage {
                 Text(m)
                     .font(.system(size: 12).width(.condensed))
@@ -354,6 +369,65 @@ struct ChatView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .animation(.easeInOut(duration: 0.18), value: canSendText)
+    }
+
+    /// Compact strip above the input that shows what message is being
+    /// replied to. Tapping the X dismisses the reply.
+    @ViewBuilder
+    private func replyBanner(_ target: DMMessage) -> some View {
+        let mine = target.senderId == currentUserId
+        HStack(spacing: 10) {
+            Rectangle()
+                .fill(ColorTheme.accent)
+                .frame(width: 3)
+                .clipShape(Capsule())
+            VStack(alignment: .leading, spacing: 2) {
+                Text(mine ? "Replying to yourself" : "Replying to \(conversation.displayName)")
+                    .font(.system(size: 12, weight: .semibold).width(.condensed))
+                    .foregroundStyle(ColorTheme.accent)
+                    .lineLimit(1)
+                Text(replyPreviewText(for: target))
+                    .font(.system(size: 13).width(.condensed))
+                    .foregroundStyle(ColorTheme.secondaryText(colorScheme))
+                    .lineLimit(1)
+            }
+            Spacer()
+            Button {
+                withAnimation(.easeInOut(duration: 0.18)) { replyTarget = nil }
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(ColorTheme.secondaryText(colorScheme))
+                    .frame(width: 28, height: 28)
+                    .background(
+                        Circle().fill(ColorTheme.elevatedBackground(colorScheme))
+                    )
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            ColorTheme.cardBackground(colorScheme).opacity(colorScheme == .dark ? 0.6 : 0.7)
+        )
+        .overlay(alignment: .top) {
+            Rectangle().fill(ColorTheme.separator(colorScheme)).frame(height: 0.5)
+        }
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+
+    /// Best-effort one-liner preview for both the banner and the in-bubble
+    /// quote: text body wins, attachments fall back to a label.
+    private func replyPreviewText(for msg: DMMessage) -> String {
+        if let body = msg.body, !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return body
+        }
+        switch msg.attachmentType {
+        case "image": return "Photo"
+        case "video": return "Video"
+        case "voice": return "Voice message"
+        default: return "Attachment"
+        }
     }
 
     /// Inline iOS menu anchored to the paperclip — the system pops it
@@ -701,6 +775,18 @@ struct ChatView: View {
         let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
+        // Snapshot the reply target up front so we can clear the banner
+        // optimistically; the snapshot is what we actually pass to the API.
+        let target = replyTarget
+        let optimisticReplyPreview = target.map {
+            DMReplyPreview(
+                id: $0.id,
+                senderId: $0.senderId,
+                body: $0.body,
+                attachmentType: $0.attachmentType
+            )
+        }
+
         let pendingId = "pending-\(UUID().uuidString)"
         let placeholder = DMMessage(
             id: pendingId,
@@ -711,16 +797,22 @@ struct ChatView: View {
             attachmentRef: nil,
             createdAt: DMDate.now(),
             deliveredAt: nil,
-            readAt: nil
+            readAt: nil,
+            replyTo: optimisticReplyPreview
         )
 
         draft = ""
         errorMessage = nil
+        replyTarget = nil
         appendOutgoing(placeholder)
 
         Task {
             do {
-                let m = try await service.send(conversationId: conversation.id, body: trimmed)
+                let m = try await service.send(
+                    conversationId: conversation.id,
+                    body: trimmed,
+                    replyToMessageId: target?.id
+                )
                 replaceMessage(id: pendingId, with: m)
                 // Restart polling so the next tick fires from "now", not from
                 // wherever the previous sleep was. Keeps the receipt update
@@ -730,6 +822,9 @@ struct ChatView: View {
                 removeMessage(id: pendingId)
                 errorMessage = (error as? APIError)?.errorDescription ?? "Couldn't send."
                 if draft.isEmpty { draft = trimmed }
+                // Restore the reply target so the user can retry without
+                // re-selecting the message.
+                if replyTarget == nil { replyTarget = target }
             }
         }
     }
@@ -901,11 +996,13 @@ private struct ChatMessagesView: View, Equatable {
     let messagesVersion: UInt64
     let scrollToken: UInt64
     let currentUserId: String?
+    let peerDisplayName: String
     let colorScheme: ColorScheme
     let onDelete: (DMMessage) -> Void
     let onOpenImage: (URL) -> Void
     let onOpenVideo: (URL) -> Void
     let onLoadMore: (DMMessage) -> Void
+    let onReply: (DMMessage) -> Void
 
     static func == (lhs: ChatMessagesView, rhs: ChatMessagesView) -> Bool {
         lhs.messagesVersion == rhs.messagesVersion
@@ -987,7 +1084,10 @@ private struct ChatMessagesView: View, Equatable {
             isLastInGroup: isLastInGroup,
             onDelete: mine ? { onDelete(msg) } : nil,
             onOpenImage: { url in onOpenImage(url) },
-            onOpenVideo: { url in onOpenVideo(url) }
+            onOpenVideo: { url in onOpenVideo(url) },
+            onReply: { onReply(msg) },
+            currentUserId: currentUserId,
+            peerDisplayName: peerDisplayName
         )
         .opacity(msg.id.hasPrefix("pending-") ? 0.7 : 1.0)
         .transition(.asymmetric(

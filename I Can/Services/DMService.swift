@@ -161,12 +161,15 @@ final class DMService {
         return try await APIClient.shared.request(endpoint)
     }
 
-    func send(conversationId: String, body: String) async throws -> DMMessage {
-        struct Body: Encodable { let body: String }
+    func send(conversationId: String, body: String, replyToMessageId: String? = nil) async throws -> DMMessage {
+        struct Body: Encodable {
+            let body: String
+            let replyToMessageId: String?
+        }
         let m: DMMessage = try await APIClient.shared.request(
             APIEndpoints.Community.sendMessage(conversationId),
             method: "POST",
-            body: Body(body: body)
+            body: Body(body: body, replyToMessageId: replyToMessageId)
         )
         locallyApplyOutgoing(message: m, conversationId: conversationId)
         return m
@@ -176,17 +179,19 @@ final class DMService {
         conversationId: String,
         kind: String,
         attachment: DMAttachmentRef,
-        body: String? = nil
+        body: String? = nil,
+        replyToMessageId: String? = nil
     ) async throws -> DMMessage {
         struct Body: Encodable {
             let body: String?
             let attachmentType: String
             let attachmentRef: DMAttachmentRef
+            let replyToMessageId: String?
         }
         let m: DMMessage = try await APIClient.shared.request(
             APIEndpoints.Community.sendMessage(conversationId),
             method: "POST",
-            body: Body(body: body, attachmentType: kind, attachmentRef: attachment)
+            body: Body(body: body, attachmentType: kind, attachmentRef: attachment, replyToMessageId: replyToMessageId)
         )
         locallyApplyOutgoing(message: m, conversationId: conversationId)
         return m

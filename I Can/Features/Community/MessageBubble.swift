@@ -9,9 +9,24 @@ struct MessageBubble: View {
     var onDelete: (() -> Void)? = nil
     var onOpenImage: ((URL) -> Void)? = nil
     var onOpenVideo: ((URL) -> Void)? = nil
+    var onReply: (() -> Void)? = nil
+    /// Used purely to label the quote header as "You" vs the other party.
+    var currentUserId: String? = nil
+    var peerDisplayName: String? = nil
 
     @State private var showDeleteConfirm = false
+    /// Live drag offset while the user swipes the bubble sideways. Resets
+    /// to 0 on release. Negative for outgoing bubbles (swipe left), positive
+    /// for incoming (swipe right) — mirrors WhatsApp.
+    @State private var dragOffset: CGFloat = 0
     @Environment(\.colorScheme) private var colorScheme
+
+    /// Distance the user has to drag past for a swipe to commit a reply.
+    /// Below this, the bubble snaps back without firing.
+    private static let replyTriggerDistance: CGFloat = 60
+    /// Hard cap on how far the bubble follows the finger so it never tracks
+    /// off-screen on a long drag.
+    private static let maxDragDistance: CGFloat = 90
 
     private var receiptState: DMMessage.ReceiptState {
         guard isMe else { return .none }
@@ -22,12 +37,24 @@ struct MessageBubble: View {
     }
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 0) {
-            if isMe { Spacer(minLength: 56) }
-            content
-                .contextMenu(menuItems: { menuContent })
-            if !isMe { Spacer(minLength: 56) }
+        ZStack {
+            // Reply icon revealed under the bubble as it slides. Sits on the
+            // opposite side of the swipe direction so it's the "thing being
+            // dragged toward". Opacity scales with drag progress.
+            replySwipeIndicator
+            HStack(alignment: .bottom, spacing: 0) {
+                if isMe { Spacer(minLength: 56) }
+                content
+                    .contextMenu(menuItems: { menuContent })
+                if !isMe { Spacer(minLength: 56) }
+            }
+            .offset(x: dragOffset)
         }
+        // simultaneousGesture (not gesture) so the drag fires alongside the
+        // taps that image/video/voice bubbles register on their inner
+        // Buttons — without this, the play / open-image button could
+        // swallow the drag and the swipe would only work on text bubbles.
+        .simultaneousGesture(replySwipeGesture)
         .confirmationDialog(
             "Delete this message?",
             isPresented: $showDeleteConfirm,
@@ -38,8 +65,69 @@ struct MessageBubble: View {
         }
     }
 
+    /// Drag-right (incoming) or drag-left (outgoing) to reply, WhatsApp-
+    /// style. We clamp the followed distance, only commit past the trigger
+    /// threshold, and animate the snap-back so the gesture feels rubber-y.
+    private var replySwipeGesture: some Gesture {
+        DragGesture(minimumDistance: 12, coordinateSpace: .local)
+            .onChanged { value in
+                guard onReply != nil else { return }
+                // Vertical drags belong to the scroll view — bail out so we
+                // don't fight scrolling.
+                if abs(value.translation.height) > abs(value.translation.width) { return }
+                let raw = isMe ? min(value.translation.width, 0) : max(value.translation.width, 0)
+                let clamped = max(-Self.maxDragDistance, min(Self.maxDragDistance, raw))
+                dragOffset = clamped
+            }
+            .onEnded { value in
+                let committed = abs(value.translation.width) > Self.replyTriggerDistance
+                    && abs(value.translation.height) < 50
+                    && ((isMe && value.translation.width < 0) || (!isMe && value.translation.width > 0))
+                withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
+                    dragOffset = 0
+                }
+                if committed {
+                    triggerHaptic()
+                    onReply?()
+                }
+            }
+    }
+
+    @ViewBuilder
+    private var replySwipeIndicator: some View {
+        let progress = min(1, abs(dragOffset) / Self.replyTriggerDistance)
+        HStack {
+            if isMe { Spacer() }
+            Image(systemName: "arrowshape.turn.up.left.fill")
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(ColorTheme.accent)
+                .frame(width: 32, height: 32)
+                .background(
+                    Circle().fill(ColorTheme.accent.opacity(0.18))
+                )
+                .opacity(Double(progress))
+                .scaleEffect(0.6 + 0.4 * progress)
+                .padding(isMe ? .trailing : .leading, 16)
+            if !isMe { Spacer() }
+        }
+        .allowsHitTesting(false)
+    }
+
+    private func triggerHaptic() {
+        #if canImport(UIKit)
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        #endif
+    }
+
     @ViewBuilder
     private var menuContent: some View {
+        if onReply != nil {
+            Button {
+                onReply?()
+            } label: {
+                Label("Reply", systemImage: "arrowshape.turn.up.left")
+            }
+        }
         let bodyText = message.body ?? ""
         if !bodyText.isEmpty {
             Button {
@@ -57,6 +145,16 @@ struct MessageBubble: View {
         }
     }
 
+    @ViewBuilder
+    private func replyQuote(_ preview: DMReplyPreview) -> some View {
+        BubbleReplyQuote(
+            preview: preview,
+            isMe: isMe,
+            currentUserId: currentUserId,
+            peerDisplayName: peerDisplayName
+        )
+    }
+
     // MARK: - Content router
 
     @ViewBuilder
@@ -72,7 +170,10 @@ struct MessageBubble: View {
                 durationMs: message.attachmentRef?.durationMs,
                 isMe: isMe,
                 isLastInGroup: isLastInGroup,
-                timeText: timeString(message.createdAtDate)
+                timeText: timeString(message.createdAtDate),
+                replyPreview: message.replyTo,
+                currentUserId: currentUserId,
+                peerDisplayName: peerDisplayName
             )
         default:
             textBubble
@@ -83,19 +184,26 @@ struct MessageBubble: View {
 
     private var textBubble: some View {
         let body = message.body ?? ""
-        return ZStack(alignment: .bottomTrailing) {
-            Text(body)
-                .font(.system(size: 15.5).width(.condensed))
-                .foregroundStyle(isMe ? Color.white : ColorTheme.primaryText(colorScheme))
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.trailing, isMe ? 58 : 44)
-                .padding(.leading, 12)
-                .padding(.top, 7)
-                .padding(.bottom, 7)
+        return VStack(alignment: .leading, spacing: 0) {
+            if let preview = message.replyTo {
+                replyQuote(preview)
+                    .padding(.horizontal, 6)
+                    .padding(.top, 6)
+            }
+            ZStack(alignment: .bottomTrailing) {
+                Text(body)
+                    .font(.system(size: 15.5).width(.condensed))
+                    .foregroundStyle(isMe ? Color.white : ColorTheme.primaryText(colorScheme))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.trailing, isMe ? 58 : 44)
+                    .padding(.leading, 12)
+                    .padding(.top, 7)
+                    .padding(.bottom, 7)
 
-            metadataRow
-                .padding(.trailing, 10)
-                .padding(.bottom, 5)
+                metadataRow
+                    .padding(.trailing, 10)
+                    .padding(.bottom, 5)
+            }
         }
         .background(bubbleFill)
         .clipShape(bubbleShape)
@@ -108,6 +216,12 @@ struct MessageBubble: View {
     @ViewBuilder
     private func mediaBubble<Inner: View>(@ViewBuilder _ inner: () -> Inner) -> some View {
         VStack(alignment: .leading, spacing: 0) {
+            if let preview = message.replyTo {
+                replyQuote(preview)
+                    .padding(.horizontal, 6)
+                    .padding(.top, 6)
+                    .padding(.bottom, 4)
+            }
             inner()
                 .clipShape(bubbleShape)
                 .overlay(alignment: .bottomTrailing) {
@@ -300,6 +414,9 @@ private struct VoiceBubble: View {
     let isMe: Bool
     let isLastInGroup: Bool
     let timeText: String
+    var replyPreview: DMReplyPreview? = nil
+    var currentUserId: String? = nil
+    var peerDisplayName: String? = nil
 
     @State private var player: AVPlayer?
     @State private var isPlaying = false
@@ -311,27 +428,39 @@ private struct VoiceBubble: View {
     private let barCount = 26
 
     var body: some View {
-        Button {
-            togglePlay()
-        } label: {
-            HStack(spacing: 10) {
-                playIcon
-                waveform
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(displayedTime())
-                        .font(.system(size: 11).width(.condensed).monospacedDigit())
-                        .foregroundStyle(isMe ? Color.white.opacity(0.85) : .secondary)
-                    Text(timeText)
-                        .font(.system(size: 9.5).width(.condensed).monospacedDigit())
-                        .foregroundStyle(isMe ? Color.white.opacity(0.7) : ColorTheme.tertiaryText(colorScheme))
-                }
+        VStack(alignment: .leading, spacing: 0) {
+            if let preview = replyPreview {
+                BubbleReplyQuote(
+                    preview: preview,
+                    isMe: isMe,
+                    currentUserId: currentUserId,
+                    peerDisplayName: peerDisplayName
+                )
+                .padding(.horizontal, 6)
+                .padding(.top, 6)
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .frame(minHeight: 48)
-            .contentShape(Rectangle())
+            Button {
+                togglePlay()
+            } label: {
+                HStack(spacing: 10) {
+                    playIcon
+                    waveform
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(displayedTime())
+                            .font(.system(size: 11).width(.condensed).monospacedDigit())
+                            .foregroundStyle(isMe ? Color.white.opacity(0.85) : .secondary)
+                        Text(timeText)
+                            .font(.system(size: 9.5).width(.condensed).monospacedDigit())
+                            .foregroundStyle(isMe ? Color.white.opacity(0.7) : ColorTheme.tertiaryText(colorScheme))
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .frame(minHeight: 48)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
         .background(bubbleFill)
         .clipShape(bubbleShape)
     }
@@ -463,6 +592,70 @@ private struct VoiceBubble: View {
             seconds = (durationMs ?? 0) / 1000
         }
         return String(format: "%d:%02d", seconds / 60, seconds % 60)
+    }
+}
+
+// MARK: - Inline reply quote (shared by text/media/voice bubbles)
+
+/// Renders the small "replying to X — preview" strip that appears at the
+/// top of a message bubble when the message itself is a reply. Shared
+/// between MessageBubble (text + media) and VoiceBubble so all four
+/// attachment types render the quote consistently.
+fileprivate struct BubbleReplyQuote: View {
+    let preview: DMReplyPreview
+    let isMe: Bool
+    let currentUserId: String?
+    let peerDisplayName: String?
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        let fromMe = preview.senderId == currentUserId
+        let label = fromMe ? "You" : (peerDisplayName ?? "Reply")
+        let stripeColor: Color = isMe
+            ? Color.white.opacity(0.85)
+            : ColorTheme.accent
+
+        HStack(spacing: 8) {
+            Rectangle()
+                .fill(stripeColor)
+                .frame(width: 2.5)
+                .clipShape(Capsule())
+            VStack(alignment: .leading, spacing: 1) {
+                Text(label)
+                    .font(.system(size: 11.5, weight: .semibold).width(.condensed))
+                    .foregroundStyle(stripeColor)
+                    .lineLimit(1)
+                Text(bodyText)
+                    .font(.system(size: 12.5).width(.condensed))
+                    .foregroundStyle(isMe ? Color.white.opacity(0.85) : ColorTheme.secondaryText(colorScheme))
+                    .lineLimit(2)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(
+                    isMe
+                        ? Color.white.opacity(0.12)
+                        : ColorTheme.accent.opacity(0.08)
+                )
+        )
+    }
+
+    private var bodyText: String {
+        if let body = preview.body,
+           !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return body
+        }
+        switch preview.attachmentType {
+        case "image": return "Photo"
+        case "video": return "Video"
+        case "voice": return "Voice message"
+        default: return "Attachment"
+        }
     }
 }
 

@@ -142,6 +142,16 @@ struct DMAttachmentRef: Codable, Hashable {
     let height: Int?
 }
 
+/// Compact snapshot of the message being quoted. Denormalized server-side so
+/// we can render the quote box without a second fetch and without breaking
+/// when the original is later deleted.
+struct DMReplyPreview: Codable, Hashable {
+    let id: String
+    let senderId: String
+    let body: String?
+    let attachmentType: String?
+}
+
 struct DMMessage: Identifiable, Codable, Hashable {
     let id: String
     let conversationId: String
@@ -152,6 +162,7 @@ struct DMMessage: Identifiable, Codable, Hashable {
     let createdAt: String
     let deliveredAt: String?
     let readAt: String?
+    let replyTo: DMReplyPreview?
 
     var createdAtDate: Date? {
         DMDate.parse(createdAt)
