@@ -19,7 +19,10 @@ final class DMService {
     private(set) var pinnedIds: Set<String> = []
     private(set) var mutedIds: Set<String> = []
     private(set) var archivedIds: Set<String> = []
-    private(set) var hiddenIds: Set<String> = []
+    /// Per-conversation hide timestamp. A chat stays hidden only while its
+    /// `lastMessageDate` is `<=` this date — any newer activity (incoming or
+    /// outgoing) lifts the hide automatically, mirroring WhatsApp.
+    private(set) var hiddenAt: [String: Date] = [:]
     private(set) var manualUnreadIds: Set<String> = []
 
     private var loadedLocalUserId: String?
@@ -29,7 +32,7 @@ final class DMService {
     var totalUnread: Int {
         var total = 0
         for c in conversations {
-            if hiddenIds.contains(c.id) { continue }
+            if isHidden(c) { continue }
             if archivedIds.contains(c.id) { continue }
             if mutedIds.contains(c.id) { continue }
             let count = manualUnreadIds.contains(c.id) ? max(c.unreadCount, 1) : c.unreadCount
@@ -39,7 +42,16 @@ final class DMService {
     }
 
     var visibleConversations: [DMConversation] {
-        conversations.filter { !hiddenIds.contains($0.id) }
+        conversations.filter { !isHidden($0) }
+    }
+
+    /// A conversation is hidden iff it carries a hide stamp AND no newer
+    /// message has arrived since. Missing `lastMessageDate` is treated as
+    /// "no new activity," so the hide stays in effect.
+    private func isHidden(_ c: DMConversation) -> Bool {
+        guard let hideDate = hiddenAt[c.id] else { return false }
+        guard let last = c.lastMessageDate else { return true }
+        return last <= hideDate
     }
 
     func loadInbox() async throws {
@@ -52,6 +64,7 @@ final class DMService {
         )
         conversations = page.items
         prunePersistedState()
+        unhideStaleEntries()
     }
 
     // MARK: - Local conversation state (per-user)
@@ -64,7 +77,7 @@ final class DMService {
         pinnedIds = readSet(d, name: "pinned")
         mutedIds = readSet(d, name: "muted")
         archivedIds = readSet(d, name: "archived")
-        hiddenIds = readSet(d, name: "hidden")
+        hiddenAt = readHiddenAt(d)
         manualUnreadIds = readSet(d, name: "manualUnread")
     }
 
@@ -95,28 +108,58 @@ final class DMService {
     }
 
     /// Hides a conversation locally — equivalent to "Delete chat" in WhatsApp.
-    /// Backend keeps the thread; if a new message arrives, it'll resurface on next load.
+    /// Backend keeps the thread; the hide is lifted automatically the next
+    /// time a message newer than this stamp arrives, or when the user
+    /// actively re-engages with this chat.
     func hideConversation(_ id: String) {
-        hiddenIds.insert(id)
+        hiddenAt[id] = Date()
         pinnedIds.remove(id)
         archivedIds.remove(id)
         manualUnreadIds.remove(id)
         persist("pinned", pinnedIds)
         persist("archived", archivedIds)
         persist("manualUnread", manualUnreadIds)
-        persist("hidden", hiddenIds)
+        persistHiddenAt()
         conversations.removeAll { $0.id == id }
     }
 
-    /// Drops persisted ids that no longer exist server-side, except `hidden`
-    /// which is intentionally sticky so a deleted chat stays gone unless a
-    /// new message brings it back (mirrors WhatsApp behavior).
+    /// Drops the hide stamp for `id` and, if the conversation is no longer
+    /// in the in-memory cache (because `hideConversation` removed it),
+    /// kicks off a background refresh so the inbox repopulates it.
+    private func evictHidden(_ id: String) {
+        guard hiddenAt.removeValue(forKey: id) != nil else { return }
+        persistHiddenAt()
+        if !conversations.contains(where: { $0.id == id }) {
+            Task { try? await loadInbox() }
+        }
+    }
+
+    /// Drops persisted ids that no longer exist server-side. `hiddenAt` is
+    /// pruned by `unhideStaleEntries` instead — its sticky-with-resurrection
+    /// semantics differ from the other sets.
     private func prunePersistedState() {
         let live = Set(conversations.map { $0.id })
         prune(&pinnedIds, live: live, name: "pinned")
         prune(&mutedIds, live: live, name: "muted")
         prune(&archivedIds, live: live, name: "archived")
         prune(&manualUnreadIds, live: live, name: "manualUnread")
+    }
+
+    /// Lifts the hide stamp on any conversation whose latest message is
+    /// newer than the stamp — i.e. a friend wrote back, or we sent
+    /// something. This is the "new messages will bring the chat back" path.
+    private func unhideStaleEntries() {
+        guard !hiddenAt.isEmpty else { return }
+        var changed = false
+        for c in conversations {
+            if let hideDate = hiddenAt[c.id],
+               let last = c.lastMessageDate,
+               last > hideDate {
+                hiddenAt.removeValue(forKey: c.id)
+                changed = true
+            }
+        }
+        if changed { persistHiddenAt() }
     }
 
     private func prune(_ set: inout Set<String>, live: Set<String>, name: String) {
@@ -136,6 +179,28 @@ final class DMService {
         UserDefaults.standard.set(Array(set), forKey: storageKey(name))
     }
 
+    /// Reads the hide-stamp dictionary. Falls back to the legacy `hidden`
+    /// `[String]` format from earlier builds and migrates it forward by
+    /// stamping every entry with "now," so previously-hidden chats stay
+    /// hidden until a newer message arrives — same as freshly hiding them.
+    private func readHiddenAt(_ d: UserDefaults) -> [String: Date] {
+        let key = storageKey("hiddenAt")
+        if let raw = d.dictionary(forKey: key) as? [String: Double] {
+            return raw.mapValues { Date(timeIntervalSince1970: $0) }
+        }
+        let legacyKey = storageKey("hidden")
+        if let arr = d.array(forKey: legacyKey) as? [String], !arr.isEmpty {
+            let now = Date()
+            return Dictionary(uniqueKeysWithValues: arr.map { ($0, now) })
+        }
+        return [:]
+    }
+
+    private func persistHiddenAt() {
+        let raw: [String: Double] = hiddenAt.mapValues { $0.timeIntervalSince1970 }
+        UserDefaults.standard.set(raw, forKey: storageKey("hiddenAt"))
+    }
+
     private func storageKey(_ name: String) -> String {
         let uid = loadedLocalUserId ?? AuthService.shared.currentUser?.id ?? "anon"
         return "dm.local.\(uid).\(name)"
@@ -150,6 +215,9 @@ final class DMService {
             method: "POST",
             body: Body(recipientId: userId)
         )
+        // Re-engaging with a previously-hidden chat lifts the hide so it
+        // resurfaces in the inbox once we (or they) send the next message.
+        evictHidden(r.id)
         return r.id
     }
 
@@ -172,6 +240,7 @@ final class DMService {
             body: Body(body: body, replyToMessageId: replyToMessageId)
         )
         locallyApplyOutgoing(message: m, conversationId: conversationId)
+        evictHidden(conversationId)
         return m
     }
 
@@ -194,6 +263,7 @@ final class DMService {
             body: Body(body: body, attachmentType: kind, attachmentRef: attachment, replyToMessageId: replyToMessageId)
         )
         locallyApplyOutgoing(message: m, conversationId: conversationId)
+        evictHidden(conversationId)
         return m
     }
 
