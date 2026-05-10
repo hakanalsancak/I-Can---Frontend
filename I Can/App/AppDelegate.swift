@@ -41,6 +41,21 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
+        // Suppress the foreground banner+sound when the user is already
+        // looking at the chat the message belongs to. UN delegate callbacks
+        // are delivered on the main thread, so it's safe to read
+        // `NotificationService.shared` (which is @MainActor) from here.
+        let info = notification.request.content.userInfo
+        if let type = info["type"] as? String, type == "community.dm",
+           let cid = info["conversationId"] as? String {
+            let active = MainActor.assumeIsolated {
+                NotificationService.shared.activeConversationId
+            }
+            if active == cid {
+                completionHandler([])
+                return
+            }
+        }
         completionHandler([.banner, .sound])
     }
 

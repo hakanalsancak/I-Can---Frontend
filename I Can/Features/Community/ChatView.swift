@@ -89,10 +89,14 @@ struct ChatView: View {
         // gesture without ambiguity.
         .background(InteractiveSwipeBack())
         .task { await initialLoad() }
+        .onAppear {
+            NotificationService.shared.setActiveConversation(conversation.id)
+        }
         .onChange(of: inputFocused) { _, focused in
             if focused { scrollToBottomToken &+= 1 }
         }
         .onDisappear {
+            NotificationService.shared.setActiveConversation(nil)
             pollTask?.cancel()
             stopRecording(submit: false)
         }

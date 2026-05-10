@@ -9,6 +9,37 @@ final class NotificationService {
     private static let streakReminderPrefix = "streak-reminder"
     private static let motivationalPrefix = "motivational"
 
+    /// Conversation ID currently visible on screen (ChatView is mounted).
+    /// Read from `AppDelegate.userNotificationCenter(_:willPresent:…)` so a
+    /// DM push for the conversation the user is already reading does not
+    /// banner/play a sound on top of the chat they're looking at.
+    var activeConversationId: String?
+
+    /// Marks a conversation as the one currently on screen. Pass `nil` when
+    /// leaving the chat. Entering also wipes any DM banners already sitting
+    /// in Notification Center for that conversation, so the user doesn't
+    /// see stale notifications after they've opened the thread.
+    func setActiveConversation(_ id: String?) {
+        activeConversationId = id
+        if let id { clearDeliveredDMNotifications(forConversationId: id) }
+    }
+
+    private func clearDeliveredDMNotifications(forConversationId conversationId: String) {
+        UNUserNotificationCenter.current().getDeliveredNotifications { delivered in
+            let ids = delivered.compactMap { n -> String? in
+                let info = n.request.content.userInfo
+                guard let type = info["type"] as? String, type == "community.dm",
+                      let cid = info["conversationId"] as? String, cid == conversationId
+                else { return nil }
+                return n.request.identifier
+            }
+            if !ids.isEmpty {
+                UNUserNotificationCenter.current()
+                    .removeDeliveredNotifications(withIdentifiers: ids)
+            }
+        }
+    }
+
     private let reminderMessages = [
         ("Don't break the chain!", "You haven't logged today. Keep your streak alive."),
         ("Your streak is waiting!", "A quick 2-minute log keeps your momentum going."),
