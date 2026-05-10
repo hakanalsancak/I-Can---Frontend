@@ -63,17 +63,24 @@ struct ChatView: View {
     var body: some View {
         ZStack {
             chatBackground.ignoresSafeArea()
+            messagesList
+        }
+        .toolbar(.hidden, for: .navigationBar)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            chatHeader
+        }
+        // Dock the composer via safeAreaInset(.bottom) so SwiftUI keeps it
+        // flush with the parent TabView's tab bar when idle and slides it
+        // above the keyboard when focused. Putting it in a plain VStack with
+        // the messages list left a residual gap above the tab bar after
+        // interactively dismissing the keyboard.
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 0) {
-                messagesList
                 if isUploading {
                     uploadBar
                 }
                 inputBar
             }
-        }
-        .toolbar(.hidden, for: .navigationBar)
-        .safeAreaInset(edge: .top, spacing: 0) {
-            chatHeader
         }
         // Telegram-style interactive swipe-back from anywhere on the page,
         // with the system's real pop transition (parallax + percent-driven
