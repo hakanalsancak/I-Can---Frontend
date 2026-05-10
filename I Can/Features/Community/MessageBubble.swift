@@ -86,9 +86,16 @@ struct MessageBubble: View {
                 let clamped = max(-Self.maxDragDistance, raw)
                 dragOffset = clamped
             }
-            .onEnded { value in
-                let committed = value.translation.width < -Self.replyTriggerDistance
-                    && abs(value.translation.height) < 50
+            .onEnded { _ in
+                // Commit based on the tracked offset rather than the raw
+                // end-translation. `onChanged` only grows `dragOffset` while
+                // the gesture is horizontally dominant, so reaching the
+                // trigger here implies a real horizontal swipe — and unlike
+                // the raw translation it isn't sensitive to natural vertical
+                // finger drift on release. Without this, a user who swipes
+                // far enough to reveal the reply icon but lifts a few dozen
+                // points below the bubble row gets nothing.
+                let committed = dragOffset <= -Self.replyTriggerDistance
                 withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
                     dragOffset = 0
                 }
