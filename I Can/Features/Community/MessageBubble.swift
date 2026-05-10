@@ -85,7 +85,14 @@ struct MessageBubble: View {
                 dragOffset = clamped
             }
             .onEnded { value in
-                let committed = abs(value.translation.width) > Self.replyTriggerDistance
+                // If the user dragged far enough that ChatView's swipe-back
+                // gesture will dismiss the page, suppress the reply commit so
+                // the inbox doesn't pop with a stale reply banner queued.
+                // Only matters for incoming bubbles (right-swipe direction
+                // overlaps with the dismiss swipe).
+                let willDismissChat = !isMe && value.translation.width > 110
+                let committed = !willDismissChat
+                    && abs(value.translation.width) > Self.replyTriggerDistance
                     && abs(value.translation.height) < 50
                     && ((isMe && value.translation.width < 0) || (!isMe && value.translation.width > 0))
                 withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {

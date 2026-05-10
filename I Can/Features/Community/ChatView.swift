@@ -75,20 +75,13 @@ struct ChatView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             chatHeader
         }
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 20, coordinateSpace: .local)
-                .onEnded { value in
-                    // Restrict back-to-inbox swipe to drags that start from
-                    // the screen's left edge. Otherwise it conflicts with the
-                    // swipe-to-reply gesture on individual message bubbles.
-                    guard value.startLocation.x < 24 else { return }
-                    if value.translation.width > 80
-                        && abs(value.translation.height) < 60
-                        && value.predictedEndTranslation.width > value.translation.width {
-                        dismiss()
-                    }
-                }
-        )
+        // Telegram-style interactive swipe-back from anywhere on the page,
+        // with the system's real pop transition (parallax + percent-driven
+        // cancellation). MessageBubble's swipe-to-reply still works under
+        // it — the bubble suppresses its commit past the dismiss threshold
+        // so a long rightward drag on an incoming bubble dismisses cleanly
+        // instead of also queueing a reply.
+        .background(InteractiveSwipeBack())
         .task { await initialLoad() }
         .onChange(of: inputFocused) { _, focused in
             if focused { scrollToBottomToken &+= 1 }
