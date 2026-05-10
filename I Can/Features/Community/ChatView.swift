@@ -898,10 +898,12 @@ struct ChatView: View {
     // MARK: - Sorted-message mutation helpers
 
     /// Replaces all messages with the given collection (sorted ascending).
+    /// Does NOT bump `scrollToBottomToken` — the messages list uses
+    /// `defaultScrollAnchor(.bottom)` so the initial render is already pinned
+    /// to the bottom without an animated scroll.
     private func setInitial(_ items: [DMMessage]) {
         messages = items.sorted(by: Self.ascending)
         messagesVersion &+= 1
-        scrollToBottomToken &+= 1
     }
 
     /// Appends a message that is known to be the newest (just sent locally).
@@ -1038,12 +1040,8 @@ private struct ChatMessagesView: View, Equatable {
                 }
                 .padding(.vertical, 8)
             }
+            .defaultScrollAnchor(.bottom)
             .scrollDismissesKeyboard(.interactively)
-            .onAppear {
-                if let last = lastMessageId {
-                    proxy.scrollTo("msg-\(last)", anchor: .bottom)
-                }
-            }
             .onChange(of: scrollToken) { _, _ in
                 guard let last = lastMessageId else { return }
                 withAnimation(.easeOut(duration: 0.22)) {
