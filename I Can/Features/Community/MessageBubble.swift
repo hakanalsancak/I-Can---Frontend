@@ -16,8 +16,9 @@ struct MessageBubble: View {
 
     @State private var showDeleteConfirm = false
     /// Live drag offset while the user swipes the bubble sideways. Resets
-    /// to 0 on release. Negative for outgoing bubbles (swipe left), positive
-    /// for incoming (swipe right) — mirrors WhatsApp.
+    /// to 0 on release. Always negative — both incoming and outgoing bubbles
+    /// are swiped left to reply, so the gesture direction is consistent
+    /// regardless of who sent the message.
     @State private var dragOffset: CGFloat = 0
     @Environment(\.colorScheme) private var colorScheme
 
@@ -65,14 +66,15 @@ struct MessageBubble: View {
         }
     }
 
-    /// Drag-right (incoming) or drag-left (outgoing) to reply, WhatsApp-
-    /// style. We clamp the followed distance, only commit past the trigger
+    /// Drag-left to reply, regardless of whether the bubble is yours or the
+    /// peer's. We clamp the followed distance, only commit past the trigger
     /// threshold, and animate the snap-back so the gesture feels rubber-y.
     ///
     /// `minimumDistance` is intentionally large (28pt) so a small finger
     /// movement at the start of a vertical scroll doesn't claim the touch.
     /// Until the threshold is hit, the parent ScrollView owns the pan and
-    /// the user can scroll freely from anywhere on the bubble.
+    /// the user can scroll freely from anywhere on the bubble. Right-drags
+    /// are ignored here so they fall through to ChatView's swipe-back.
     private var replySwipeGesture: some Gesture {
         DragGesture(minimumDistance: 28, coordinateSpace: .local)
             .onChanged { value in
@@ -80,21 +82,13 @@ struct MessageBubble: View {
                 // Vertical drags belong to the scroll view — bail out so we
                 // don't fight scrolling.
                 if abs(value.translation.height) > abs(value.translation.width) { return }
-                let raw = isMe ? min(value.translation.width, 0) : max(value.translation.width, 0)
-                let clamped = max(-Self.maxDragDistance, min(Self.maxDragDistance, raw))
+                let raw = min(value.translation.width, 0)
+                let clamped = max(-Self.maxDragDistance, raw)
                 dragOffset = clamped
             }
             .onEnded { value in
-                // If the user dragged far enough that ChatView's swipe-back
-                // gesture will dismiss the page, suppress the reply commit so
-                // the inbox doesn't pop with a stale reply banner queued.
-                // Only matters for incoming bubbles (right-swipe direction
-                // overlaps with the dismiss swipe).
-                let willDismissChat = !isMe && value.translation.width > 110
-                let committed = !willDismissChat
-                    && abs(value.translation.width) > Self.replyTriggerDistance
+                let committed = value.translation.width < -Self.replyTriggerDistance
                     && abs(value.translation.height) < 50
-                    && ((isMe && value.translation.width < 0) || (!isMe && value.translation.width > 0))
                 withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
                     dragOffset = 0
                 }
@@ -109,7 +103,7 @@ struct MessageBubble: View {
     private var replySwipeIndicator: some View {
         let progress = min(1, abs(dragOffset) / Self.replyTriggerDistance)
         HStack {
-            if isMe { Spacer() }
+            Spacer()
             Image(systemName: "arrowshape.turn.up.left.fill")
                 .font(.system(size: 14, weight: .bold))
                 .foregroundStyle(ColorTheme.accent)
@@ -119,8 +113,7 @@ struct MessageBubble: View {
                 )
                 .opacity(Double(progress))
                 .scaleEffect(0.6 + 0.4 * progress)
-                .padding(isMe ? .trailing : .leading, 16)
-            if !isMe { Spacer() }
+                .padding(.trailing, 16)
         }
         .allowsHitTesting(false)
     }

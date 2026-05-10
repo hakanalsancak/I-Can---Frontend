@@ -77,10 +77,9 @@ struct ChatView: View {
         }
         // Telegram-style interactive swipe-back from anywhere on the page,
         // with the system's real pop transition (parallax + percent-driven
-        // cancellation). MessageBubble's swipe-to-reply still works under
-        // it — the bubble suppresses its commit past the dismiss threshold
-        // so a long rightward drag on an incoming bubble dismisses cleanly
-        // instead of also queueing a reply.
+        // cancellation). MessageBubble's swipe-to-reply only listens for
+        // leftward drags, so rightward drags pass straight through to this
+        // gesture without ambiguity.
         .background(InteractiveSwipeBack())
         .task { await initialLoad() }
         .onChange(of: inputFocused) { _, focused in
