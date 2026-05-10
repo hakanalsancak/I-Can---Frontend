@@ -9,7 +9,6 @@ final class SportFeedService {
     private(set) var isLoading = false
     private(set) var nextCursor: String?
     private(set) var hasReachedEnd = false
-    var category: String?
 
     private init() {}
 
@@ -26,9 +25,6 @@ final class SportFeedService {
         if let cursor = nextCursor,
            let encoded = cursor.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
             endpoint += "&cursor=\(encoded)"
-        }
-        if let c = category {
-            endpoint += "&category=\(c)"
         }
 
         let page: SportArticlesPage = try await APIClient.shared.request(endpoint)

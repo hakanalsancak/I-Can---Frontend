@@ -4,54 +4,15 @@ struct SportFeedView: View {
     @State private var service = SportFeedService.shared
     @State private var loadFailed = false
     @State private var errorMessage: String?
-    @State private var selectedFilter: String = "all"
     @Environment(\.colorScheme) private var colorScheme
-
-    private let filters: [(id: String, label: String, value: String?)] = [
-        ("all", "All", nil),
-        ("training", "Training", "training"),
-        ("recovery", "Recovery", "recovery"),
-        ("mindset", "Mindset", "mindset"),
-        ("news", "News", "news"),
-    ]
 
     var body: some View {
         ZStack {
             ColorTheme.background(colorScheme).ignoresSafeArea()
-            VStack(spacing: 0) {
-                filterBar
-                Divider().opacity(0.3)
-                content
-            }
+            content
         }
         .toolbar(.hidden, for: .navigationBar)
         .task { await initialLoad() }
-    }
-
-    private var filterBar: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(filters, id: \.id) { f in
-                    Button {
-                        Task { await applyFilter(f.value) }
-                    } label: {
-                        Text(f.label)
-                            .font(.system(size: 13, weight: selectedFilter == f.id ? .semibold : .regular).width(.condensed))
-                            .foregroundStyle(selectedFilter == f.id ? Color.white : .primary)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 7)
-                            .background(
-                                Capsule().fill(selectedFilter == f.id
-                                               ? AnyShapeStyle(ColorTheme.accent)
-                                               : AnyShapeStyle(Color.secondary.opacity(0.12)))
-                            )
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-        }
     }
 
     @ViewBuilder
@@ -121,12 +82,6 @@ struct SportFeedView: View {
 
     private func initialLoad() async {
         guard service.articles.isEmpty else { return }
-        await refresh()
-    }
-
-    private func applyFilter(_ value: String?) async {
-        selectedFilter = value ?? "all"
-        service.category = value
         await refresh()
     }
 

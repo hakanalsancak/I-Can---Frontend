@@ -2,7 +2,7 @@ import SwiftUI
 
 enum CommunityTab: String, CaseIterable, Identifiable {
     case friends = "Friends"
-    case sport = "Sport"
+    case news = "News"
     case inbox = "Inbox"
 
     var id: String { rawValue }
@@ -71,7 +71,7 @@ struct CommunityView: View {
             NavigationStack {
                 FriendsFeedView()
             }
-        case .sport:
+        case .news:
             NavigationStack {
                 SportFeedView()
             }
