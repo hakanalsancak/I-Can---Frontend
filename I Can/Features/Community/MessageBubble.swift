@@ -68,8 +68,13 @@ struct MessageBubble: View {
     /// Drag-right (incoming) or drag-left (outgoing) to reply, WhatsApp-
     /// style. We clamp the followed distance, only commit past the trigger
     /// threshold, and animate the snap-back so the gesture feels rubber-y.
+    ///
+    /// `minimumDistance` is intentionally large (28pt) so a small finger
+    /// movement at the start of a vertical scroll doesn't claim the touch.
+    /// Until the threshold is hit, the parent ScrollView owns the pan and
+    /// the user can scroll freely from anywhere on the bubble.
     private var replySwipeGesture: some Gesture {
-        DragGesture(minimumDistance: 12, coordinateSpace: .local)
+        DragGesture(minimumDistance: 28, coordinateSpace: .local)
             .onChanged { value in
                 guard onReply != nil else { return }
                 // Vertical drags belong to the scroll view — bail out so we
@@ -250,52 +255,54 @@ struct MessageBubble: View {
         .shadow(color: shadowColor, radius: 1.5, x: 0, y: 0.5)
     }
 
+    // `.onTapGesture` (not Button) so the touch only fires on a clean tap.
+    // Buttons aggressively grab the initial touch, which made scrolling
+    // through a chat by dragging from a media bubble open the viewer
+    // instead of scrolling.
     @ViewBuilder
     private var imageContent: some View {
         if let s = message.attachmentRef?.url, let url = URL(string: s) {
-            Button {
-                onOpenImage?(url)
-            } label: {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().scaledToFill()
-                    default:
-                        ZStack {
-                            Color.secondary.opacity(0.15)
-                            ProgressView()
-                        }
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable().scaledToFill()
+                default:
+                    ZStack {
+                        Color.secondary.opacity(0.15)
+                        ProgressView()
                     }
                 }
-                .frame(width: 240, height: 240)
-                .clipped()
-                .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .frame(width: 240, height: 240)
+            .clipped()
+            .contentShape(Rectangle())
+            .onTapGesture {
+                onOpenImage?(url)
+            }
         }
     }
 
     @ViewBuilder
     private var videoContent: some View {
         if let s = message.attachmentRef?.url, let url = URL(string: s) {
-            Button { onOpenVideo?(url) } label: {
-                ZStack {
-                    LinearGradient(
-                        colors: [Color.black.opacity(0.55), Color.black.opacity(0.85)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                    Image(systemName: "play.fill")
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundStyle(.white)
-                        .padding(18)
-                        .background(Circle().fill(Color.black.opacity(0.45)))
-                }
-                .frame(width: 240, height: 240)
-                .clipped()
-                .contentShape(Rectangle())
+            ZStack {
+                LinearGradient(
+                    colors: [Color.black.opacity(0.55), Color.black.opacity(0.85)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                Image(systemName: "play.fill")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(.white)
+                    .padding(18)
+                    .background(Circle().fill(Color.black.opacity(0.45)))
             }
-            .buttonStyle(.plain)
+            .frame(width: 240, height: 240)
+            .clipped()
+            .contentShape(Rectangle())
+            .onTapGesture {
+                onOpenVideo?(url)
+            }
         }
     }
 
@@ -439,27 +446,25 @@ private struct VoiceBubble: View {
                 .padding(.horizontal, 6)
                 .padding(.top, 6)
             }
-            Button {
-                togglePlay()
-            } label: {
-                HStack(spacing: 10) {
-                    playIcon
-                    waveform
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text(displayedTime())
-                            .font(.system(size: 11).width(.condensed).monospacedDigit())
-                            .foregroundStyle(isMe ? Color.white.opacity(0.85) : .secondary)
-                        Text(timeText)
-                            .font(.system(size: 9.5).width(.condensed).monospacedDigit())
-                            .foregroundStyle(isMe ? Color.white.opacity(0.7) : ColorTheme.tertiaryText(colorScheme))
-                    }
+            HStack(spacing: 10) {
+                playIcon
+                waveform
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(displayedTime())
+                        .font(.system(size: 11).width(.condensed).monospacedDigit())
+                        .foregroundStyle(isMe ? Color.white.opacity(0.85) : .secondary)
+                    Text(timeText)
+                        .font(.system(size: 9.5).width(.condensed).monospacedDigit())
+                        .foregroundStyle(isMe ? Color.white.opacity(0.7) : ColorTheme.tertiaryText(colorScheme))
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
-                .frame(minHeight: 48)
-                .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .frame(minHeight: 48)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                togglePlay()
+            }
         }
         .background(bubbleFill)
         .clipShape(bubbleShape)
