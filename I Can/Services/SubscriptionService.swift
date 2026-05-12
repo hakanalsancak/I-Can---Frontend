@@ -47,6 +47,21 @@ final class SubscriptionService {
         try await Product.products(for: Self.productIds)
     }
 
+    /// Validates an influencer code with the backend and stores a pending
+    /// attribution so the next Apple offer-code redemption is credited to
+    /// the right influencer. Returns the response on success; throws on
+    /// invalid/expired/inactive codes.
+    @discardableResult
+    func claimInfluencerCode(_ code: String) async throws -> ClaimCodeResponse {
+        let normalized = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let request = ClaimCodeRequest(code: normalized)
+        let response: ClaimCodeResponse = try await APIClient.shared.request(
+            APIEndpoints.Subscriptions.claimCode, method: "POST", body: request
+        )
+        return response
+    }
+
+
     func purchase(_ product: Product) async throws -> Bool {
         let result = try await product.purchase()
         switch result {

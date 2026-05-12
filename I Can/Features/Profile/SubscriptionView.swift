@@ -14,6 +14,7 @@ struct SubscriptionView: View {
     @State private var appearAnimation = false
     @State private var pulseScale: CGFloat = 1.0
     @State private var shimmerPhase: CGFloat = -1
+    @State private var showCodeSheet = false
 
     private var userName: String {
         AuthService.shared.currentUser?.fullName?.components(separatedBy: " ").first ?? "Athlete"
@@ -71,6 +72,9 @@ struct SubscriptionView: View {
             .task { await loadProducts() }
             .sheet(isPresented: $showAccountUpgrade) {
                 AccountUpgradeSheet()
+            }
+            .sheet(isPresented: $showCodeSheet) {
+                PromoCodeSheet()
             }
             .onChange(of: showAccountUpgrade) { _, isShowing in
                 if !isShowing {
@@ -240,6 +244,10 @@ struct SubscriptionView: View {
                     .foregroundColor(ColorTheme.tertiaryText(colorScheme))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
+
+                promoCodeBanner
+                    .padding(.horizontal, 20)
+                    .padding(.top, 4)
             } else {
                 PrimaryButton(title: "Subscribe") {
                     Task { await retryLoadAndPurchase() }
@@ -532,6 +540,38 @@ struct SubscriptionView: View {
 
     // MARK: - Footer
 
+    private var promoCodeBanner: some View {
+        Button {
+            HapticManager.selection()
+            showCodeSheet = true
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "ticket.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(Color(hex: "EAB308"))
+                Text("Have a promo code?")
+                    .font(.system(size: 15, weight: .bold).width(.condensed))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+                Spacer(minLength: 4)
+                Text("Tap to apply")
+                    .font(.system(size: 12, weight: .semibold).width(.condensed))
+                    .foregroundColor(Color(hex: "EAB308"))
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(Color(hex: "EAB308"))
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(Color(hex: "EAB308").opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(Color(hex: "EAB308").opacity(0.3), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
     private var footerSection: some View {
         VStack(spacing: 12) {
             Button("Restore Purchases") {
@@ -608,5 +648,144 @@ private struct ScaleButtonStyle: ButtonStyle {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
             .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+// MARK: - Promo Code Sheet
+
+private struct PromoCodeSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.openURL) private var openURL
+    @State private var code: String = ""
+    @State private var isWorking = false
+    @State private var errorMessage: String?
+    @State private var successMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 20) {
+                VStack(spacing: 6) {
+                    Image(systemName: "ticket.fill")
+                        .font(.system(size: 36))
+                        .foregroundColor(Color(hex: "EAB308"))
+                        .padding(.bottom, 6)
+                    Text("Have a Promo Code?")
+                        .font(Typography.title)
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    Text("Enter your code to unlock 20% off the yearly plan.")
+                        .font(Typography.subheadline)
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
+                }
+                .padding(.top, 24)
+
+                TextField("e.g. ICAN10", text: $code)
+                    .textInputAutocapitalization(.characters)
+                    .autocorrectionDisabled(true)
+                    .font(.system(size: 18, weight: .semibold).monospaced())
+                    .multilineTextAlignment(.center)
+                    .padding(16)
+                    .background(ColorTheme.cardBackground(colorScheme))
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .strokeBorder(ColorTheme.separator(colorScheme), lineWidth: 1)
+                    )
+                    .padding(.horizontal, 24)
+
+                if let errorMessage {
+                    Text(errorMessage)
+                        .font(Typography.footnote)
+                        .foregroundColor(.red)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
+                }
+
+                if let successMessage {
+                    Text(successMessage)
+                        .font(Typography.subheadline)
+                        .foregroundColor(Color(hex: "22C55E"))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
+                }
+
+                Button {
+                    Task { await applyCode() }
+                } label: {
+                    HStack(spacing: 8) {
+                        if isWorking {
+                            ProgressView().tint(.white)
+                        } else {
+                            Text("Apply Code")
+                                .font(.system(size: 17, weight: .heavy).width(.condensed))
+                        }
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52)
+                    .background(
+                        LinearGradient(
+                            colors: [Color(hex: "EAB308"), Color(hex: "D97706")],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+                .disabled(isWorking || code.trimmingCharacters(in: .whitespaces).isEmpty)
+                .padding(.horizontal, 24)
+
+                Text("After applying, Apple's redeem sheet will open. Enter the same code there to complete the discount.")
+                    .font(.system(size: 12, weight: .medium).width(.condensed))
+                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+
+                Spacer()
+            }
+            .background(ColorTheme.background(colorScheme).ignoresSafeArea())
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Close") { dismiss() }
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                }
+            }
+        }
+    }
+
+    private func applyCode() async {
+        errorMessage = nil
+        successMessage = nil
+        isWorking = true
+        defer { isWorking = false }
+
+        let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        do {
+            let response = try await SubscriptionService.shared.claimInfluencerCode(trimmed)
+            successMessage = "Code accepted. Opening Apple's redeem sheet..."
+
+            if #available(iOS 16.0, *), let scene = activeScene() {
+                try? await Task.sleep(nanoseconds: 600_000_000)
+                try await AppStore.presentOfferCodeRedeemSheet(in: scene)
+                dismiss()
+            } else {
+                // iOS 14/15 fallback: deep link to the App Store redeem page
+                // with the code pre-filled.
+                if let url = URL(string: "https://apps.apple.com/redeem?ctx=offercodes&code=\(response.code)") {
+                    openURL(url)
+                }
+                dismiss()
+            }
+        } catch {
+            errorMessage = "That code didn't work. Check it and try again."
+        }
+    }
+
+    private func activeScene() -> UIWindowScene? {
+        UIApplication.shared.connectedScenes
+            .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene
     }
 }

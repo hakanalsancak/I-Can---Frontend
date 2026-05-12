@@ -14,3 +14,14 @@ struct VerifyReceiptRequest: Encodable {
     let originalTransactionId: String?
     let jwsRepresentation: String
 }
+
+struct ClaimCodeRequest: Encodable {
+    let code: String
+}
+
+struct ClaimCodeResponse: Decodable {
+    let ok: Bool
+    let code: String
+    let influencerName: String?
+    let discountPercent: Int
+}

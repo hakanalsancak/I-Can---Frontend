@@ -69,6 +69,7 @@ enum APIEndpoints {
     enum Subscriptions {
         static let status = "/api/subscriptions/status"
         static let verify = "/api/subscriptions/verify"
+        static let claimCode = "/api/subscriptions/claim-code"
     }
 
     enum Notifications {
