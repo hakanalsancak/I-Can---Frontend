@@ -11,7 +11,6 @@ struct SubscriptionView: View {
     @State private var isGuest = AuthService.shared.currentUser?.isGuest ?? false
     @State private var showAccountUpgrade = false
     @State private var selectedProduct: Product?
-    @State private var trialEligibility: [String: Bool] = [:]
     @State private var appearAnimation = false
     @State private var pulseScale: CGFloat = 1.0
     @State private var shimmerPhase: CGFloat = -1
@@ -224,7 +223,7 @@ struct SubscriptionView: View {
                             } else {
                                 Image(systemName: "sparkles")
                                     .font(.system(size: 16, weight: .bold))
-                                Text(ctaButtonText)
+                                Text("Get Premium Now")
                                     .font(.system(size: 18, weight: .heavy).width(.condensed))
                             }
                         }
@@ -236,19 +235,11 @@ struct SubscriptionView: View {
                 .disabled(isPurchasing)
                 .padding(.horizontal, 20)
 
-                if anyProductHasTrial {
-                    Text("7-day free trial included. After the trial, your subscription will automatically renew at the price shown above unless cancelled at least 24 hours before the end of the trial period.")
-                        .font(.system(size: 11, weight: .regular).width(.condensed))
-                        .foregroundColor(ColorTheme.tertiaryText(colorScheme))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 24)
-                } else {
-                    Text("Your subscription will automatically renew at the price shown above unless cancelled at least 24 hours before the end of the current period.")
-                        .font(.system(size: 11, weight: .regular).width(.condensed))
-                        .foregroundColor(ColorTheme.tertiaryText(colorScheme))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 24)
-                }
+                Text("Your subscription will automatically renew at the price shown above unless cancelled at least 24 hours before the end of the current period.")
+                    .font(.system(size: 11, weight: .regular).width(.condensed))
+                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
             } else {
                 PrimaryButton(title: "Subscribe") {
                     Task { await retryLoadAndPurchase() }
@@ -265,15 +256,8 @@ struct SubscriptionView: View {
         }
     }
 
-    private var ctaButtonText: String {
-        let product = selectedProduct ?? products.sorted(by: { productOrder($0) < productOrder($1) }).first
-        guard let product else { return "Get Premium Now" }
-        return isTrialEligible(product) ? "Start Free Trial" : "Get Premium Now"
-    }
-
     private func planCard(product: Product) -> some View {
         let isYearly = product.id == SubscriptionService.yearlyProductId
-        let hasTrial = isTrialEligible(product)
         let isSelected = (selectedProduct?.id ?? products.sorted(by: { productOrder($0) < productOrder($1) }).first?.id) == product.id
 
         return Button {
@@ -302,7 +286,7 @@ struct SubscriptionView: View {
                             .font(.system(size: 17, weight: .bold).width(.condensed))
                             .foregroundColor(ColorTheme.primaryText(colorScheme))
                         if isYearly {
-                            Text("SAVE 38%")
+                            Text("SAVE 40%")
                                 .font(.system(size: 10, weight: .heavy).width(.condensed))
                                 .foregroundColor(Color(hex: "EAB308"))
                                 .padding(.horizontal, 8)
@@ -320,16 +304,9 @@ struct SubscriptionView: View {
                                 .clipShape(Capsule())
                         }
                     }
-                    HStack(spacing: 4) {
-                        if hasTrial {
-                            Text("7-day free trial, then")
-                                .font(.system(size: 13, weight: .medium).width(.condensed))
-                                .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                        }
-                        Text(isYearly ? "\(product.displayPrice)/year" : "\(product.displayPrice)/month")
-                            .font(.system(size: 13, weight: .semibold).width(.condensed))
-                            .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                    }
+                    Text(isYearly ? "\(product.displayPrice)/year" : "\(product.displayPrice)/month")
+                        .font(.system(size: 13, weight: .semibold).width(.condensed))
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
                 }
 
                 Spacer()
@@ -574,14 +551,6 @@ struct SubscriptionView: View {
 
     // MARK: - Helpers
 
-    private var anyProductHasTrial: Bool {
-        products.contains { trialEligibility[$0.id] == true }
-    }
-
-    private func isTrialEligible(_ product: Product) -> Bool {
-        trialEligibility[product.id] == true
-    }
-
     private func productOrder(_ product: Product) -> Int {
         product.id == SubscriptionService.yearlyProductId ? 0 : 1
     }
@@ -589,12 +558,6 @@ struct SubscriptionView: View {
     private func loadProducts() async {
         do {
             products = try await SubscriptionService.shared.loadProducts()
-            for product in products {
-                if let subscription = product.subscription {
-                    let eligible = await subscription.isEligibleForIntroOffer
-                    trialEligibility[product.id] = eligible
-                }
-            }
         } catch {
             errorMessage = "Could not load subscription options"
         }

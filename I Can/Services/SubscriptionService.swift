@@ -72,20 +72,11 @@ final class SubscriptionService {
             if isPremium {
                 await transaction.finish()
 
-                let isFreeTrial = transaction.offer?.type == .introductory
                 let planType = transaction.productID == Self.yearlyProductId ? "yearly" : "monthly"
-
-                if isFreeTrial {
-                    AnalyticsManager.log("free_trial_started", parameters: [
-                        "product_id": transaction.productID,
-                        "plan_type": planType
-                    ])
-                } else {
-                    AnalyticsManager.log("subscription_purchased", parameters: [
-                        "product_id": transaction.productID,
-                        "plan_type": planType
-                    ])
-                }
+                AnalyticsManager.log("subscription_purchased", parameters: [
+                    "product_id": transaction.productID,
+                    "plan_type": planType
+                ])
 
                 return true
             } else {
