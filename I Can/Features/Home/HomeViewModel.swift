@@ -285,6 +285,7 @@ final class HomeViewModel {
             dinner: data.dinner,
             snacks: data.snacks,
             drinks: data.drinks,
+            water: data.waterDisplay,
             healthScore: healthScore,
             mealsLogged: data.mealsLogged
         )

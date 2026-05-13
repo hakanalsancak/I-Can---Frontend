@@ -100,6 +100,7 @@ struct NutritionInsight: Encodable {
     var dinner: String?
     var snacks: String?
     var drinks: String?
+    var water: String?
     var healthScore: Int?
     var mealsLogged: Int?
 }

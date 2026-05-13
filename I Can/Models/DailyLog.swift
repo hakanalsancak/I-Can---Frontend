@@ -572,9 +572,23 @@ struct NutritionData: Codable, Equatable {
     var dinner: String?
     var snacks: String?
     var drinks: String?
+    var waterAmount: Double?
+    var waterUnit: String?
 
     var mealsLogged: Int {
         [breakfast, lunch, dinner].compactMap { $0 }.filter { !$0.isEmpty }.count
+    }
+
+    var waterDisplay: String? {
+        guard let amount = waterAmount, amount > 0 else { return nil }
+        let unit = WaterUnit(rawValue: waterUnit ?? "") ?? .liters
+        return unit.format(amount)
+    }
+
+    var waterMilliliters: Double? {
+        guard let amount = waterAmount, amount > 0 else { return nil }
+        let unit = WaterUnit(rawValue: waterUnit ?? "") ?? .liters
+        return unit.toMilliliters(amount)
     }
 
     var summary: String {
@@ -585,6 +599,44 @@ struct NutritionData: Codable, Equatable {
             }
         if meals.isEmpty { return "No meals logged" }
         return meals.joined(separator: ", ")
+    }
+}
+
+enum WaterUnit: String, CaseIterable, Identifiable, Codable {
+    case liters = "L"
+    case milliliters = "mL"
+    case fluidOunces = "fl oz"
+    case cups = "cups"
+
+    var id: String { rawValue }
+
+    var displayName: String { rawValue }
+
+    func format(_ amount: Double) -> String {
+        switch self {
+        case .liters:
+            return String(format: amount.truncatingRemainder(dividingBy: 1) == 0 ? "%.0f L" : "%.2g L", amount)
+        case .milliliters:
+            return String(format: "%.0f mL", amount)
+        case .fluidOunces:
+            return String(format: amount.truncatingRemainder(dividingBy: 1) == 0 ? "%.0f fl oz" : "%.1f fl oz", amount)
+        case .cups:
+            return String(format: amount.truncatingRemainder(dividingBy: 1) == 0 ? "%.0f cups" : "%.2g cups", amount)
+        }
+    }
+
+    func toMilliliters(_ amount: Double) -> Double {
+        switch self {
+        case .liters: return amount * 1000
+        case .milliliters: return amount
+        case .fluidOunces: return amount * 29.5735
+        case .cups: return amount * 236.588
+        }
+    }
+
+    static var localeDefault: WaterUnit {
+        let usesMetric = Locale.current.measurementSystem == .metric
+        return usesMetric ? .liters : .fluidOunces
     }
 }
 

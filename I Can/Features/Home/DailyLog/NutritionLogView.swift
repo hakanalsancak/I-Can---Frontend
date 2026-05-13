@@ -12,6 +12,9 @@ struct NutritionLogView: View {
     @State private var dinner = ""
     @State private var snacks = ""
     @State private var drinks = ""
+    @State private var waterAmount: String = ""
+    @State private var waterUnit: WaterUnit = WaterUnit.localeDefault
+    @FocusState private var waterFocused: Bool
 
     init(existingData: NutritionData?, onSave: @escaping (NutritionData) -> Void) {
         self.existingData = existingData
@@ -22,6 +25,15 @@ struct NutritionLogView: View {
             _dinner = State(initialValue: d.dinner ?? "")
             _snacks = State(initialValue: d.snacks ?? "")
             _drinks = State(initialValue: d.drinks ?? "")
+            if let amount = d.waterAmount, amount > 0 {
+                let formatted = amount.truncatingRemainder(dividingBy: 1) == 0
+                    ? String(format: "%.0f", amount)
+                    : String(format: "%g", amount)
+                _waterAmount = State(initialValue: formatted)
+            }
+            if let unitRaw = d.waterUnit, let unit = WaterUnit(rawValue: unitRaw) {
+                _waterUnit = State(initialValue: unit)
+            }
         }
     }
 
@@ -62,6 +74,9 @@ struct NutritionLogView: View {
                         text: $dinner
                     )
 
+                    // Water (separate section)
+                    waterCard
+
                     // Optional: Snacks & Drinks
                     VStack(spacing: 16) {
                         HStack(spacing: 6) {
@@ -83,8 +98,8 @@ struct NutritionLogView: View {
 
                         mealField(
                             label: "Drinks",
-                            icon: "drop.fill",
-                            placeholder: "Water, protein shake, coffee...",
+                            icon: "cup.and.saucer.fill",
+                            placeholder: "Protein shake, coffee, juice...",
                             text: $drinks
                         )
                     }
@@ -148,13 +163,108 @@ struct NutritionLogView: View {
         }
     }
 
+    private var parsedWaterAmount: Double? {
+        let normalized = waterAmount
+            .replacingOccurrences(of: ",", with: ".")
+            .trimmingCharacters(in: .whitespaces)
+        guard !normalized.isEmpty, let value = Double(normalized), value > 0 else { return nil }
+        return value
+    }
+
+    private var waterCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 6) {
+                Image(systemName: "drop.fill")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(Color(hex: "3B82F6"))
+                Text("WATER")
+                    .font(.system(size: 11, weight: .heavy).width(.condensed))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                Spacer()
+                if let amount = parsedWaterAmount {
+                    Text(waterUnit.format(amount))
+                        .font(.system(size: 11, weight: .bold).width(.condensed))
+                        .foregroundColor(Color(hex: "3B82F6"))
+                }
+            }
+
+            HStack(spacing: 10) {
+                TextField("0", text: $waterAmount)
+                    .keyboardType(.decimalPad)
+                    .focused($waterFocused)
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(ColorTheme.elevatedBackground(colorScheme))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+                Picker("Unit", selection: $waterUnit) {
+                    ForEach(WaterUnit.allCases) { unit in
+                        Text(unit.displayName).tag(unit)
+                    }
+                }
+                .pickerStyle(.menu)
+                .tint(Color(hex: "3B82F6"))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(ColorTheme.elevatedBackground(colorScheme))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+
+            HStack(spacing: 8) {
+                ForEach(quickAddOptions, id: \.0) { item in
+                    Button {
+                        HapticManager.impact(.light)
+                        addQuickAmount(item.0)
+                    } label: {
+                        Text(item.1)
+                            .font(.system(size: 12, weight: .semibold).width(.condensed))
+                            .foregroundColor(Color(hex: "3B82F6"))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Color(hex: "3B82F6").opacity(0.12))
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+                Spacer()
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(ColorTheme.cardBackground(colorScheme))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
+    }
+
+    private var quickAddOptions: [(Double, String)] {
+        switch waterUnit {
+        case .liters: return [(0.25, "+0.25L"), (0.5, "+0.5L"), (1, "+1L")]
+        case .milliliters: return [(250, "+250mL"), (500, "+500mL"), (1000, "+1L")]
+        case .fluidOunces: return [(8, "+8oz"), (16, "+16oz"), (32, "+32oz")]
+        case .cups: return [(1, "+1 cup"), (2, "+2 cups"), (4, "+4 cups")]
+        }
+    }
+
+    private func addQuickAmount(_ amount: Double) {
+        let current = parsedWaterAmount ?? 0
+        let total = current + amount
+        waterAmount = total.truncatingRemainder(dividingBy: 1) == 0
+            ? String(format: "%.0f", total)
+            : String(format: "%g", total)
+    }
+
     private func save() {
+        let amount = parsedWaterAmount
         let data = NutritionData(
             breakfast: breakfast.isEmpty ? nil : breakfast,
             lunch: lunch.isEmpty ? nil : lunch,
             dinner: dinner.isEmpty ? nil : dinner,
             snacks: snacks.isEmpty ? nil : snacks,
-            drinks: drinks.isEmpty ? nil : drinks
+            drinks: drinks.isEmpty ? nil : drinks,
+            waterAmount: amount,
+            waterUnit: amount == nil ? nil : waterUnit.rawValue
         )
         onSave(data)
         dismiss()

@@ -357,8 +357,9 @@ struct DailyLogDetailSheet: View {
             if let b = n.breakfast, !b.isEmpty { mealRow(icon: "sunrise.fill", label: "Breakfast", value: b) }
             if let l = n.lunch, !l.isEmpty { mealRow(icon: "sun.max.fill", label: "Lunch", value: l) }
             if let d = n.dinner, !d.isEmpty { mealRow(icon: "moon.fill", label: "Dinner", value: d) }
+            if let w = n.waterDisplay { mealRow(icon: "drop.fill", label: "Water", value: w) }
             if let s = n.snacks, !s.isEmpty { mealRow(icon: "carrot.fill", label: "Snacks", value: s) }
-            if let d = n.drinks, !d.isEmpty { mealRow(icon: "drop.fill", label: "Drinks", value: d) }
+            if let d = n.drinks, !d.isEmpty { mealRow(icon: "cup.and.saucer.fill", label: "Drinks", value: d) }
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
