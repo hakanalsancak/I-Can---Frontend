@@ -10,7 +10,8 @@ struct NutritionLogView: View {
     @State private var breakfast = ""
     @State private var lunch = ""
     @State private var dinner = ""
-    @State private var snacks = ""
+    @State private var snacks: [String] = []
+    @State private var snackInput = ""
     @State private var drinks = ""
     @State private var waterAmount: String = ""
     @State private var waterUnit: WaterUnit = WaterUnit.localeDefault
@@ -23,7 +24,11 @@ struct NutritionLogView: View {
             _breakfast = State(initialValue: d.breakfast ?? "")
             _lunch = State(initialValue: d.lunch ?? "")
             _dinner = State(initialValue: d.dinner ?? "")
-            _snacks = State(initialValue: d.snacks ?? "")
+            let parsedSnacks = (d.snacks ?? "")
+                .split(whereSeparator: { $0 == "," || $0 == "\n" })
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+            _snacks = State(initialValue: parsedSnacks)
             _drinks = State(initialValue: d.drinks ?? "")
             if let amount = d.waterAmount, amount > 0 {
                 let formatted = amount.truncatingRemainder(dividingBy: 1) == 0
@@ -89,12 +94,7 @@ struct NutritionLogView: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                        mealField(
-                            label: "Snacks",
-                            icon: "carrot.fill",
-                            placeholder: "Protein bar, fruits, nuts...",
-                            text: $snacks
-                        )
+                        snacksField
 
                         mealField(
                             label: "Drinks",
@@ -261,7 +261,7 @@ struct NutritionLogView: View {
             breakfast: breakfast.isEmpty ? nil : breakfast,
             lunch: lunch.isEmpty ? nil : lunch,
             dinner: dinner.isEmpty ? nil : dinner,
-            snacks: snacks.isEmpty ? nil : snacks,
+            snacks: snacks.isEmpty ? nil : snacks.joined(separator: ", "),
             drinks: drinks.isEmpty ? nil : drinks,
             waterAmount: amount,
             waterUnit: amount == nil ? nil : waterUnit.rawValue
@@ -297,6 +297,77 @@ struct NutritionLogView: View {
         .background(ColorTheme.cardBackground(colorScheme))
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
+    }
+
+    private func addSnack() {
+        let trimmed = snackInput.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        if !snacks.contains(where: { $0.lowercased() == trimmed.lowercased() }) {
+            snacks.append(trimmed)
+        }
+        snackInput = ""
+        HapticManager.selection()
+    }
+
+    private var snacksField: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 4) {
+                Image(systemName: "carrot.fill")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                Text("Snacks")
+                    .font(.system(size: 12, weight: .semibold).width(.condensed))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+            }
+
+            if !snacks.isEmpty {
+                FlowLayout(spacing: 6) {
+                    ForEach(snacks, id: \.self) { snack in
+                        HStack(spacing: 4) {
+                            Text(snack)
+                                .font(.system(size: 12, weight: .semibold).width(.condensed))
+                            Button {
+                                snacks.removeAll { $0 == snack }
+                            } label: {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 8, weight: .bold))
+                            }
+                        }
+                        .foregroundColor(ColorTheme.nutrition)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(ColorTheme.nutrition.opacity(0.12))
+                        .clipShape(Capsule())
+                    }
+                }
+            }
+
+            HStack(spacing: 8) {
+                TextField("Add a snack...", text: $snackInput)
+                    .font(.system(size: 14, weight: .medium).width(.condensed))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(ColorTheme.elevatedBackground(colorScheme))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .submitLabel(.done)
+                    .onSubmit { addSnack() }
+
+                Button {
+                    addSnack()
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 26))
+                        .foregroundColor(
+                            snackInput.trimmingCharacters(in: .whitespaces).isEmpty
+                                ? ColorTheme.tertiaryText(colorScheme)
+                                : ColorTheme.nutrition
+                        )
+                }
+                .disabled(snackInput.trimmingCharacters(in: .whitespaces).isEmpty)
+                .buttonStyle(.plain)
+            }
+        }
     }
 
     private func mealField(
