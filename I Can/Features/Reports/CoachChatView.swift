@@ -14,7 +14,8 @@ struct CoachChatView: View {
     @State private var countdownText = ""
     @State private var countdownTask: Task<Void, Never>? = nil
     @State private var currentConversationId: String? = nil
-    @State private var showHistory = false
+    @State private var showSidebar = false
+    @State private var sidebarDragOffset: CGFloat = 0
     @State private var isLoadingConversation = false
     @State private var appearedMessageIDs: Set<UUID> = []
     @State private var streamingMessageID: UUID? = nil
@@ -32,40 +33,42 @@ struct CoachChatView: View {
         return gender == "male" ? "CoachMale" : "CoachFemale"
     }
 
+    private let sidebarWidth: CGFloat = 320
+
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                coachHeader
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                ColorTheme.background(colorScheme).ignoresSafeArea()
 
-                if isLoadingConversation {
-                    VStack {
-                        Spacer()
-                        ProgressView()
-                            .tint(Color(hex: "0EA5E9"))
-                        Spacer()
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if messages.isEmpty && !limitReached {
-                    emptyState
-                } else if limitReached {
-                    if messages.isEmpty {
-                        limitReachedFullState
-                    } else {
-                        messagesList
-                    }
-                } else {
-                    messagesList
-                }
+                mainChatContent
+                    .frame(width: geo.size.width)
+                    .offset(x: mainContentOffset)
+                    .overlay(
+                        Color.black
+                            .opacity(dimmingOpacity)
+                            .ignoresSafeArea()
+                            .allowsHitTesting(showSidebar || sidebarDragOffset > 0)
+                            .onTapGesture { closeSidebar() }
+                    )
+                    .allowsHitTesting(!showSidebar)
 
-                if limitReached {
-                    limitReachedBar
-                } else {
-                    inputBar
-                }
+                ChatSidebarView(
+                    currentConversationId: currentConversationId,
+                    onSelectConversation: { id in
+                        closeSidebar()
+                        Task { await loadConversation(id) }
+                    },
+                    onNewChat: {
+                        startNewChat()
+                        closeSidebar()
+                    },
+                    onClose: { closeSidebar() }
+                )
+                .frame(width: sidebarWidth)
+                .offset(x: sidebarOffset(in: geo.size.width))
+                .shadow(color: Color.black.opacity(showSidebar || sidebarDragOffset > 0 ? 0.25 : 0), radius: 14, x: 4, y: 0)
             }
-            .background(ColorTheme.background(colorScheme).ignoresSafeArea())
-            .onTapGesture { isInputFocused = false }
-            .navigationBarHidden(true)
+            .gesture(edgeDragGesture)
             .sheet(isPresented: $showSubscription, onDismiss: {
                 Task { try? await SubscriptionService.shared.checkStatus() }
                 if SubscriptionService.shared.isPremium {
@@ -76,16 +79,6 @@ struct CoachChatView: View {
                 }
             }) {
                 SubscriptionView()
-            }
-            .sheet(isPresented: $showHistory) {
-                ChatHistoryView(
-                    onSelectConversation: { id in
-                        Task { await loadConversation(id) }
-                    },
-                    onNewChat: {
-                        startNewChat()
-                    }
-                )
             }
             .onAppear {
                 if messages.isEmpty {
@@ -109,18 +102,145 @@ struct CoachChatView: View {
         }
     }
 
+    // MARK: - Main Chat Content
+
+    private var mainChatContent: some View {
+        VStack(spacing: 0) {
+            coachHeader
+
+            if isLoadingConversation {
+                VStack {
+                    Spacer()
+                    ProgressView()
+                        .tint(Color(hex: "0EA5E9"))
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if messages.isEmpty && !limitReached {
+                emptyState
+            } else if limitReached {
+                if messages.isEmpty {
+                    limitReachedFullState
+                } else {
+                    messagesList
+                }
+            } else {
+                messagesList
+            }
+
+            if limitReached {
+                limitReachedBar
+            } else {
+                inputBar
+            }
+        }
+        .background(ColorTheme.background(colorScheme))
+        .contentShape(Rectangle())
+        .onTapGesture { isInputFocused = false }
+    }
+
+    // MARK: - Sidebar Geometry
+
+    private var mainContentOffset: CGFloat {
+        if showSidebar {
+            return sidebarWidth + sidebarDragOffset
+        } else {
+            return max(0, sidebarDragOffset)
+        }
+    }
+
+    private func sidebarOffset(in screenWidth: CGFloat) -> CGFloat {
+        let base: CGFloat = showSidebar ? 0 : -sidebarWidth
+        let dragged = base + sidebarDragOffset
+        return min(0, max(-sidebarWidth, dragged))
+    }
+
+    private var dimmingOpacity: Double {
+        let progress: CGFloat
+        if showSidebar {
+            progress = 1 + (sidebarDragOffset / sidebarWidth) // drag is negative when closing
+        } else {
+            progress = max(0, min(1, sidebarDragOffset / sidebarWidth))
+        }
+        return Double(max(0, min(1, progress))) * 0.35
+    }
+
+    private var edgeDragGesture: some Gesture {
+        DragGesture(minimumDistance: 12)
+            .onChanged { value in
+                let h = value.translation.width
+                let v = value.translation.height
+                guard abs(h) > abs(v) else { return }
+
+                if showSidebar {
+                    // Drag left to close
+                    sidebarDragOffset = max(-sidebarWidth, min(0, h))
+                } else {
+                    // Only open if drag starts near the left edge
+                    guard value.startLocation.x < 40 else { return }
+                    sidebarDragOffset = max(0, min(sidebarWidth, h))
+                }
+            }
+            .onEnded { value in
+                let h = value.translation.width
+                let v = value.translation.height
+                let mostlyHorizontal = abs(h) > abs(v)
+                let threshold = sidebarWidth / 3
+
+                withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+                    if showSidebar {
+                        if mostlyHorizontal && h < -threshold {
+                            showSidebar = false
+                        }
+                    } else {
+                        if mostlyHorizontal && h > threshold && value.startLocation.x < 40 {
+                            showSidebar = true
+                            HapticManager.impact(.light)
+                        }
+                    }
+                    sidebarDragOffset = 0
+                }
+            }
+    }
+
+    private func openSidebar() {
+        isInputFocused = false
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+            showSidebar = true
+            sidebarDragOffset = 0
+        }
+    }
+
+    private func closeSidebar() {
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+            showSidebar = false
+            sidebarDragOffset = 0
+        }
+    }
+
     // MARK: - Coach Header
 
     private var coachHeader: some View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
-                // Coach avatar + status
+                Button {
+                    HapticManager.impact(.light)
+                    openSidebar()
+                } label: {
+                    Image(systemName: "sidebar.left")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+                        .frame(width: 36, height: 36)
+                        .background(ColorTheme.cardBackground(colorScheme))
+                        .clipShape(Circle())
+                }
+
                 ZStack(alignment: .bottomTrailing) {
-                    coachAvatar(size: 36)
+                    coachAvatar(size: 34)
 
                     Circle()
                         .fill(Color(hex: "22C55E"))
-                        .frame(width: 10, height: 10)
+                        .frame(width: 9, height: 9)
                         .overlay(
                             Circle()
                                 .strokeBorder(ColorTheme.background(colorScheme), lineWidth: 2)
@@ -130,44 +250,28 @@ struct CoachChatView: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("AI Coach")
-                        .font(.system(size: 18, weight: .bold).width(.condensed))
+                        .font(.system(size: 17, weight: .bold).width(.condensed))
                         .foregroundColor(ColorTheme.primaryText(colorScheme))
 
                     Text("Active now")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.system(size: 11, weight: .medium))
                         .foregroundColor(Color(hex: "22C55E"))
                 }
 
                 Spacer()
 
-                HStack(spacing: 14) {
-                    Button {
-                        HapticManager.impact(.light)
-                        startNewChat()
-                    } label: {
-                        Image(systemName: "square.and.pencil")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(
-                                LinearGradient(colors: coachGradient, startPoint: .topLeading, endPoint: .bottomTrailing)
-                            )
-                            .frame(width: 36, height: 36)
-                            .background(ColorTheme.cardBackground(colorScheme))
-                            .clipShape(Circle())
-                    }
-
-                    Button {
-                        HapticManager.impact(.light)
-                        showHistory = true
-                    } label: {
-                        Image(systemName: "clock.arrow.circlepath")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(
-                                LinearGradient(colors: coachGradient, startPoint: .topLeading, endPoint: .bottomTrailing)
-                            )
-                            .frame(width: 36, height: 36)
-                            .background(ColorTheme.cardBackground(colorScheme))
-                            .clipShape(Circle())
-                    }
+                Button {
+                    HapticManager.impact(.light)
+                    startNewChat()
+                } label: {
+                    Image(systemName: "square.and.pencil")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(
+                            LinearGradient(colors: coachGradient, startPoint: .topLeading, endPoint: .bottomTrailing)
+                        )
+                        .frame(width: 36, height: 36)
+                        .background(ColorTheme.cardBackground(colorScheme))
+                        .clipShape(Circle())
                 }
             }
             .padding(.horizontal, 16)
