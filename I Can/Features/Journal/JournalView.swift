@@ -20,6 +20,8 @@ struct JournalView: View {
                             }
                         }
 
+                        noteSection
+
                         calendarSection
                         if let entry = viewModel.selectedEntry {
                             Button {
@@ -36,9 +38,6 @@ struct JournalView: View {
                         } else {
                             noEntryCard
                         }
-
-                        // Note of the Day
-                        noteSection
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 16)
