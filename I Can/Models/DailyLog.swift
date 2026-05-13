@@ -19,6 +19,12 @@ struct TrainingSession: Codable, Equatable, Identifiable {
     var position: String?
     var keyStats: [String: Int]?    // Sport-specific stats (goals, assists, etc.)
 
+    // Optional post-match reflection (all nil unless user fills them in)
+    var whatWentWell: String?
+    var toImprove: String?
+    var keyMoment: String?
+    var mindsetRating: Int?         // 1–10 self-rated mental state during match
+
     // MARK: - Gym fields
     var gymFocus: String?           // "strength", "hypertrophy", "power", "conditioning"
     var effortLevel: String?        // "easy", "moderate", "hard", "failure"

@@ -232,7 +232,11 @@ final class HomeViewModel {
                 understandingLevel: s.understandingLevel,
                 recoveryType: s.recoveryType,
                 sessionScore: s.sessionScore,
-                notes: s.notes
+                notes: s.notes,
+                whatWentWell: s.whatWentWell,
+                toImprove: s.toImprove,
+                keyMoment: s.keyMoment,
+                mindsetRating: s.mindsetRating
             )
         }
         request.sessionScore = data.averageSessionScore

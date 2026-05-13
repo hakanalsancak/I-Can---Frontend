@@ -41,6 +41,12 @@ final class SessionEditorState {
     var position = ""
     var keyStats: [String: Int] = [:]
 
+    // Match reflection (optional)
+    var whatWentWell = ""
+    var toImprove = ""
+    var keyMoment = ""
+    var mindsetRating = 0   // 0 = not set
+
     // Gym
     var gymFocus = ""
     var selectedGymFocuses: Set<String> = []
@@ -144,6 +150,10 @@ final class SessionEditorState {
             session.performanceRating = performanceRating
             session.position = position.isEmpty ? nil : position
             session.keyStats = keyStats.isEmpty ? nil : keyStats
+            session.whatWentWell = whatWentWell.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : whatWentWell
+            session.toImprove = toImprove.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : toImprove
+            session.keyMoment = keyMoment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : keyMoment
+            session.mindsetRating = mindsetRating > 0 ? mindsetRating : nil
         case "gym":
             var focusItems = SessionEditorState.gymFocusOptions
                 .map { $0.1 }
@@ -210,6 +220,10 @@ final class SessionEditorState {
         minutesPlayed = session.minutesPlayed ?? 90
         position = session.position ?? ""
         keyStats = session.keyStats ?? [:]
+        whatWentWell = session.whatWentWell ?? ""
+        toImprove = session.toImprove ?? ""
+        keyMoment = session.keyMoment ?? ""
+        mindsetRating = session.mindsetRating ?? 0
 
         gymFocus = session.gymFocus ?? ""
         let parsedFocus = (session.gymFocus ?? "")
@@ -278,6 +292,10 @@ final class SessionEditorState {
         minutesPlayed = 90
         position = ""
         keyStats = [:]
+        whatWentWell = ""
+        toImprove = ""
+        keyMoment = ""
+        mindsetRating = 0
         gymFocus = ""
         selectedGymFocuses = []
         customGymFocuses = []
@@ -994,6 +1012,110 @@ struct TrainingLogView: View {
 
         // Key Stats (sport-specific)
         matchKeyStatsSection
+
+        // Optional post-match reflection
+        matchReflectionSection
+    }
+
+    @ViewBuilder
+    private var matchReflectionSection: some View {
+        sectionCard(title: "REFLECTION (OPTIONAL)", icon: "bubble.left.and.bubble.right.fill") {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Take a moment to reflect — every field is optional.")
+                    .font(.system(size: 12, weight: .regular).width(.condensed))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+
+                reflectionField(
+                    label: "What went well?",
+                    icon: "checkmark.seal.fill",
+                    placeholder: "Strengths, smart decisions, things you did right…",
+                    text: $inlineEditor.whatWentWell
+                )
+
+                reflectionField(
+                    label: "What can you improve next time?",
+                    icon: "arrow.up.right.circle.fill",
+                    placeholder: "One or two things to work on before your next match…",
+                    text: $inlineEditor.toImprove
+                )
+
+                reflectionField(
+                    label: "Key moment or takeaway",
+                    icon: "sparkles",
+                    placeholder: "A standout play, a turning point, or a lesson learned…",
+                    text: $inlineEditor.keyMoment
+                )
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "brain.head.profile")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                        Text("Mindset during the match")
+                            .font(.system(size: 13, weight: .semibold).width(.condensed))
+                            .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    }
+
+                    HStack(spacing: 6) {
+                        ForEach(1...10, id: \.self) { i in
+                            Button {
+                                HapticManager.selection()
+                                inlineEditor.mindsetRating = inlineEditor.mindsetRating == i ? 0 : i
+                            } label: {
+                                Text("\(i)")
+                                    .font(.system(size: 13, weight: .bold).width(.condensed))
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 8)
+                                    .background(
+                                        inlineEditor.mindsetRating == i
+                                            ? Color(hex: "6366F1").opacity(0.18)
+                                            : ColorTheme.elevatedBackground(colorScheme)
+                                    )
+                                    .foregroundColor(
+                                        inlineEditor.mindsetRating == i
+                                            ? Color(hex: "6366F1")
+                                            : ColorTheme.secondaryText(colorScheme)
+                                    )
+                                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+
+                    if inlineEditor.mindsetRating > 0 {
+                        Text("\(inlineEditor.mindsetRating)/10")
+                            .font(.system(size: 12, weight: .semibold).width(.condensed))
+                            .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                    } else {
+                        Text("Tap a number — leave blank to skip.")
+                            .font(.system(size: 11, weight: .regular).width(.condensed))
+                            .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func reflectionField(label: String, icon: String, placeholder: String, text: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                Text(label)
+                    .font(.system(size: 13, weight: .semibold).width(.condensed))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+            }
+
+            TextField(placeholder, text: text, axis: .vertical)
+                .lineLimit(2...5)
+                .font(.system(size: 14, weight: .regular).width(.condensed))
+                .foregroundColor(ColorTheme.primaryText(colorScheme))
+                .padding(12)
+                .background(ColorTheme.elevatedBackground(colorScheme))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
     }
 
     @ViewBuilder
@@ -2120,6 +2242,85 @@ private struct SheetMatchForm: View {
                 }
             }
         }
+
+        SheetSection(title: "REFLECTION (OPTIONAL)", icon: "bubble.left.and.bubble.right.fill", colorScheme: colorScheme) {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Take a moment to reflect — every field is optional.")
+                    .font(.system(size: 12, weight: .regular).width(.condensed))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+
+                MatchReflectionField(
+                    label: "What went well?",
+                    icon: "checkmark.seal.fill",
+                    placeholder: "Strengths, smart decisions, things you did right…",
+                    text: Binding(get: { editor.whatWentWell }, set: { editor.whatWentWell = $0 }),
+                    colorScheme: colorScheme
+                )
+
+                MatchReflectionField(
+                    label: "What can you improve next time?",
+                    icon: "arrow.up.right.circle.fill",
+                    placeholder: "One or two things to work on before your next match…",
+                    text: Binding(get: { editor.toImprove }, set: { editor.toImprove = $0 }),
+                    colorScheme: colorScheme
+                )
+
+                MatchReflectionField(
+                    label: "Key moment or takeaway",
+                    icon: "sparkles",
+                    placeholder: "A standout play, a turning point, or a lesson learned…",
+                    text: Binding(get: { editor.keyMoment }, set: { editor.keyMoment = $0 }),
+                    colorScheme: colorScheme
+                )
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "brain.head.profile")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                        Text("Mindset during the match")
+                            .font(.system(size: 13, weight: .semibold).width(.condensed))
+                            .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    }
+
+                    HStack(spacing: 6) {
+                        ForEach(1...10, id: \.self) { i in
+                            Button {
+                                HapticManager.selection()
+                                editor.mindsetRating = editor.mindsetRating == i ? 0 : i
+                            } label: {
+                                Text("\(i)")
+                                    .font(.system(size: 13, weight: .bold).width(.condensed))
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 8)
+                                    .background(
+                                        editor.mindsetRating == i
+                                            ? Color(hex: "6366F1").opacity(0.18)
+                                            : ColorTheme.elevatedBackground(colorScheme)
+                                    )
+                                    .foregroundColor(
+                                        editor.mindsetRating == i
+                                            ? Color(hex: "6366F1")
+                                            : ColorTheme.secondaryText(colorScheme)
+                                    )
+                                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+
+                    if editor.mindsetRating > 0 {
+                        Text("\(editor.mindsetRating)/10")
+                            .font(.system(size: 12, weight: .semibold).width(.condensed))
+                            .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                    } else {
+                        Text("Tap a number — leave blank to skip.")
+                            .font(.system(size: 11, weight: .regular).width(.condensed))
+                            .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                    }
+                }
+            }
+        }
     }
 
     static func positionPlaceholder(for sport: String) -> String {
@@ -2154,6 +2355,35 @@ private struct SheetMatchForm: View {
             return [("hits", "Hits", "baseball.fill"), ("homeRuns", "Home Runs", "star.fill"), ("rbis", "RBIs", "arrow.up.circle"), ("stolenBases", "Stolen Bases", "bolt.fill")]
         default:
             return [("points", "Points / Score", "star.fill")]
+        }
+    }
+}
+
+private struct MatchReflectionField: View {
+    let label: String
+    let icon: String
+    let placeholder: String
+    @Binding var text: String
+    let colorScheme: ColorScheme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                Text(label)
+                    .font(.system(size: 13, weight: .semibold).width(.condensed))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+            }
+
+            TextField(placeholder, text: $text, axis: .vertical)
+                .lineLimit(2...5)
+                .font(.system(size: 14, weight: .regular).width(.condensed))
+                .foregroundColor(ColorTheme.primaryText(colorScheme))
+                .padding(12)
+                .background(ColorTheme.elevatedBackground(colorScheme))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
     }
 }

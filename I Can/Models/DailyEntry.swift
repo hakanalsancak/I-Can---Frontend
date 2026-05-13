@@ -130,6 +130,11 @@ struct TrainingSessionInsight: Encodable {
     var recoveryType: String?
     var sessionScore: Int?
     var notes: String?
+    // Optional post-match reflection
+    var whatWentWell: String?
+    var toImprove: String?
+    var keyMoment: String?
+    var mindsetRating: Int?
 }
 
 struct InsightResponse: Codable {
