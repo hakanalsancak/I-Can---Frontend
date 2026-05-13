@@ -737,7 +737,7 @@ private struct PromoCodeSheet: View {
                 .disabled(isWorking || code.trimmingCharacters(in: .whitespaces).isEmpty)
                 .padding(.horizontal, 24)
 
-                Text("After applying, Apple's redeem sheet will open. Enter the same code there to complete the discount.")
+                Text("Tapping Apply takes you to the App Store with your code already entered — just confirm the redemption.")
                     .font(.system(size: 12, weight: .medium).width(.condensed))
                     .foregroundColor(ColorTheme.tertiaryText(colorScheme))
                     .multilineTextAlignment(.center)
@@ -765,27 +765,21 @@ private struct PromoCodeSheet: View {
         let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         do {
             let response = try await SubscriptionService.shared.claimInfluencerCode(trimmed)
-            successMessage = "Code accepted. Opening Apple's redeem sheet..."
+            successMessage = "Code accepted. Opening the App Store..."
 
-            if #available(iOS 16.0, *), let scene = activeScene() {
-                try? await Task.sleep(nanoseconds: 600_000_000)
-                try await AppStore.presentOfferCodeRedeemSheet(in: scene)
-                dismiss()
-            } else {
-                // iOS 14/15 fallback: deep link to the App Store redeem page
-                // with the code pre-filled.
-                if let url = URL(string: "https://apps.apple.com/redeem?ctx=offercodes&code=\(response.code)") {
-                    openURL(url)
-                }
-                dismiss()
+            // Deep link to the App Store redeem page with the code pre-filled so
+            // the user only confirms once instead of typing the code twice.
+            // Transaction.updates fires in the iOS app once Apple finalizes the
+            // redemption and the user returns, which posts to /verify-receipt
+            // and triggers attribution against the pending_code_claim row.
+            let redeemURL = "https://apps.apple.com/redeem?ctx=offercodes&id=6760717419&code=\(response.code)"
+            if let url = URL(string: redeemURL) {
+                try? await Task.sleep(nanoseconds: 400_000_000)
+                openURL(url)
             }
+            dismiss()
         } catch {
             errorMessage = "That code didn't work. Check it and try again."
         }
-    }
-
-    private func activeScene() -> UIWindowScene? {
-        UIApplication.shared.connectedScenes
-            .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene
     }
 }
