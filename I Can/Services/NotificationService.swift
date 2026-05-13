@@ -102,13 +102,65 @@ final class NotificationService {
         "I can trust my training.",
     ]
 
-    /// Hours at which motivational notifications fire based on frequency (1x, 2x, 3x).
-    private let motivationalHours: [[Int]] = [
+    /// Default hours for motivational notifications, used when user hasn't set custom times.
+    /// Indexed by [frequency][slot].
+    private let defaultMotivationalHours: [[Int]] = [
         [],           // 0 = none
         [9],          // 1x = 9 AM
         [9, 15],      // 2x = 9 AM, 3 PM
         [9, 13, 18],  // 3x = 9 AM, 1 PM, 6 PM
     ]
+
+    private static let motivationalTimesKey = "notifications.motivationalTimes"
+    private static let streakReminderTimeKey = "notifications.streakReminderTime"
+    private static let defaultStreakReminderMinutes = 20 * 60 + 30 // 20:30
+
+    /// Returns the configured motivational notification times for a given frequency (1...3),
+    /// as `DateComponents` carrying hour + minute. Falls back to defaults when no custom
+    /// times have been saved.
+    func motivationalTimes(frequency: Int) -> [DateComponents] {
+        let clamped = min(max(frequency, 0), 3)
+        guard clamped > 0 else { return [] }
+        let stored = UserDefaults.standard.array(forKey: Self.motivationalTimesKey) as? [Int] ?? []
+        var result: [DateComponents] = []
+        for slot in 0..<clamped {
+            let minutes: Int
+            if slot < stored.count {
+                minutes = stored[slot]
+            } else {
+                let hour = defaultMotivationalHours[clamped][slot]
+                minutes = hour * 60
+            }
+            var comps = DateComponents()
+            comps.hour = minutes / 60
+            comps.minute = minutes % 60
+            result.append(comps)
+        }
+        return result
+    }
+
+    /// Persists motivational notification times. `times` is one entry per slot, each
+    /// providing `hour` + `minute`.
+    func setMotivationalTimes(_ times: [DateComponents]) {
+        let encoded = times.map { ($0.hour ?? 9) * 60 + ($0.minute ?? 0) }
+        UserDefaults.standard.set(encoded, forKey: Self.motivationalTimesKey)
+    }
+
+    /// Returns the configured streak reminder time (default 20:30).
+    func streakReminderTime() -> DateComponents {
+        let minutes = UserDefaults.standard.object(forKey: Self.streakReminderTimeKey) as? Int
+            ?? Self.defaultStreakReminderMinutes
+        var comps = DateComponents()
+        comps.hour = minutes / 60
+        comps.minute = minutes % 60
+        return comps
+    }
+
+    /// Persists the streak reminder time.
+    func setStreakReminderTime(_ time: DateComponents) {
+        let minutes = (time.hour ?? 20) * 60 + (time.minute ?? 30)
+        UserDefaults.standard.set(minutes, forKey: Self.streakReminderTimeKey)
+    }
 
     func requestPermission() async -> Bool {
         let center = UNUserNotificationCenter.current()
@@ -155,7 +207,7 @@ final class NotificationService {
         let clamped = min(max(frequency, 0), 3)
         guard clamped > 0 else { return }
 
-        let hours = motivationalHours[clamped]
+        let times = motivationalTimes(frequency: clamped)
         let calendar = Calendar.current
         let now = Date()
         var usedIndices = Set<Int>()
@@ -163,7 +215,7 @@ final class NotificationService {
         for dayOffset in 0..<7 {
             guard let targetDate = calendar.date(byAdding: .day, value: dayOffset, to: now) else { continue }
 
-            for (slotIndex, hour) in hours.enumerated() {
+            for (slotIndex, timeComps) in times.enumerated() {
                 // Pick a unique quote for each notification slot
                 var quoteIndex: Int
                 repeat {
@@ -177,8 +229,8 @@ final class NotificationService {
                 content.sound = .default
 
                 var dateComponents = calendar.dateComponents([.year, .month, .day], from: targetDate)
-                dateComponents.hour = hour
-                dateComponents.minute = 0
+                dateComponents.hour = timeComps.hour ?? 9
+                dateComponents.minute = timeComps.minute ?? 0
 
                 // Skip if this time has already passed today
                 if dayOffset == 0,
@@ -217,6 +269,7 @@ final class NotificationService {
 
         let calendar = Calendar.current
         let today = Date()
+        let reminderTime = streakReminderTime()
 
         for dayOffset in 0..<7 {
             // Skip today entirely if user already logged
@@ -231,8 +284,8 @@ final class NotificationService {
             content.sound = .default
 
             var dateComponents = calendar.dateComponents([.year, .month, .day], from: targetDate)
-            dateComponents.hour = 20
-            dateComponents.minute = 30
+            dateComponents.hour = reminderTime.hour ?? 20
+            dateComponents.minute = reminderTime.minute ?? 30
 
             // Skip if 8:30 PM already passed today
             if dayOffset == 0,
@@ -262,11 +315,11 @@ final class NotificationService {
     // MARK: - Schedule All
 
     /// Reschedules all local notifications based on current user state.
-    /// Call this on app launch and after settings changes.
-    /// Note: Motivational quotes are sent exclusively via backend push (APNS),
-    /// so only streak reminders are scheduled locally.
+    /// Call this on app launch and after settings changes. Motivational quotes are
+    /// scheduled locally so users can pick custom times per slot; the streak reminder
+    /// time is also user-configurable.
     func scheduleAllNotifications(frequency: Int, hasLoggedToday: Bool) {
-        cancelMotivationalQuotes()
+        scheduleMotivationalQuotes(frequency: frequency)
         scheduleStreakReminder(skipToday: hasLoggedToday)
     }
 

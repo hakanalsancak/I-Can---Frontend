@@ -17,6 +17,8 @@ struct SettingsView: View {
     @State private var hideHeightWeight: Bool
     @State private var hideLogs: Bool
     @State private var communityNotificationsEnabled: Bool
+    @State private var motivationalTimes: [Date]
+    @State private var streakReminderTime: Date
 
     private var currentUsername: String {
         AuthService.shared.currentUser?.username ?? ""
@@ -32,6 +34,18 @@ struct SettingsView: View {
         _hideHeightWeight = State(initialValue: user?.hideHeightWeight ?? false)
         _hideLogs = State(initialValue: user?.hideLogs ?? false)
         _communityNotificationsEnabled = State(initialValue: user?.communityNotificationsEnabled ?? true)
+
+        let calendar = Calendar.current
+        let storedMotivational = NotificationService.shared.motivationalTimes(frequency: 3)
+        let motivationalDates: [Date] = (0..<3).map { idx in
+            let comps = idx < storedMotivational.count ? storedMotivational[idx] : DateComponents(hour: 9, minute: 0)
+            return calendar.date(bySettingHour: comps.hour ?? 9, minute: comps.minute ?? 0, second: 0, of: Date()) ?? Date()
+        }
+        _motivationalTimes = State(initialValue: motivationalDates)
+
+        let streak = NotificationService.shared.streakReminderTime()
+        let streakDate = calendar.date(bySettingHour: streak.hour ?? 20, minute: streak.minute ?? 30, second: 0, of: Date()) ?? Date()
+        _streakReminderTime = State(initialValue: streakDate)
     }
 
     var body: some View {
@@ -159,6 +173,45 @@ struct SettingsView: View {
                 }
                 Slider(value: $notificationFrequency, in: 0...3, step: 1)
                     .tint(ColorTheme.accent)
+
+                if Int(notificationFrequency) > 0 {
+                    Divider().opacity(0.4)
+                    ForEach(0..<Int(notificationFrequency), id: \.self) { slot in
+                        HStack {
+                            Text(slotLabel(slot: slot, total: Int(notificationFrequency)))
+                                .font(.system(size: 14, weight: .medium).width(.condensed))
+                                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                            Spacer()
+                            DatePicker(
+                                "",
+                                selection: Binding(
+                                    get: { motivationalTimes[slot] },
+                                    set: { motivationalTimes[slot] = $0 }
+                                ),
+                                displayedComponents: .hourAndMinute
+                            )
+                            .labelsHidden()
+                            .tint(ColorTheme.accent)
+                        }
+                    }
+                }
+
+                Divider().opacity(0.4)
+
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Daily log reminder")
+                            .font(.system(size: 15, weight: .medium).width(.condensed))
+                            .foregroundColor(ColorTheme.primaryText(colorScheme))
+                        Text("If you haven't logged yet")
+                            .font(.system(size: 11, weight: .medium).width(.condensed))
+                            .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                    }
+                    Spacer()
+                    DatePicker("", selection: $streakReminderTime, displayedComponents: .hourAndMinute)
+                        .labelsHidden()
+                        .tint(ColorTheme.accent)
+                }
 
                 Divider().opacity(0.4)
 
@@ -548,6 +601,12 @@ struct SettingsView: View {
 
     // MARK: - Reusable
 
+    private func slotLabel(slot: Int, total: Int) -> String {
+        if total == 1 { return "Time" }
+        let ordinals = ["1st time", "2nd time", "3rd time"]
+        return ordinals[slot]
+    }
+
     private func sectionLabel(_ text: String) -> some View {
         Text(text)
             .font(.system(size: 11, weight: .heavy, design: .rounded))
@@ -624,6 +683,16 @@ struct SettingsView: View {
             if communityChanged {
                 AuthService.shared.currentUser?.communityNotificationsEnabled = communityNotificationsEnabled
             }
+
+            let freq = Int(notificationFrequency)
+            let calendar = Calendar.current
+            let motivationalComps = motivationalTimes.prefix(max(freq, 0)).map { date in
+                calendar.dateComponents([.hour, .minute], from: date)
+            }
+            NotificationService.shared.setMotivationalTimes(Array(motivationalComps))
+            let streakComps = calendar.dateComponents([.hour, .minute], from: streakReminderTime)
+            NotificationService.shared.setStreakReminderTime(streakComps)
+
             let hasLogged = HomeViewModel.shared.hasLoggedToday
             NotificationService.shared.scheduleAllNotifications(
                 frequency: Int(notificationFrequency),
