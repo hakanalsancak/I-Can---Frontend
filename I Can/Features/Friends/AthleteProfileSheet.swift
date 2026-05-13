@@ -30,11 +30,10 @@ struct AthleteProfileSheet: View {
                         VStack(spacing: 28) {
                             profileHeader(profile)
                             badgesRow(profile)
+                            messageButton
                             statsRow(profile)
                             detailsSection(profile)
                             logsSection(profile)
-
-                            messageButton
 
                             if profile.isFriend == true, onRemoveFriend != nil {
                                 removeFriendButton
@@ -662,6 +661,20 @@ struct AthleteProfileSheet: View {
                     .foregroundColor(log.completedSections.count == 3 ? Color(hex: "22C55E") : ColorTheme.accent)
             }
 
+            if log.trainingScore != nil || log.nutritionScore != nil || log.overallScore != nil {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Scores")
+                        .font(.system(size: 10, weight: .bold).width(.condensed))
+                        .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+                        .tracking(0.6)
+                    HStack(spacing: 8) {
+                        scoreChip(label: "Day", score: log.overallScore, color: ColorTheme.accent)
+                        scoreChip(label: "Training", score: log.trainingScore, color: ColorTheme.training)
+                        scoreChip(label: "Nutrition", score: log.nutritionScore, color: ColorTheme.nutrition)
+                    }
+                }
+            }
+
             HStack(spacing: 8) {
                 logPill(icon: "figure.run", label: "Training", color: ColorTheme.training, done: log.hasTraining)
                 logPill(icon: "leaf.fill", label: "Nutrition", color: ColorTheme.nutrition, done: log.hasNutrition)
@@ -686,6 +699,21 @@ struct AthleteProfileSheet: View {
         .background(ColorTheme.cardBackground(colorScheme))
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 6, x: 0, y: 2)
+    }
+
+    private func scoreChip(label: String, score: Int?, color: Color) -> some View {
+        VStack(spacing: 2) {
+            Text(score.map { "\($0)" } ?? "—")
+                .font(.system(size: 16, weight: .heavy, design: .rounded))
+                .foregroundColor(score != nil ? color : ColorTheme.tertiaryText(colorScheme))
+            Text(label.uppercased())
+                .font(.system(size: 9, weight: .bold).width(.condensed))
+                .foregroundColor(ColorTheme.secondaryText(colorScheme))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background((score != nil ? color : ColorTheme.tertiaryText(colorScheme)).opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
     private func logPill(icon: String, label: String, color: Color, done: Bool) -> some View {

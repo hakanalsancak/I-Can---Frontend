@@ -27,6 +27,9 @@ struct FriendDailyLog: Codable, Identifiable {
     let training: FriendTrainingData?
     let nutrition: FriendNutrition?
     let sleep: FriendSleep?
+    let trainingScore: Int?
+    let nutritionScore: Int?
+    let overallScore: Int?
 
     var date: Date? { Date.fromAPIString(entryDate) }
 
