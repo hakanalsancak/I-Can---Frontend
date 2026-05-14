@@ -938,6 +938,17 @@ struct ChatView: View {
     /// or read the message. Replacing the storage guarantees the bubbles
     /// re-render. Returns the number of brand-new messages so the caller
     /// knows whether to mark the conversation as read.
+    ///
+    /// Ordering: existing messages keep their current positions. Brand-new
+    /// messages from this poll are sorted among themselves and appended at
+    /// the end. We deliberately do NOT re-sort the full array by
+    /// `createdAt` — under 3s polling, a peer's server timestamp can land a
+    /// few hundred ms earlier than the local message you just had confirmed
+    /// (clock skew, server processing order), and a full sort would jump
+    /// their freshly-arrived bubble above yours even though it reached your
+    /// device after yours was acknowledged. Arrival-order for poll deltas
+    /// matches what the user perceives and matches iMessage/WhatsApp UX
+    /// where the most recently observed message is always at the bottom.
     @discardableResult
     private func mergeIncoming(_ incoming: [DMMessage]) -> Int {
         if incoming.isEmpty { return 0 }
@@ -958,15 +969,18 @@ struct ChatView: View {
             }
         }
 
-        var added = 0
+        var newOnes: [DMMessage] = []
         for msg in incoming where !seenIds.contains(msg.id) {
-            rebuilt.append(msg)
-            added += 1
+            newOnes.append(msg)
+        }
+        if !newOnes.isEmpty {
+            newOnes.sort(by: Self.ascending)
+            rebuilt.append(contentsOf: newOnes)
             changed = true
         }
+        let added = newOnes.count
 
         guard changed else { return 0 }
-        if added > 0 { rebuilt.sort(by: Self.ascending) }
         messages = rebuilt
         messagesVersion &+= 1
         if added > 0 { scrollToBottomToken &+= 1 }
