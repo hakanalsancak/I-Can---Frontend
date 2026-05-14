@@ -256,9 +256,22 @@ struct SubscriptionView: View {
         }
     }
 
+    private func yearlySavingsPercent() -> Int? {
+        guard
+            let yearly = products.first(where: { $0.id == SubscriptionService.yearlyProductId }),
+            let monthly = products.first(where: { $0.id == SubscriptionService.monthlyProductId })
+        else { return nil }
+        let yearlyAtMonthlyRate = monthly.price * 12
+        guard yearlyAtMonthlyRate > 0, yearly.price < yearlyAtMonthlyRate else { return nil }
+        let ratio = (yearlyAtMonthlyRate - yearly.price) / yearlyAtMonthlyRate
+        let percent = (ratio as NSDecimalNumber).doubleValue * 100
+        return Int(percent.rounded())
+    }
+
     private func planCard(product: Product) -> some View {
         let isYearly = product.id == SubscriptionService.yearlyProductId
         let isSelected = (selectedProduct?.id ?? products.sorted(by: { productOrder($0) < productOrder($1) }).first?.id) == product.id
+        let savingsPercent = isYearly ? yearlySavingsPercent() : nil
 
         return Button {
             HapticManager.selection()
@@ -285,8 +298,8 @@ struct SubscriptionView: View {
                         Text(isYearly ? "Yearly" : "Monthly")
                             .font(.system(size: 17, weight: .bold).width(.condensed))
                             .foregroundColor(ColorTheme.primaryText(colorScheme))
-                        if isYearly {
-                            Text("SAVE 40%")
+                        if isYearly, let savingsPercent {
+                            Text("SAVE \(savingsPercent)%")
                                 .font(.system(size: 10, weight: .heavy).width(.condensed))
                                 .foregroundColor(Color(hex: "EAB308"))
                                 .padding(.horizontal, 8)
@@ -590,11 +603,16 @@ struct SubscriptionView: View {
     }
 
     private func restorePurchases() async {
+        errorMessage = nil
         do {
             try await AppStore.sync()
             await SubscriptionService.shared.syncEntitlements()
             try await SubscriptionService.shared.checkStatus()
-            if SubscriptionService.shared.isPremium { dismiss() }
+            if SubscriptionService.shared.isPremium {
+                dismiss()
+            } else {
+                errorMessage = "No active subscription found on this Apple ID."
+            }
         } catch {
             errorMessage = "Could not restore purchases"
         }

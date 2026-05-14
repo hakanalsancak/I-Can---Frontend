@@ -80,8 +80,9 @@ final class SubscriptionService {
 
                 return true
             } else {
-                // Backend says not premium despite receipt verification — don't grant access
-                await transaction.finish()
+                // Backend received the receipt but doesn't show premium yet (clock skew,
+                // replication lag, transient state). Do NOT finish — StoreKit will
+                // redeliver via Transaction.updates so we can retry verification later.
                 return false
             }
         case .userCancelled:
