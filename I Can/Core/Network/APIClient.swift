@@ -140,7 +140,7 @@ final class APIClient: @unchecked Sendable {
 
     private init() {
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 30
+        config.timeoutIntervalForRequest = 60
         session = URLSession(configuration: config, delegate: PinningDelegate(), delegateQueue: nil)
         decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601

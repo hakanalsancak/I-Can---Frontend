@@ -22,11 +22,11 @@ struct NoInternetView: View {
                 }
 
                 VStack(spacing: 12) {
-                    Text("No Internet Connection")
+                    Text("Can't Reach Server")
                         .font(.system(size: 26, weight: .heavy).width(.condensed))
                         .foregroundColor(ColorTheme.primaryText(colorScheme))
 
-                    Text("Please check your internet connection and try again.")
+                    Text("Check your connection and try again.")
                         .font(Typography.body)
                         .foregroundColor(ColorTheme.secondaryText(colorScheme))
                         .multilineTextAlignment(.center)

@@ -116,11 +116,12 @@ struct ContentView: View {
             showMaintenance = false
             showNoInternet = false
         } catch {
-            if case .unauthorized = error as? APIError {
-                authService.signOut()
-                showMaintenance = false
-                showNoInternet = false
-            } else if case .networkError = error as? APIError {
+            // Never sign the user out from a retry tap. A transient network
+            // handoff (wifi↔cellular) can drop a refresh response after the
+            // server rotated the token, surfacing as .unauthorized here even
+            // though the session is otherwise valid. Keep them on the
+            // connectivity screen and let them try again.
+            if case .networkError = error as? APIError {
                 showNoInternet = true
                 showMaintenance = false
             } else {
