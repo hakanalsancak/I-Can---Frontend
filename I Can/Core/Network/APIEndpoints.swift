@@ -94,6 +94,17 @@ enum APIEndpoints {
         static func markRead(_ id: String) -> String { "/api/community/messages/conversations/\(id)/read" }
         static let uploadMedia = "/api/community/messages/upload"
 
+        static let createGroup = "/api/community/messages/groups"
+        static func groupInfo(_ id: String) -> String { "/api/community/messages/conversations/\(id)/info" }
+        static func updateGroup(_ id: String) -> String { "/api/community/messages/conversations/\(id)" }
+        static func addMembers(_ id: String) -> String { "/api/community/messages/conversations/\(id)/members" }
+        static func removeMember(_ id: String, _ userId: String) -> String {
+            "/api/community/messages/conversations/\(id)/members/\(userId)"
+        }
+        static func setMemberRole(_ id: String, _ userId: String) -> String {
+            "/api/community/messages/conversations/\(id)/members/\(userId)/role"
+        }
+
         static let reports = "/api/community/reports"
         static func block(_ userId: String) -> String { "/api/community/blocks/\(userId)" }
         static let blocks = "/api/community/blocks"

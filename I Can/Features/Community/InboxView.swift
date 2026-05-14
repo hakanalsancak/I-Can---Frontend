@@ -9,16 +9,23 @@ struct InboxView: View {
     @State private var filter: InboxFilter = .all
     @State private var pendingDeleteId: String?
     @State private var deepLinkConversation: DMConversation?
+    @State private var showNewGroup = false
     @FocusState private var searchFieldFocused: Bool
 
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .bottomTrailing) {
             ColorTheme.background(colorScheme).ignoresSafeArea()
             content
+            newGroupFAB
         }
         .toolbar(.hidden, for: .navigationBar)
+        .sheet(isPresented: $showNewGroup) {
+            NewGroupView { created in
+                deepLinkConversation = created
+            }
+        }
         .task { await initialLoad() }
         .refreshable { await refresh() }
         .alert("Delete chat?", isPresented: deleteAlertBinding, presenting: pendingDeleteId) { id in
@@ -366,11 +373,21 @@ struct InboxView: View {
         if let lm = c.lastMessage {
             let mine = lm.senderId == AuthService.shared.currentUser?.id
             let preview = previewBody(lm.body)
+            let isSystem = lm.isSystem == true
+            let prefix: String = {
+                if isSystem { return "" }
+                if mine { return "You: " }
+                return ""
+            }()
+            let previewText: Text = {
+                let body = Text(preview)
+                    .foregroundStyle(isSystem ? ColorTheme.tertiaryText(colorScheme) : primary)
+                return isSystem ? body.italic() : body
+            }()
             (
-                Text(mine ? "You: " : "")
+                Text(prefix)
                     .foregroundStyle(ColorTheme.tertiaryText(colorScheme))
-                + Text(preview)
-                    .foregroundStyle(primary)
+                + previewText
             )
             .font(.system(size: 14, weight: isUnread ? .medium : .regular).width(.condensed))
         } else {
@@ -390,7 +407,20 @@ struct InboxView: View {
     @ViewBuilder
     private func avatar(_ c: DMConversation) -> some View {
         ZStack {
-            if let s = c.other?.photoUrl, let url = URL(string: s) {
+            if c.isGroup {
+                if let s = c.photoUrl, let url = URL(string: s) {
+                    AsyncImage(url: url) { phase in
+                        if let image = phase.image {
+                            image.resizable().scaledToFill()
+                        } else {
+                            groupAvatarPlaceholder(c.displayName)
+                        }
+                    }
+                    .clipShape(Circle())
+                } else {
+                    groupAvatarPlaceholder(c.displayName)
+                }
+            } else if let s = c.other?.photoUrl, let url = URL(string: s) {
                 AsyncImage(url: url) { phase in
                     if let image = phase.image {
                         image.resizable().scaledToFill()
@@ -407,10 +437,48 @@ struct InboxView: View {
             Circle().strokeBorder(ColorTheme.separator(colorScheme), lineWidth: 0.5)
         )
         .overlay(alignment: .bottomTrailing) {
-            if DMPresence.isOnline(c.other?.lastSeenAt) {
+            // Online dot is a 1:1 affordance — groups don't have a single
+            // "other party" to indicate presence for.
+            if !c.isGroup, DMPresence.isOnline(c.other?.lastSeenAt) {
                 onlineDot
             }
         }
+    }
+
+    private func groupAvatarPlaceholder(_ name: String) -> some View {
+        ZStack {
+            Circle().fill(
+                LinearGradient(
+                    colors: avatarGradient(for: name),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            Image(systemName: "person.3.fill")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(.white)
+        }
+    }
+
+    private var newGroupFAB: some View {
+        Button {
+            showNewGroup = true
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(ColorTheme.accentGradient)
+                    .frame(width: 56, height: 56)
+                    .shadow(color: ColorTheme.accent.opacity(0.4), radius: 8, x: 0, y: 4)
+                Image(systemName: "square.and.pencil")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .offset(x: 1, y: -1)
+            }
+        }
+        .buttonStyle(.plain)
+        .padding(.trailing, 18)
+        .padding(.bottom, 24)
+        .accessibilityLabel("New group chat")
     }
 
     /// Small green dot anchored to the avatar's bottom-right. The white

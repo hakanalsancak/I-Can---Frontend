@@ -14,6 +14,13 @@ struct MessageBubble: View {
     var currentUserId: String? = nil
     var peerDisplayName: String? = nil
 
+    /// Group-only metadata. `groupSenderName` is non-nil for the *first*
+    /// bubble in a sender's run; the avatar gutter is reserved across the
+    /// whole run when `showsAvatarLane` is true so consecutive bubbles align.
+    var groupSenderName: String? = nil
+    var groupSenderPhotoUrl: String? = nil
+    var showsAvatarLane: Bool = false
+
     @State private var showDeleteConfirm = false
     /// Live drag offset while the user swipes the bubble sideways. Resets
     /// to 0 on release. Always negative — both incoming and outgoing bubbles
@@ -43,10 +50,23 @@ struct MessageBubble: View {
             // opposite side of the swipe direction so it's the "thing being
             // dragged toward". Opacity scales with drag progress.
             replySwipeIndicator
-            HStack(alignment: .bottom, spacing: 0) {
-                if isMe { Spacer(minLength: 56) }
-                content
-                    .contextMenu(menuItems: { menuContent })
+            HStack(alignment: .bottom, spacing: 6) {
+                if isMe {
+                    Spacer(minLength: 56)
+                } else if showsAvatarLane {
+                    groupAvatarLane
+                }
+                VStack(alignment: isMe ? .trailing : .leading, spacing: 2) {
+                    if let name = groupSenderName, !isMe {
+                        Text(name)
+                            .font(.system(size: 12, weight: .semibold).width(.condensed))
+                            .foregroundStyle(senderLabelColor(for: name))
+                            .padding(.leading, 4)
+                            .lineLimit(1)
+                    }
+                    content
+                        .contextMenu(menuItems: { menuContent })
+                }
                 if !isMe { Spacer(minLength: 56) }
             }
             .offset(x: dragOffset)
@@ -411,6 +431,72 @@ struct MessageBubble: View {
     private func timeString(_ date: Date?) -> String {
         guard let d = date else { return "" }
         return Self.timeFormatter.string(from: d)
+    }
+
+    /// 28pt slot to the left of an incoming group bubble. The avatar only
+    /// renders on the last bubble in a sender's run so a vertical stack of
+    /// messages from the same person doesn't repeat the headshot — matches
+    /// WhatsApp/Telegram convention.
+    @ViewBuilder
+    private var groupAvatarLane: some View {
+        let size: CGFloat = 28
+        Group {
+            if isLastInGroup {
+                if let urlStr = groupSenderPhotoUrl, let url = URL(string: urlStr) {
+                    AsyncImage(url: url) { phase in
+                        if let img = phase.image {
+                            img.resizable().scaledToFill()
+                        } else {
+                            groupAvatarInitials
+                        }
+                    }
+                    .frame(width: size, height: size)
+                    .clipShape(Circle())
+                    .overlay(Circle().strokeBorder(ColorTheme.separator(colorScheme), lineWidth: 0.5))
+                } else {
+                    groupAvatarInitials
+                        .frame(width: size, height: size)
+                }
+            } else {
+                Color.clear.frame(width: size, height: size)
+            }
+        }
+    }
+
+    private var groupAvatarInitials: some View {
+        let name = groupSenderName ?? peerDisplayName ?? "?"
+        let parts = name.split(separator: " ")
+        let a = parts.first?.first.map(String.init) ?? ""
+        let b = parts.dropFirst().first?.first.map(String.init) ?? ""
+        let initials = (a + b).uppercased()
+        return Circle()
+            .fill(
+                LinearGradient(
+                    colors: [ColorTheme.accent, Color(hex: "358A90")],
+                    startPoint: .topLeading, endPoint: .bottomTrailing
+                )
+            )
+            .overlay(
+                Text(initials.isEmpty ? "?" : initials)
+                    .font(.system(size: 10, weight: .semibold).width(.condensed))
+                    .foregroundStyle(.white)
+            )
+    }
+
+    /// Deterministic per-sender color for the small label above an incoming
+    /// group bubble. Same name → same color across the whole transcript.
+    private func senderLabelColor(for name: String) -> Color {
+        let palette: [Color] = [
+            Color(hex: "F97316"),
+            Color(hex: "8B5CF6"),
+            Color(hex: "22C55E"),
+            Color(hex: "EC4899"),
+            Color(hex: "0EA5E9"),
+            Color(hex: "EAB308"),
+            ColorTheme.accent,
+        ]
+        let idx = abs(name.hashValue) % palette.count
+        return palette[idx]
     }
 
     private func copyToPasteboard(_ string: String) {

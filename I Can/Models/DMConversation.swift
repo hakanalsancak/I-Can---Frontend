@@ -107,12 +107,22 @@ struct DMConversationLastMessage: Codable, Hashable {
     let senderId: String
     let body: String
     let createdAt: String
+    let isSystem: Bool?
+}
+
+enum DMGroupRole: String, Codable, Hashable {
+    case admin
+    case member
 }
 
 struct DMConversation: Identifiable, Codable, Hashable {
     let id: String
     let isGroup: Bool
     let title: String?
+    let photoUrl: String?
+    let creatorId: String?
+    let viewerRole: DMGroupRole?
+    let memberCount: Int?
     let isRequest: Bool
     let lastMessageAt: String?
     let lastReadAt: String?
@@ -162,7 +172,11 @@ struct DMMessage: Identifiable, Codable, Hashable {
     let createdAt: String
     let deliveredAt: String?
     let readAt: String?
+    let isSystem: Bool?
+    let systemEvent: String?
     let replyTo: DMReplyPreview?
+
+    var isSystemMessage: Bool { isSystem == true }
 
     var createdAtDate: Date? {
         DMDate.parse(createdAt)
@@ -191,4 +205,31 @@ struct DMMessagesPage: Codable {
     let items: [DMMessage]
     let nextCursor: String?
     let otherLastSeenAt: String?
+}
+
+struct DMGroupMember: Codable, Hashable, Identifiable {
+    let id: String
+    let role: DMGroupRole
+    let joinedAt: String?
+    let fullName: String?
+    let username: String?
+    let photoUrl: String?
+    let sport: String?
+    let lastSeenAt: String?
+
+    var displayName: String {
+        if let n = fullName, !n.isEmpty { return n }
+        if let u = username, !u.isEmpty { return u }
+        return "Athlete"
+    }
+}
+
+struct DMGroupInfo: Codable, Hashable {
+    let id: String
+    let isGroup: Bool
+    let title: String?
+    let photoUrl: String?
+    let creatorId: String?
+    let viewerRole: DMGroupRole
+    let members: [DMGroupMember]
 }

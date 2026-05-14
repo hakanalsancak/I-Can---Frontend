@@ -5,9 +5,19 @@ import AVKit
 import UniformTypeIdentifiers
 
 struct ChatView: View {
-    let conversation: DMConversation
+    init(conversation: DMConversation) {
+        self._conversation = State(initialValue: conversation)
+    }
 
+    @State private var conversation: DMConversation
     @State private var service = DMService.shared
+    /// Name lookup keyed by sender id. Populated for groups from the group
+    /// info response so incoming bubbles can render "Alex Chen" above the
+    /// content. Empty for 1:1 chats.
+    @State private var memberNames: [String: String] = [:]
+    @State private var memberPhotos: [String: String] = [:]
+    @State private var showGroupInfo = false
+    @State private var didLeaveGroup = false
     /// Always kept in chronological (ascending) order. Mutate only via the
     /// helpers below (`appendOutgoing`, `mergeIncoming`, `replacePending`,
     /// `setInitial`, `mergeOlder`) so the invariant + `messagesVersion` are
@@ -125,6 +135,21 @@ struct ChatView: View {
                 AthleteProfileSheet(athleteId: other.id)
             }
         }
+        .navigationDestination(isPresented: $showGroupInfo) {
+            GroupInfoView(
+                conversationId: conversation.id,
+                onChange: { updated in
+                    conversation = updated
+                    Task { await refreshMembers() }
+                },
+                onLeft: {
+                    didLeaveGroup = true
+                }
+            )
+        }
+        .onChange(of: didLeaveGroup) { _, left in
+            if left { dismiss() }
+        }
         .fullScreenCover(item: $openImageURL) { wrapper in
             ChatImageViewer(url: wrapper.url) { openImageURL = nil }
         }
@@ -155,7 +180,7 @@ struct ChatView: View {
         HStack(spacing: 10) {
             backButton
             Button {
-                showProfile = true
+                openHeaderDetail()
             } label: {
                 HStack(spacing: 10) {
                     headerAvatar
@@ -176,7 +201,7 @@ struct ChatView: View {
             .buttonStyle(.plain)
             Spacer()
             Button {
-                showProfile = true
+                openHeaderDetail()
             } label: {
                 Image(systemName: "info.circle")
                     .font(.system(size: 18, weight: .regular))
@@ -201,12 +226,25 @@ struct ChatView: View {
         }
     }
 
+    private func openHeaderDetail() {
+        if conversation.isGroup {
+            showGroupInfo = true
+        } else {
+            showProfile = true
+        }
+    }
+
     @ViewBuilder
     private var headerSubtitleView: some View {
         // `presenceTick` is read so the body refreshes on the 30s timer.
         let _ = presenceTick
 
-        if DMPresence.isOnline(otherLastSeenAt) {
+        if conversation.isGroup {
+            Text(groupSubtitleText)
+                .font(.system(size: 11.5).width(.condensed))
+                .foregroundStyle(ColorTheme.secondaryText(colorScheme))
+                .lineLimit(1)
+        } else if DMPresence.isOnline(otherLastSeenAt) {
             HStack(spacing: 5) {
                 Circle()
                     .fill(Color(red: 0.20, green: 0.80, blue: 0.40))
@@ -228,6 +266,18 @@ struct ChatView: View {
         }
     }
 
+    private var groupSubtitleText: String {
+        // Prefer the live members snapshot (post-info-load) so add/remove
+        // updates the header without a network round-trip; fall back to the
+        // server-stamped count from the inbox payload.
+        let count: Int = {
+            if !memberNames.isEmpty { return memberNames.count }
+            return conversation.memberCount ?? 0
+        }()
+        if count <= 0 { return "Group" }
+        return "\(count) member\(count == 1 ? "" : "s")"
+    }
+
     private var staticHeaderFallback: String {
         if let sport = conversation.other?.sport, !sport.isEmpty {
             return sport.capitalized
@@ -240,7 +290,8 @@ struct ChatView: View {
 
     @ViewBuilder
     private var headerAvatar: some View {
-        if let urlStr = conversation.other?.photoUrl, let url = URL(string: urlStr) {
+        let photoUrl: String? = conversation.isGroup ? conversation.photoUrl : conversation.other?.photoUrl
+        if let urlStr = photoUrl, let url = URL(string: urlStr) {
             AsyncImage(url: url) { phase in
                 if let image = phase.image {
                     image.resizable().scaledToFill()
@@ -248,6 +299,14 @@ struct ChatView: View {
                     initialsCircle
                 }
             }
+        } else if conversation.isGroup {
+            Circle()
+                .fill(ColorTheme.accentGradient)
+                .overlay(
+                    Image(systemName: "person.3.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white)
+                )
         } else {
             initialsCircle
         }
@@ -291,6 +350,9 @@ struct ChatView: View {
             scrollToken: scrollToBottomToken,
             currentUserId: currentUserId,
             peerDisplayName: conversation.displayName,
+            isGroup: conversation.isGroup,
+            memberNames: memberNames,
+            memberPhotos: memberPhotos,
             colorScheme: colorScheme,
             onDelete: { msg in Task { await deleteMessage(msg) } },
             onOpenImage: { url in openImageURL = IdentifiableURL(url: url) },
@@ -722,10 +784,30 @@ struct ChatView: View {
 
     private func initialLoad() async {
         otherLastSeenAt = conversation.other?.lastSeenAt
+        if conversation.isGroup {
+            await refreshMembers()
+        }
         await loadOlder(refresh: true)
         await service.markRead(conversationId: conversation.id)
         startPolling()
         startPresenceTicker()
+    }
+
+    private func refreshMembers() async {
+        guard conversation.isGroup else { return }
+        do {
+            let info = try await service.fetchGroupInfo(conversationId: conversation.id)
+            var names: [String: String] = [:]
+            var photos: [String: String] = [:]
+            for m in info.members {
+                names[m.id] = m.displayName
+                if let p = m.photoUrl, !p.isEmpty { photos[m.id] = p }
+            }
+            memberNames = names
+            memberPhotos = photos
+        } catch {
+            // silent — bubbles will fall back to the senderId-as-label form
+        }
     }
 
     /// Pure local timer: re-renders the subtitle every 30s so an "Online"
@@ -801,6 +883,8 @@ struct ChatView: View {
             createdAt: DMDate.now(),
             deliveredAt: nil,
             readAt: nil,
+            isSystem: false,
+            systemEvent: nil,
             replyTo: optimisticReplyPreview
         )
 
@@ -1016,6 +1100,9 @@ private struct ChatMessagesView: View, Equatable {
     let scrollToken: UInt64
     let currentUserId: String?
     let peerDisplayName: String
+    let isGroup: Bool
+    let memberNames: [String: String]
+    let memberPhotos: [String: String]
     let colorScheme: ColorScheme
     let onDelete: (DMMessage) -> Void
     let onOpenImage: (URL) -> Void
@@ -1028,6 +1115,8 @@ private struct ChatMessagesView: View, Equatable {
             && lhs.scrollToken == rhs.scrollToken
             && lhs.currentUserId == rhs.currentUserId
             && lhs.colorScheme == rhs.colorScheme
+            && lhs.isGroup == rhs.isGroup
+            && lhs.memberNames == rhs.memberNames
     }
 
     private enum ChatItem: Identifiable {
@@ -1091,24 +1180,60 @@ private struct ChatMessagesView: View, Equatable {
 
     @ViewBuilder
     private func bubble(for msg: DMMessage, isFirstInGroup: Bool, isLastInGroup: Bool) -> some View {
-        let mine = msg.senderId == currentUserId
-        MessageBubble(
-            message: msg,
-            isMe: mine,
-            isFirstInGroup: isFirstInGroup,
-            isLastInGroup: isLastInGroup,
-            onDelete: mine ? { onDelete(msg) } : nil,
-            onOpenImage: { url in onOpenImage(url) },
-            onOpenVideo: { url in onOpenVideo(url) },
-            onReply: { onReply(msg) },
-            currentUserId: currentUserId,
-            peerDisplayName: peerDisplayName
-        )
-        .opacity(msg.id.hasPrefix("pending-") ? 0.7 : 1.0)
-        .transition(.asymmetric(
-            insertion: .scale(scale: 0.9).combined(with: .opacity),
-            removal: .opacity
-        ))
+        if msg.isSystemMessage {
+            systemPill(msg)
+        } else {
+            let mine = msg.senderId == currentUserId
+            let senderName: String? = {
+                guard isGroup && !mine && isFirstInGroup else { return nil }
+                return memberNames[msg.senderId]
+            }()
+            let senderPhoto: String? = {
+                guard isGroup && !mine else { return nil }
+                return memberPhotos[msg.senderId]
+            }()
+            MessageBubble(
+                message: msg,
+                isMe: mine,
+                isFirstInGroup: isFirstInGroup,
+                isLastInGroup: isLastInGroup,
+                onDelete: mine ? { onDelete(msg) } : nil,
+                onOpenImage: { url in onOpenImage(url) },
+                onOpenVideo: { url in onOpenVideo(url) },
+                onReply: { onReply(msg) },
+                currentUserId: currentUserId,
+                peerDisplayName: peerDisplayName,
+                groupSenderName: senderName,
+                groupSenderPhotoUrl: senderPhoto,
+                showsAvatarLane: isGroup
+            )
+            .opacity(msg.id.hasPrefix("pending-") ? 0.7 : 1.0)
+            .transition(.asymmetric(
+                insertion: .scale(scale: 0.9).combined(with: .opacity),
+                removal: .opacity
+            ))
+        }
+    }
+
+    private func systemPill(_ msg: DMMessage) -> some View {
+        HStack {
+            Spacer()
+            Text(msg.body ?? "")
+                .font(.system(size: 11.5, weight: .medium).width(.condensed))
+                .foregroundStyle(ColorTheme.secondaryText(colorScheme))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 5)
+                .background(
+                    Capsule()
+                        .fill(ColorTheme.cardBackground(colorScheme).opacity(0.85))
+                )
+                .overlay(
+                    Capsule().stroke(ColorTheme.separator(colorScheme), lineWidth: 0.5)
+                )
+            Spacer()
+        }
+        .padding(.vertical, 4)
     }
 
     private func dateSeparator(_ date: Date) -> some View {

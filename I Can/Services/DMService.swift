@@ -276,12 +276,17 @@ final class DMService {
         let preview = DMConversationLastMessage(
             senderId: message.senderId,
             body: message.body ?? "",
-            createdAt: message.createdAt
+            createdAt: message.createdAt,
+            isSystem: message.isSystem
         )
         conversations[i] = DMConversation(
             id: c.id,
             isGroup: c.isGroup,
             title: c.title,
+            photoUrl: c.photoUrl,
+            creatorId: c.creatorId,
+            viewerRole: c.viewerRole,
+            memberCount: c.memberCount,
             isRequest: false,
             lastMessageAt: message.createdAt,
             lastReadAt: message.createdAt,
@@ -349,6 +354,98 @@ final class DMService {
         )
     }
 
+    // MARK: - Groups
+
+    @discardableResult
+    func createGroup(title: String, memberIds: [String], photoUrl: String? = nil) async throws -> String {
+        struct Body: Encodable {
+            let title: String
+            let memberIds: [String]
+            let photoUrl: String?
+        }
+        struct Resp: Decodable { let id: String }
+        let r: Resp = try await APIClient.shared.request(
+            APIEndpoints.Community.createGroup,
+            method: "POST",
+            body: Body(title: title, memberIds: memberIds, photoUrl: photoUrl)
+        )
+        try? await loadInbox()
+        return r.id
+    }
+
+    func fetchGroupInfo(conversationId: String) async throws -> DMGroupInfo {
+        try await APIClient.shared.request(APIEndpoints.Community.groupInfo(conversationId))
+    }
+
+    func updateGroup(conversationId: String, title: String? = nil, photoUrl: String?? = nil) async throws {
+        struct Body: Encodable {
+            let title: String?
+            let photoUrl: String?
+            let clearPhoto: Bool?
+        }
+        struct Resp: Decodable { let ok: Bool; let changed: Bool? }
+        // photoUrl == .some(nil) means "remove the photo"; .none means "leave unchanged".
+        let (resolvedPhoto, clearPhoto): (String?, Bool?) = {
+            switch photoUrl {
+            case .none: return (nil, nil)
+            case .some(nil): return (nil, true)
+            case .some(let u?): return (u, nil)
+            }
+        }()
+        let _: Resp = try await APIClient.shared.request(
+            APIEndpoints.Community.updateGroup(conversationId),
+            method: "PATCH",
+            body: Body(title: title, photoUrl: resolvedPhoto, clearPhoto: clearPhoto)
+        )
+    }
+
+    func addMembers(conversationId: String, memberIds: [String]) async throws {
+        struct Body: Encodable { let memberIds: [String] }
+        struct Resp: Decodable { let ok: Bool; let added: Int }
+        let _: Resp = try await APIClient.shared.request(
+            APIEndpoints.Community.addMembers(conversationId),
+            method: "POST",
+            body: Body(memberIds: memberIds)
+        )
+    }
+
+    func removeMember(conversationId: String, userId: String) async throws {
+        struct Resp: Decodable { let ok: Bool }
+        let _: Resp = try await APIClient.shared.request(
+            APIEndpoints.Community.removeMember(conversationId, userId),
+            method: "DELETE"
+        )
+    }
+
+    func leaveGroup(conversationId: String) async throws {
+        guard let me = AuthService.shared.currentUser?.id else {
+            throw APIError.serverError("Not signed in")
+        }
+        try await removeMember(conversationId: conversationId, userId: me)
+        // Drop locally so the inbox doesn't keep showing the row until refresh.
+        conversations.removeAll { $0.id == conversationId }
+    }
+
+    func setMemberRole(conversationId: String, userId: String, role: DMGroupRole) async throws {
+        struct Body: Encodable { let role: String }
+        struct Resp: Decodable { let ok: Bool }
+        let _: Resp = try await APIClient.shared.request(
+            APIEndpoints.Community.setMemberRole(conversationId, userId),
+            method: "POST",
+            body: Body(role: role.rawValue)
+        )
+    }
+
+    func uploadGroupPhoto(data: Data) async throws -> String {
+        // Reuse the existing /messages/upload pipeline; "image" kind returns
+        // a Cloudinary https URL we can persist as the group's photo_url.
+        let ref = try await uploadMedia(
+            data: data, kind: "image",
+            mimeType: "image/jpeg", filename: "group.jpg"
+        )
+        return ref.url
+    }
+
     func markRead(conversationId: String) async {
         struct Resp: Decodable { let lastReadAt: String? }
         do {
@@ -364,6 +461,10 @@ final class DMService {
                 let c = conversations[i]
                 conversations[i] = DMConversation(
                     id: c.id, isGroup: c.isGroup, title: c.title,
+                    photoUrl: c.photoUrl,
+                    creatorId: c.creatorId,
+                    viewerRole: c.viewerRole,
+                    memberCount: c.memberCount,
                     isRequest: false,
                     lastMessageAt: c.lastMessageAt,
                     lastReadAt: ISO8601DateFormatter().string(from: Date()),
