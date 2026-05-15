@@ -1083,7 +1083,7 @@ struct ChatView: View {
         messagesVersion &+= 1
     }
 
-    private static func ascending(_ a: DMMessage, _ b: DMMessage) -> Bool {
+    nonisolated private static func ascending(_ a: DMMessage, _ b: DMMessage) -> Bool {
         (a.createdAtDate ?? .distantPast) < (b.createdAtDate ?? .distantPast)
     }
 }
@@ -1425,10 +1425,10 @@ private final class VoiceRecorder {
     private var recorder: AVAudioRecorder?
     private var fileURL: URL?
 
-    @available(iOS, deprecated: 18.0)
-    private static func legacyBluetoothOption() -> AVAudioSession.CategoryOptions {
-        .allowBluetooth
-    }
+    // `.allowBluetooth` was renamed to `.allowBluetoothHFP` in iOS 18; both
+    // share rawValue 0x4. Constructed from rawValue so the iOS 17 fallback
+    // path doesn't trip the deprecation warning at build time.
+    private static let legacyBluetoothOption = AVAudioSession.CategoryOptions(rawValue: 0x4)
 
     func start() throws {
         let session = AVAudioSession.sharedInstance()
@@ -1436,7 +1436,7 @@ private final class VoiceRecorder {
         if #available(iOS 18.0, *) {
             bluetoothOption = .allowBluetoothHFP
         } else {
-            bluetoothOption = Self.legacyBluetoothOption()
+            bluetoothOption = Self.legacyBluetoothOption
         }
         try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, bluetoothOption])
         try session.setActive(true)

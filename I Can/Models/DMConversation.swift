@@ -4,7 +4,7 @@ import Foundation
 /// allocations in property getters were the single largest source of chat-typing
 /// lag — a 100-message conversation would allocate 100s of formatters per
 /// keystroke during render-time sorts.
-enum DMDate {
+nonisolated enum DMDate {
     private static let withFractional: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
         f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -145,7 +145,7 @@ struct DMConversationsPage: Codable {
     let items: [DMConversation]
 }
 
-struct DMAttachmentRef: Codable, Hashable {
+nonisolated struct DMAttachmentRef: Codable, Hashable {
     let url: String
     let durationMs: Int?
     let width: Int?
@@ -155,14 +155,14 @@ struct DMAttachmentRef: Codable, Hashable {
 /// Compact snapshot of the message being quoted. Denormalized server-side so
 /// we can render the quote box without a second fetch and without breaking
 /// when the original is later deleted.
-struct DMReplyPreview: Codable, Hashable {
+nonisolated struct DMReplyPreview: Codable, Hashable {
     let id: String
     let senderId: String
     let body: String?
     let attachmentType: String?
 }
 
-struct DMMessage: Identifiable, Codable, Hashable {
+nonisolated struct DMMessage: Identifiable, Codable, Hashable {
     let id: String
     let conversationId: String
     let senderId: String
