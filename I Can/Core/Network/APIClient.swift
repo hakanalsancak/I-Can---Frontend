@@ -212,21 +212,6 @@ final class APIClient: @unchecked Sendable {
             }
         }
 
-        if httpResponse.statusCode == 403 {
-            let errorBody = try? decoder.decode(APIErrorResponse.self, from: data)
-            if errorBody?.code == "PREMIUM_REQUIRED" {
-                throw APIError.premiumRequired
-            }
-        }
-
-        if httpResponse.statusCode == 429 {
-            let errorBody = try? decoder.decode(APIErrorResponse.self, from: data)
-            if errorBody?.code == "DAILY_LIMIT_EXCEEDED" {
-                let resetDate = errorBody?.resetAt.flatMap { ISO8601DateFormatter().date(from: $0) }
-                throw APIError.dailyLimitExceeded(resetAt: resetDate)
-            }
-        }
-
         // Unauthenticated 401s (e.g. refresh endpoint) should still be .unauthorized,
         // not .serverError, so callers handle them correctly (sign out instead of maintenance screen).
         if httpResponse.statusCode == 401, !authenticated {
@@ -355,7 +340,6 @@ final class APIClient: @unchecked Sendable {
 private struct APIErrorResponse: Decodable {
     let error: String
     let code: String?
-    let resetAt: String?
 }
 
 private extension Data {

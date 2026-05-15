@@ -9,7 +9,6 @@ struct ContentView: View {
     @State private var showAppMaintenance = false
     @State private var latestMinVersion: String?
     @State private var currentAppVersion: String?
-    @State private var showPostOnboardingSubscription = false
     @State private var activeFeedbackCampaign: String?
     @State private var showFeedbackCampaign = false
     @State private var logoScale: CGFloat = 0.8
@@ -21,7 +20,7 @@ struct ContentView: View {
     static let hasLoggedFirstEntryKey = "hasLoggedFirstEntry"
 
     private var showingSplash: Bool {
-        isLoading || (authService.isAuthenticated && authService.hasCompletedOnboarding && !SubscriptionService.shared.statusChecked)
+        isLoading
     }
 
     var body: some View {
@@ -33,9 +32,6 @@ struct ContentView: View {
                     OnboardingView(startAtStep: .sportSelection)
                 } else {
                     MainTabView()
-                        .fullScreenCover(isPresented: $showPostOnboardingSubscription) {
-                            SubscriptionView()
-                        }
                 }
             }
             .opacity(showingSplash ? 0 : 1)
@@ -90,18 +86,12 @@ struct ContentView: View {
         }
         .onChange(of: authService.isAuthenticated) { _, newValue in
             if newValue {
-                Task {
-                    try? await SubscriptionService.shared.checkStatus()
-                }
                 requestReviewIfReady()
             }
         }
         .onChange(of: authService.hasCompletedOnboarding) { _, newValue in
             if newValue && authService.justCompletedOnboarding {
                 authService.justCompletedOnboarding = false
-                if !SubscriptionService.shared.isPremium {
-                    showPostOnboardingSubscription = true
-                }
             }
             if newValue {
                 requestReviewIfReady()
@@ -112,7 +102,6 @@ struct ContentView: View {
     private func retryConnection() async {
         do {
             try await authService.loadProfile()
-            try? await SubscriptionService.shared.checkStatus()
             showMaintenance = false
             showNoInternet = false
         } catch {
@@ -180,8 +169,7 @@ struct ContentView: View {
               !showForceUpdate,
               !showAppMaintenance,
               !showMaintenance,
-              !showNoInternet,
-              !showPostOnboardingSubscription
+              !showNoInternet
         else { return }
 
         let lastSeen = UserDefaults.standard.string(forKey: Self.feedbackCampaignSeenKey)
@@ -223,7 +211,6 @@ struct ContentView: View {
         do {
             try await authService.loadProfile()
             await authService.setCountryIfNeeded()
-            try? await SubscriptionService.shared.checkStatus()
             showMaintenance = false
             showNoInternet = false
         } catch {

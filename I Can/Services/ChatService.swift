@@ -2,7 +2,6 @@ import Foundation
 
 struct ChatResult {
     let reply: String
-    let remaining: Int? // nil = unlimited (premium)
     let conversationId: String?
 }
 
@@ -27,7 +26,7 @@ final class ChatService {
             method: "POST",
             body: request
         )
-        return ChatResult(reply: response.reply, remaining: response.remaining, conversationId: response.conversationId)
+        return ChatResult(reply: response.reply, conversationId: response.conversationId)
     }
 
     // MARK: - Conversation History
@@ -100,7 +99,6 @@ final class ChatService {
     func clearMessages() {
         guard let url = fileURL else { return }
         try? FileManager.default.removeItem(at: url)
-        KeychainHelper.delete(forKey: "chat_limit_reset_at")
     }
 
     private var fileURL: URL? {

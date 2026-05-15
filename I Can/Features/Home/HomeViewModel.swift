@@ -199,7 +199,6 @@ final class HomeViewModel {
     }
 
     private func fetchTrainingInsight(_ data: TrainingData) async {
-        guard SubscriptionService.shared.isPremium else { return }
         // Only regenerate when training data actually changed
         if let last = lastInsightTrainingData, last == data, !trainingInsight.isEmpty {
             return
@@ -272,7 +271,6 @@ final class HomeViewModel {
     }
 
     private func fetchNutritionInsight(_ data: NutritionData) async {
-        guard SubscriptionService.shared.isPremium else { return }
         if let last = lastInsightNutritionData, last == data, !nutritionInsight.isEmpty {
             return
         }

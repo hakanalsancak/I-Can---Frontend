@@ -98,19 +98,6 @@ struct MoreView: View {
                             .clipShape(Capsule())
                     }
 
-                    if SubscriptionService.shared.isPremium {
-                        HStack(spacing: 3) {
-                            Image(systemName: "crown.fill")
-                                .font(.system(size: 9, weight: .bold))
-                            Text("PRO")
-                                .font(.system(size: 11, weight: .heavy).width(.condensed))
-                        }
-                        .foregroundColor(Color(hex: "F59E0B"))
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
-                        .background(Color(hex: "F59E0B").opacity(0.12))
-                        .clipShape(Capsule())
-                    }
                 }
             }
 

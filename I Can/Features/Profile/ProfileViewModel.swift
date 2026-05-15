@@ -7,36 +7,24 @@ import PhotosUI
 final class ProfileViewModel {
     var user: User? { AuthService.shared.currentUser }
     var streak: StreakInfo?
-    var subscriptionStatus: SubscriptionStatus?
     var isLoading = false
-    var showSubscription = false
     var showSettings = false
     var showMantraEditor = false
     var showEditProfile = false
     var profileImage: UIImage?
     var isSavingProfile = false
 
-    var isPremium: Bool { SubscriptionService.shared.isPremium }
-
     func loadData() async {
         isLoading = true
         async let streakTask: () = loadStreak()
-        async let subTask: () = loadSubscription()
         async let photoTask: () = loadProfilePhotoAsync()
-        _ = await (streakTask, subTask, photoTask)
+        _ = await (streakTask, photoTask)
         isLoading = false
     }
 
     private func loadStreak() async {
         do {
             streak = try await StreakService.shared.getStreak()
-        } catch { }
-    }
-
-    private func loadSubscription() async {
-        do {
-            try await SubscriptionService.shared.checkStatus()
-            subscriptionStatus = SubscriptionService.shared.subscriptionStatus
         } catch { }
     }
 

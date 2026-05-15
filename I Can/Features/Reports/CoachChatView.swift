@@ -7,12 +7,6 @@ struct CoachChatView: View {
     @State private var isLoading = false
     @State private var headerVisible = false
     @State private var chipsVisible = false
-    @State private var showSubscription = false
-    @State private var remainingMessages: Int? = nil
-    @State private var limitReached = false
-    @State private var resetAt: Date? = nil
-    @State private var countdownText = ""
-    @State private var countdownTask: Task<Void, Never>? = nil
     @State private var currentConversationId: String? = nil
     @State private var showSidebar = false
     @State private var sidebarDragOffset: CGFloat = 0
@@ -24,9 +18,6 @@ struct CoachChatView: View {
     @FocusState private var isInputFocused: Bool
 
     private let coachGradient = [Color(hex: "0EA5E9"), Color(hex: "22C55E")]
-    private let dailyLimit = 15
-
-    private var isPremium: Bool { SubscriptionService.shared.isPremium }
 
     private var coachImageName: String {
         let gender = AuthService.shared.currentUser?.gender ?? ""
@@ -69,17 +60,6 @@ struct CoachChatView: View {
                 .shadow(color: Color.black.opacity(showSidebar || sidebarDragOffset > 0 ? 0.25 : 0), radius: 14, x: 4, y: 0)
             }
             .gesture(edgeDragGesture)
-            .sheet(isPresented: $showSubscription, onDismiss: {
-                Task { try? await SubscriptionService.shared.checkStatus() }
-                if SubscriptionService.shared.isPremium {
-                    limitReached = false
-                    remainingMessages = nil
-                    clearLimitState()
-                    stopCountdown()
-                }
-            }) {
-                SubscriptionView()
-            }
             .onAppear {
                 if messages.isEmpty {
                     // Restore from in-memory session (survives tab switches, blank on fresh launch)
@@ -90,13 +70,11 @@ struct CoachChatView: View {
                         appearedMessageIDs = Set(cached.map(\.id))
                     }
                 }
-                restoreLimitState()
             }
             .onDisappear {
                 // Persist to in-memory session so tab switches restore the chat
                 ChatService.shared.sessionMessages = messages
                 ChatService.shared.sessionConversationId = currentConversationId
-                stopCountdown()
                 streamingTask?.cancel()
             }
         }
@@ -116,23 +94,13 @@ struct CoachChatView: View {
                     Spacer()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if messages.isEmpty && !limitReached {
+            } else if messages.isEmpty {
                 emptyState
-            } else if limitReached {
-                if messages.isEmpty {
-                    limitReachedFullState
-                } else {
-                    messagesList
-                }
             } else {
                 messagesList
             }
 
-            if limitReached {
-                limitReachedBar
-            } else {
-                inputBar
-            }
+            inputBar
         }
         .background(ColorTheme.background(colorScheme))
         .contentShape(Rectangle())
@@ -337,256 +305,6 @@ struct CoachChatView: View {
             .frame(width: size, height: size)
             .clipShape(Circle())
             .shadow(color: Color(hex: "0EA5E9").opacity(0.25), radius: size * 0.15, x: 0, y: size * 0.06)
-    }
-
-    // MARK: - Remaining Messages Banner
-
-    private var remainingBanner: some View {
-        Group {
-            if !isPremium, let remaining = remainingMessages, !limitReached {
-                HStack(spacing: 8) {
-                    Image(systemName: "bubble.left.and.bubble.right.fill")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(remaining <= 2 ? Color(hex: "F59E0B") : Color(hex: "0EA5E9"))
-
-                    Text("\(remaining) message\(remaining == 1 ? "" : "s") left today")
-                        .font(.system(size: 13, weight: .semibold).width(.condensed))
-                        .foregroundColor(ColorTheme.primaryText(colorScheme))
-
-                    Spacer()
-
-                    Button {
-                        HapticManager.impact(.light)
-                        showSubscription = true
-                    } label: {
-                        Text("Go Unlimited")
-                            .font(.system(size: 12, weight: .bold).width(.condensed))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(
-                                LinearGradient(colors: coachGradient, startPoint: .leading, endPoint: .trailing)
-                            )
-                            .clipShape(Capsule())
-                    }
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(
-                    (remaining <= 2 ? Color(hex: "F59E0B") : Color(hex: "0EA5E9")).opacity(0.08)
-                )
-            }
-        }
-    }
-
-    // MARK: - Limit Reached Full State
-
-    private var limitReachedFullState: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                Spacer().frame(height: 50)
-
-                ZStack {
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [Color(hex: "F59E0B").opacity(0.12), Color.clear],
-                                center: .center,
-                                startRadius: 0,
-                                endRadius: 70
-                            )
-                        )
-                        .frame(width: 140, height: 140)
-
-                    ZStack {
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color(hex: "F59E0B"), Color(hex: "D97706")],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 80, height: 80)
-
-                        Image(systemName: "clock.fill")
-                            .font(.system(size: 34, weight: .semibold))
-                            .foregroundColor(.white)
-                    }
-                }
-
-                VStack(spacing: 8) {
-                    Text("Daily Limit Reached")
-                        .font(.system(size: 26, weight: .heavy).width(.condensed))
-                        .foregroundColor(ColorTheme.primaryText(colorScheme))
-
-                    Text("You've used all \(dailyLimit) free messages today")
-                        .font(.system(size: 15, weight: .medium).width(.condensed))
-                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                }
-
-                if !countdownText.isEmpty {
-                    HStack(spacing: 8) {
-                        Image(systemName: "arrow.counterclockwise")
-                            .font(.system(size: 14, weight: .semibold))
-                        Text("Resets in \(countdownText)")
-                            .font(.system(size: 16, weight: .bold).width(.condensed))
-                    }
-                    .foregroundColor(Color(hex: "F59E0B"))
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 12)
-                    .background(Color(hex: "F59E0B").opacity(0.1))
-                    .clipShape(Capsule())
-                }
-
-                VStack(spacing: 12) {
-                    Button {
-                        HapticManager.impact(.medium)
-                        showSubscription = true
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "crown.fill")
-                                .font(.system(size: 14, weight: .bold))
-                            Text("Unlock Unlimited Messages")
-                                .font(.system(size: 16, weight: .bold).width(.condensed))
-                        }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(
-                            LinearGradient(colors: coachGradient, startPoint: .leading, endPoint: .trailing)
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        .shadow(color: Color(hex: "0EA5E9").opacity(0.35), radius: 12, x: 0, y: 6)
-                    }
-
-                    HStack(spacing: 6) {
-                        Image(systemName: "crown.fill")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(Color(hex: "EAB308"))
-                        Text("Premium feature")
-                            .font(.system(size: 13, weight: .medium).width(.condensed))
-                            .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                    }
-                }
-            }
-            .padding(.horizontal, 24)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    // MARK: - Limit Reached Bar (replaces input bar)
-
-    private var limitReachedBar: some View {
-        VStack(spacing: 0) {
-            Rectangle()
-                .fill(ColorTheme.secondaryText(colorScheme).opacity(0.08))
-                .frame(height: 0.5)
-
-            VStack(spacing: 10) {
-                if !countdownText.isEmpty {
-                    HStack(spacing: 6) {
-                        Image(systemName: "clock.fill")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(Color(hex: "F59E0B"))
-                        Text("Resets in \(countdownText)")
-                            .font(.system(size: 13, weight: .semibold).width(.condensed))
-                            .foregroundColor(ColorTheme.primaryText(colorScheme))
-                    }
-                }
-
-                Button {
-                    HapticManager.impact(.medium)
-                    showSubscription = true
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "crown.fill")
-                            .font(.system(size: 13, weight: .bold))
-                        Text("Unlock Unlimited Messages")
-                            .font(.system(size: 15, weight: .bold).width(.condensed))
-                    }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 13)
-                    .background(
-                        LinearGradient(colors: coachGradient, startPoint: .leading, endPoint: .trailing)
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                }
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(
-                ColorTheme.background(colorScheme)
-                    .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: -2)
-            )
-        }
-    }
-
-    // MARK: - Countdown Helpers
-
-    private func startCountdown(to resetDate: Date) {
-        resetAt = resetDate
-        limitReached = true
-        persistLimitState(resetDate: resetDate)
-        updateCountdownText()
-        countdownTask?.cancel()
-        countdownTask = Task { @MainActor in
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(1))
-                guard !Task.isCancelled else { break }
-                updateCountdownText()
-            }
-        }
-    }
-
-    private func stopCountdown() {
-        countdownTask?.cancel()
-        countdownTask = nil
-    }
-
-    private func updateCountdownText() {
-        guard let resetAt else {
-            countdownText = ""
-            return
-        }
-        let remaining = resetAt.timeIntervalSinceNow
-        if remaining <= 0 {
-            countdownText = ""
-            limitReached = false
-            remainingMessages = dailyLimit
-            clearLimitState()
-            stopCountdown()
-            return
-        }
-        let hours = Int(remaining) / 3600
-        let minutes = (Int(remaining) % 3600) / 60
-        let seconds = Int(remaining) % 60
-        countdownText = String(format: "%02d:%02d:%02d", hours, minutes, seconds)
-    }
-
-    private static let limitResetKeychainKey = "chat_limit_reset_at"
-
-    private func persistLimitState(resetDate: Date) {
-        let value = String(resetDate.timeIntervalSince1970)
-        KeychainHelper.save(value, forKey: Self.limitResetKeychainKey)
-    }
-
-    private func clearLimitState() {
-        KeychainHelper.delete(forKey: Self.limitResetKeychainKey)
-    }
-
-    private func restoreLimitState() {
-        guard !isPremium else { return }
-        guard let storedString = KeychainHelper.readString(forKey: Self.limitResetKeychainKey),
-              let stored = Double(storedString), stored > 0 else { return }
-        let resetDate = Date(timeIntervalSince1970: stored)
-        if resetDate.timeIntervalSinceNow > 0 {
-            remainingMessages = 0
-            startCountdown(to: resetDate)
-        } else {
-            clearLimitState()
-        }
     }
 
     // MARK: - Empty State
@@ -804,8 +522,6 @@ struct CoachChatView: View {
         ScrollViewReader { proxy in
             ScrollView(showsIndicators: false) {
                 LazyVStack(spacing: 6) {
-                    remainingBanner
-
                     ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
                         let showAvatar = shouldShowAvatar(at: index)
                         messageBubble(message, showAvatar: showAvatar, containerWidth: geometry.size.width)
@@ -1238,7 +954,7 @@ struct CoachChatView: View {
 
     private func sendMessage() {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, !isLoading, !limitReached else { return }
+        guard !text.isEmpty, !isLoading else { return }
 
         let userMessage = ChatMessage(role: "user", content: text)
         withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
@@ -1279,46 +995,7 @@ struct CoachChatView: View {
                     messages.append(coachMessage)
                 }
                 startStreamingReveal(for: coachMessage)
-                if let remaining = result.remaining {
-                    remainingMessages = remaining
-                    if remaining <= 0 {
-                        let now = Date()
-                        var utcCalendar = Calendar(identifier: .gregorian)
-                        utcCalendar.timeZone = TimeZone(identifier: "UTC") ?? .gmt
-                        if let tomorrow = utcCalendar.date(byAdding: .day, value: 1, to: now) {
-                            let resetDate = utcCalendar.startOfDay(for: tomorrow)
-                            limitReached = true
-                            startCountdown(to: resetDate)
-                        }
-                    }
-                }
                 HapticManager.impact(.light)
-            } catch let error as APIError {
-                loadingTask.cancel()
-                switch error {
-                case .dailyLimitExceeded(let resetDate):
-                    withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
-                        isLoading = false
-                        if let lastIdx = messages.indices.last, messages[lastIdx].isUser {
-                            messages.removeLast()
-                        }
-                    }
-                    persistMessages()
-                    limitReached = true
-                    remainingMessages = 0
-                    if let resetDate {
-                        startCountdown(to: resetDate)
-                    }
-                default:
-                    let errMsg = ChatMessage(
-                        role: "assistant",
-                        content: "Couldn't get through right now. Give it another shot."
-                    )
-                    withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
-                        isLoading = false
-                        messages.append(errMsg)
-                    }
-                }
             } catch {
                 loadingTask.cancel()
                 let errMsg = ChatMessage(

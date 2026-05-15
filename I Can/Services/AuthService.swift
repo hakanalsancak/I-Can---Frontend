@@ -182,7 +182,6 @@ final class AuthService {
         TokenManager.shared.clearTokens()
         currentUser = nil
         isAuthenticated = false
-        SubscriptionService.shared.resetForSignOut()
 
         // Best-effort: revoke refresh token on the server so it can't be reused after logout.
         // Uses the captured access token directly since tokens are already cleared from Keychain.

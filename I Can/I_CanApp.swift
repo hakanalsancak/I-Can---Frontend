@@ -50,17 +50,9 @@ struct I_CanApp: App {
             ContentView()
                 .preferredColorScheme(appearanceManager.current.colorScheme)
                 .task {
-                    // Start the Transaction.updates listener FIRST per Apple's guidance,
-                    // so we don't miss updates delivered during launch-time work.
-                    // Detached so it lives independently of this .task scope.
-                    Task.detached(priority: .background) {
-                        await SubscriptionService.shared.listenForTransactions()
-                    }
-
                     if await Task.detached(priority: .utility, operation: { isDeviceJailbroken() }).value {
                         showJailbreakWarning = true
                     }
-                    await SubscriptionService.shared.syncEntitlements()
                 }
                 .onAppear {
                     AnalyticsManager.log("app_opened")

@@ -2,7 +2,6 @@ import SwiftUI
 
 struct ProfileView: View {
     @State private var viewModel = ProfileViewModel()
-    @State private var subscriptionShimmer: CGFloat = -1
     @State private var showAccountUpgrade = false
     @State private var showFeedback = false
     @State private var showBugReport = false
@@ -49,9 +48,6 @@ struct ProfileView: View {
                             .opacity(cardsAppeared ? 1 : 0)
                             .offset(y: cardsAppeared ? 0 : 16)
 
-                        premiumCard
-                            .opacity(cardsAppeared ? 1 : 0)
-
                         contactUsCard
                             .opacity(cardsAppeared ? 1 : 0)
 
@@ -77,11 +73,6 @@ struct ProfileView: View {
                 withAnimation(.easeOut(duration: 0.5).delay(0.15)) {
                     cardsAppeared = true
                 }
-            }
-            .sheet(isPresented: $viewModel.showSubscription, onDismiss: {
-                Task { try? await SubscriptionService.shared.checkStatus() }
-            }) {
-                SubscriptionView()
             }
             .sheet(isPresented: $viewModel.showMantraEditor) {
                 MantraEditorSheet(
@@ -156,31 +147,6 @@ struct ProfileView: View {
                     )
                     .frame(width: 106, height: 106)
 
-                if viewModel.isPremium {
-                    VStack {
-                        Spacer()
-                        HStack {
-                            Spacer()
-                            ZStack {
-                                Circle()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [Color(hex: "FFD700"), Color(hex: "FFA500")],
-                                            startPoint: .top,
-                                            endPoint: .bottom
-                                        )
-                                    )
-                                    .frame(width: 28, height: 28)
-                                    .shadow(color: Color(hex: "FFD700").opacity(0.4), radius: 6, x: 0, y: 2)
-                                Image(systemName: "crown.fill")
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundColor(.white)
-                            }
-                            .offset(x: -2, y: -2)
-                        }
-                    }
-                    .frame(width: 100, height: 100)
-                }
             }
 
             VStack(spacing: 6) {
@@ -338,7 +304,7 @@ struct ProfileView: View {
                     Text("Sign In or Create Account")
                         .font(.system(size: 15, weight: .bold).width(.condensed))
                         .foregroundColor(ColorTheme.primaryText(colorScheme))
-                    Text("Required to subscribe and restore purchases")
+                    Text("Save your progress across devices")
                         .font(.system(size: 12, weight: .medium).width(.condensed))
                         .foregroundColor(ColorTheme.secondaryText(colorScheme))
                 }
@@ -516,147 +482,6 @@ struct ProfileView: View {
                     .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 8, x: 0, y: 2)
                 }
                 .buttonStyle(.plain)
-            }
-        }
-    }
-
-    // MARK: - Premium Card
-
-    private var premiumCard: some View {
-        Group {
-            if viewModel.isPremium {
-                premiumActiveCard
-            } else {
-                premiumUpgradeCard
-            }
-        }
-    }
-
-    private var premiumActiveCard: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color(hex: "FFD700"), Color(hex: "FFA500")],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 42, height: 42)
-                    .shadow(color: Color(hex: "FFD700").opacity(0.3), radius: 8, x: 0, y: 3)
-                Image(systemName: "crown.fill")
-                    .font(.system(size: 17, weight: .bold))
-                    .foregroundColor(.white)
-            }
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Premium Active")
-                    .font(.system(size: 16, weight: .bold).width(.condensed))
-                    .foregroundColor(ColorTheme.primaryText(colorScheme))
-                Text("AI coaching reports unlocked")
-                    .font(.system(size: 12, weight: .semibold).width(.condensed))
-                    .foregroundColor(Color(hex: "FFD700"))
-            }
-
-            Spacer()
-
-            Image(systemName: "checkmark.seal.fill")
-                .font(.system(size: 20))
-                .foregroundColor(Color(hex: "22C55E"))
-        }
-        .padding(16)
-        .background(
-            ZStack {
-                ColorTheme.cardBackground(colorScheme)
-                LinearGradient(
-                    colors: [Color(hex: "FFD700").opacity(0.06), .clear],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            }
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .strokeBorder(Color(hex: "FFD700").opacity(0.15), lineWidth: 1)
-        )
-        .shadow(color: Color(hex: "FFD700").opacity(0.08), radius: 10, x: 0, y: 4)
-    }
-
-    private var premiumUpgradeCard: some View {
-        Button {
-            HapticManager.impact(.medium)
-            viewModel.showSubscription = true
-        } label: {
-            HStack(spacing: 14) {
-                ZStack {
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [Color(hex: "8B5CF6"), Color(hex: "6D28D9")],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 42, height: 42)
-                    Image(systemName: "crown.fill")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundColor(.white)
-                }
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Upgrade to Premium")
-                        .font(.system(size: 16, weight: .bold).width(.condensed))
-                        .foregroundColor(.white)
-                    HStack(spacing: 4) {
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 10, weight: .bold))
-                        Text("Unlock AI coaching")
-                            .font(.system(size: 12, weight: .medium).width(.condensed))
-                    }
-                    .foregroundColor(.white.opacity(0.75))
-                }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.6))
-            }
-            .padding(16)
-            .background(
-                ZStack {
-                    LinearGradient(
-                        colors: [Color(hex: "7C3AED"), Color(hex: "4F46E5")],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-
-                    GeometryReader { geo in
-                        let w = geo.size.width
-                        Rectangle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [.white.opacity(0), .white.opacity(0.1), .white.opacity(0)],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .frame(width: w * 0.5)
-                            .offset(x: subscriptionShimmer * w)
-                            .blur(radius: 4)
-                    }
-                    .clipped()
-                }
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .shadow(color: Color(hex: "7C3AED").opacity(0.25), radius: 12, x: 0, y: 5)
-        }
-        .buttonStyle(.plain)
-        .onAppear {
-            withAnimation(.linear(duration: 3).repeatForever(autoreverses: false)) {
-                subscriptionShimmer = 2
             }
         }
     }

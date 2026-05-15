@@ -158,7 +158,6 @@ struct HomeView: View {
     @Binding var selectedTab: Int
     @State private var currentQuoteIndex = Int.random(in: 0..<iCanQuotes.count)
     @State private var quoteOpacity: Double = 1
-    @State private var showSubscription = false
     @State private var showBreathing = false
     @State private var showProfile = false
     @State private var profileImage: UIImage? = nil
@@ -177,10 +176,6 @@ struct HomeView: View {
                     VStack(spacing: 20) {
                         mantraCard
                             .padding(.top, 16)
-
-                        if SubscriptionService.shared.statusChecked && !SubscriptionService.shared.isPremium {
-                            aiCoachPromo
-                        }
 
                         // DAILY LOG SECTION - PRIMARY FOCUS
                         dailyLogSection
@@ -232,11 +227,6 @@ struct HomeView: View {
                 SleepLogView(existingData: viewModel.todaySleep) { data in
                     Task { await viewModel.submitSleep(data) }
                 }
-            }
-            .sheet(isPresented: $showSubscription, onDismiss: {
-                Task { try? await SubscriptionService.shared.checkStatus() }
-            }) {
-                SubscriptionView()
             }
             .fullScreenCover(isPresented: $showBreathing) {
                 BreathingExerciseView()
@@ -805,13 +795,6 @@ struct HomeView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - AI Coach Promo
-
-    private var aiCoachPromo: some View {
-        AIReportPromoCard(style: .home) {
-            showSubscription = true
-        }
-    }
 }
 
 // MARK: - Button Styles

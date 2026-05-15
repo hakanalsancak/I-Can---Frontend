@@ -3,7 +3,6 @@ import Combine
 
 struct ReportsView: View {
     @State private var viewModel = ReportsViewModel()
-    @State private var showSubscription = false
     @State private var showSavedReports = false
     @State private var now = Date()
     @State private var selectedType: ReportType = .weekly
@@ -60,11 +59,7 @@ struct ReportsView: View {
                     VStack(spacing: 22) {
                         typeSegmentedControl
 
-                        if SubscriptionService.shared.isPremium {
-                            premiumContent
-                        } else {
-                            lockedPitch
-                        }
+                        premiumContent
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 14)
@@ -74,27 +69,13 @@ struct ReportsView: View {
             .background(ColorTheme.background(colorScheme).ignoresSafeArea())
             .navigationBarHidden(true)
             .onAppear {
-                if SubscriptionService.shared.isPremium {
-                    Task { await viewModel.loadAll() }
-                }
+                Task { await viewModel.loadAll() }
             }
             .refreshable {
-                if SubscriptionService.shared.isPremium {
-                    await viewModel.loadAll()
-                }
+                await viewModel.loadAll()
             }
             .sheet(item: $viewModel.selectedReport) { report in
                 ReportDetailView(report: report)
-            }
-            .sheet(isPresented: $showSubscription, onDismiss: {
-                Task { try? await SubscriptionService.shared.checkStatus() }
-            }) {
-                SubscriptionView()
-            }
-            .sheet(isPresented: $viewModel.showPaywall, onDismiss: {
-                Task { try? await SubscriptionService.shared.checkStatus() }
-            }) {
-                SubscriptionView()
             }
             .sheet(isPresented: $showSavedReports) {
                 SavedReportsView(
@@ -126,20 +107,18 @@ struct ReportsView: View {
                 .font(.system(size: 28, weight: .heavy).width(.condensed))
                 .foregroundColor(ColorTheme.primaryText(colorScheme))
             Spacer()
-            if SubscriptionService.shared.isPremium {
-                Button {
-                    HapticManager.selection()
-                    showSavedReports = true
-                } label: {
-                    Image(systemName: "archivebox.fill")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(ColorTheme.primaryText(colorScheme))
-                        .frame(width: 38, height: 38)
-                        .background(ColorTheme.cardBackground(colorScheme))
-                        .clipShape(Circle())
-                }
-                .buttonStyle(.plain)
+            Button {
+                HapticManager.selection()
+                showSavedReports = true
+            } label: {
+                Image(systemName: "archivebox.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    .frame(width: 38, height: 38)
+                    .background(ColorTheme.cardBackground(colorScheme))
+                    .clipShape(Circle())
             }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 20)
         .padding(.top, 8)
@@ -430,94 +409,6 @@ struct ReportsView: View {
         let fmt = DateFormatter()
         fmt.dateFormat = selectedType == .weekly ? "MMM d" : "MMM"
         return fmt.string(from: date)
-    }
-
-    // MARK: - Locked Pitch
-
-    private var lockedPitch: some View {
-        VStack(spacing: 0) {
-            VStack(spacing: 14) {
-                ZStack {
-                    Circle()
-                        .fill(LinearGradient(colors: selectedType.gradient, startPoint: .topLeading, endPoint: .bottomTrailing))
-                        .frame(width: 64, height: 64)
-                        .shadow(color: selectedType.gradient[0].opacity(0.4), radius: 14, x: 0, y: 8)
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 24, weight: .heavy))
-                        .foregroundColor(.white)
-                }
-
-                Text("\(userName), you don\u{2019}t get a score without Premium.")
-                    .font(.system(size: 22, weight: .heavy).width(.condensed))
-                    .foregroundColor(ColorTheme.primaryText(colorScheme))
-                    .multilineTextAlignment(.center)
-                    .lineSpacing(3)
-                    .padding(.horizontal, 6)
-
-                VStack(alignment: .leading, spacing: 14) {
-                    pitchLine(icon: "calendar", title: "Every Monday at 8pm",
-                              subtitle: "A 0\u{2013}100 weekly grade. Best day, worst day, one move.")
-                    pitchLine(icon: "calendar.badge.clock", title: "Every 1st of the month",
-                              subtitle: "Trend, consistency grid, verdict.")
-                    pitchLine(icon: "flame.fill", title: "Streaks, deltas, peaks",
-                              subtitle: "The dashboard pros use to study tape.")
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, 4)
-
-                Button {
-                    HapticManager.impact(.medium)
-                    showSubscription = true
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 14, weight: .heavy))
-                        Text("Unlock Reports")
-                            .font(.system(size: 16, weight: .heavy).width(.condensed))
-                        Image(systemName: "arrow.right")
-                            .font(.system(size: 12, weight: .heavy))
-                    }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(LinearGradient(colors: selectedType.gradient, startPoint: .leading, endPoint: .trailing))
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .shadow(color: selectedType.gradient[0].opacity(0.35), radius: 12, x: 0, y: 6)
-                }
-                .padding(.top, 4)
-
-                Text("\u{201C}Pros review the tape. So do you.\u{201D}")
-                    .font(.system(size: 13, weight: .semibold).width(.condensed))
-                    .italic()
-                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
-            }
-            .padding(22)
-            .frame(maxWidth: .infinity)
-            .background(ColorTheme.cardBackground(colorScheme))
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 12, x: 0, y: 6)
-        }
-    }
-
-    private func pitchLine(icon: String, title: String, subtitle: String) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 14, weight: .heavy))
-                .foregroundColor(selectedType.accent)
-                .frame(width: 28, height: 28)
-                .background(selectedType.accent.opacity(0.12))
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(.system(size: 14, weight: .heavy).width(.condensed))
-                    .foregroundColor(ColorTheme.primaryText(colorScheme))
-                Text(subtitle)
-                    .font(.system(size: 13, weight: .semibold).width(.condensed))
-                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
-                    .lineSpacing(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
     }
 
     // MARK: - Countdown

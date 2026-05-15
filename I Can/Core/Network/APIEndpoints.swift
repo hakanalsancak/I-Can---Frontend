@@ -66,11 +66,6 @@ enum APIEndpoints {
         static let base = "/api/streaks"
     }
 
-    enum Subscriptions {
-        static let status = "/api/subscriptions/status"
-        static let verify = "/api/subscriptions/verify"
-    }
-
     enum Notifications {
         static let preferences = "/api/notifications/preferences"
         static let deviceToken = "/api/notifications/device-token"

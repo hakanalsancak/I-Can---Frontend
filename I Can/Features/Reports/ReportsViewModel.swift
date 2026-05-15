@@ -9,7 +9,6 @@ final class ReportsViewModel {
     var selectedReport: AIReport?
     var isLoading = false
     var errorMessage: String?
-    var showPaywall = false
 
     var isStatusLoading: Bool {
         periodStatus == nil && !hasFailedStatus
@@ -58,12 +57,6 @@ final class ReportsViewModel {
         do {
             selectedReport = try await ReportService.shared.getReport(id: report.id)
             AnalyticsManager.log("\(report.reportType)_report_viewed", parameters: ["report_id": report.id])
-        } catch let error as APIError {
-            if case .premiumRequired = error {
-                showPaywall = true
-            } else {
-                errorMessage = error.localizedDescription
-            }
         } catch {
             errorMessage = error.localizedDescription
         }

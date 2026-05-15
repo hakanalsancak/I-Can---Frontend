@@ -53,7 +53,6 @@ struct ChatHistoryItem: Encodable {
 
 struct ChatResponse: Decodable {
     let reply: String
-    let remaining: Int?
     let conversationId: String?
 }
 

@@ -2,7 +2,6 @@ import SwiftUI
 
 struct JournalView: View {
     @State private var viewModel = JournalViewModel()
-    @State private var showSubscription = false
     @State private var showEntryDetail = false
     @FocusState private var isNoteFocused: Bool
     @Environment(\.colorScheme) private var colorScheme
@@ -14,12 +13,6 @@ struct JournalView: View {
 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 20) {
-                        if SubscriptionService.shared.statusChecked && !SubscriptionService.shared.isPremium {
-                            AIReportPromoCard(style: .journal) {
-                                showSubscription = true
-                            }
-                        }
-
                         noteSection
 
                         calendarSection
@@ -51,11 +44,6 @@ struct JournalView: View {
             .onDisappear { viewModel.flushNote() }
             .onChange(of: viewModel.currentMonth) { _, _ in
                 viewModel.loadEntries()
-            }
-            .sheet(isPresented: $showSubscription, onDismiss: {
-                Task { try? await SubscriptionService.shared.checkStatus() }
-            }) {
-                SubscriptionView()
             }
             .sheet(isPresented: $showEntryDetail) {
                 if let entry = viewModel.selectedEntry {
