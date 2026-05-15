@@ -1,262 +1,95 @@
 import SwiftUI
 import Combine
 
-private let iCanQuotes: [String] = [
-    "I can push through when it gets hard.",
-    "I can stay focused under pressure.",
-    "I can turn mistakes into lessons.",
-    "I can give 100% every single day.",
-    "I can control my effort.",
-    "I can stay disciplined when no one is watching.",
-    "I can be better than yesterday.",
-    "I can rise after every fall.",
-    "I can trust my preparation.",
-    "I can silence the doubt.",
-    "I can outwork the competition.",
-    "I can show up when it matters most.",
-    "I can stay calm in the storm.",
-    "I can embrace the grind.",
-    "I can lead by example.",
-    "I can keep going when others quit.",
-    "I can earn it every day.",
-    "I can handle the pressure.",
-    "I can find a way.",
-    "I can be relentless.",
-    "I can stay patient with my progress.",
-    "I can commit fully to my goals.",
-    "I can choose discipline over comfort.",
-    "I can compete with myself.",
-    "I can overcome any obstacle.",
-    "I can finish stronger than I started.",
-    "I can take the next step.",
-    "I can do the work nobody sees.",
-    "I can be consistent day after day.",
-    "I can believe in my abilities.",
-    "I can recover and come back stronger.",
-    "I can focus on what I control.",
-    "I can block out distractions.",
-    "I can set the standard.",
-    "I can prove it on the field.",
-    "I can deliver when the stakes are high.",
-    "I can build unshakeable confidence.",
-    "I can embrace the challenge.",
-    "I can fuel my body for performance.",
-    "I can learn from every rep.",
-    "I can sharpen my skills daily.",
-    "I can play with intensity.",
-    "I can maintain my composure.",
-    "I can visualize my success.",
-    "I can train my mind like my body.",
-    "I can dominate the details.",
-    "I can stay hungry for growth.",
-    "I can respect the process.",
-    "I can make my teammates better.",
-    "I can own the moment.",
-    "I can channel my energy.",
-    "I can put the team first.",
-    "I can perform at my peak.",
-    "I can turn fear into fuel.",
-    "I can adapt to any situation.",
-    "I can be mentally tough.",
-    "I can stay locked in.",
-    "I can win the day.",
-    "I can accept feedback and improve.",
-    "I can play without fear.",
-    "I can thrive in adversity.",
-    "I can prepare like a professional.",
-    "I can control my attitude.",
-    "I can bring energy every session.",
-    "I can chase greatness.",
-    "I can make the most of today.",
-    "I can stay committed to the process.",
-    "I can trust my training.",
-    "I can be the hardest worker in the room.",
-    "I can compete at the highest level.",
-    "I can bounce back from setbacks.",
-    "I can stay positive through struggles.",
-    "I can execute under fatigue.",
-    "I can be coachable.",
-    "I can take responsibility.",
-    "I can push past my limits.",
-    "I can control my breathing.",
-    "I can stay present in the moment.",
-    "I can perform with purpose.",
-    "I can make every practice count.",
-    "I can develop a winner's mindset.",
-    "I can master my emotions.",
-    "I can stay laser-focused.",
-    "I can choose growth over comfort.",
-    "I can put in extra work.",
-    "I can be fearless on the field.",
-    "I can celebrate small wins.",
-    "I can learn from losses.",
-    "I can play with heart.",
-    "I can keep my body strong.",
-    "I can be a student of the game.",
-    "I can build lasting habits.",
-    "I can stay motivated from within.",
-    "I can be accountable to myself.",
-    "I can transform pressure into power.",
-    "I can give everything I have.",
-    "I can write my own story.",
-    "I can become unstoppable.",
-    "I can finish what I started.",
-    "I can make today legendary.",
-    "I can outlast the doubt in my head.",
-    "I can attack the day with purpose.",
-    "I can move with confidence.",
-    "I can choose effort over excuses.",
-    "I can show up early and stay late.",
-    "I can carry my team when they need me.",
-    "I can stay coachable.",
-    "I can answer the bell every round.",
-    "I can find another gear.",
-    "I can shake off the last play.",
-    "I can compete on every snap.",
-    "I can lift others while I climb.",
-    "I can stay ready so I never have to get ready.",
-    "I can earn the trust of my team.",
-    "I can do hard things.",
-    "I can master the fundamentals.",
-    "I can keep my promises to myself.",
-    "I can chase the work, not the result.",
-    "I can be a finisher.",
-    "I can hold the line when it's tight.",
-    "I can welcome the discomfort.",
-    "I can sprint to the finish.",
-    "I can be the hardest worker in the room.",
-    "I can let go of what I can't change.",
-    "I can stay present in every rep.",
-    "I can rest without quitting.",
-    "I can sharpen my mindset every morning.",
-    "I can speak life into myself.",
-    "I can keep my head up after a setback.",
-    "I can train like a champion.",
-    "I can carry myself with class.",
-    "I can be tough and kind at the same time.",
-    "I can listen and learn.",
-    "I can play bigger than my circumstances.",
-    "I can take pride in the small wins.",
-    "I can be patient and persistent.",
-    "I can stay locked on my own lane.",
-    "I can let my play speak for itself.",
-    "I can welcome feedback that makes me better.",
-    "I can be unshaken by the scoreboard.",
-    "I can build momentum one choice at a time.",
-    "I can stack good days.",
-    "I can pour into my craft.",
-    "I can lead with energy.",
-    "I can keep my standards high.",
-    "I can rewrite my story today.",
-    "I can show up for the version of me I'm becoming.",
-    "I can choose growth over comfort.",
-    "I can finish today knowing I gave my best.",
-]
-
 struct HomeView: View {
     @Bindable private var viewModel = HomeViewModel.shared
+    @Bindable private var community = CommunityCountService.shared
     @Binding var selectedTab: Int
-    @State private var currentQuoteIndex = Int.random(in: 0..<iCanQuotes.count)
-    @State private var quoteOpacity: Double = 1
     @State private var showBreathing = false
     @State private var showProfile = false
     @State private var profileImage: UIImage? = nil
     @State private var heroAppeared = false
+    @State private var joinPulse = false
+    @State private var displayedCount: Int = CommunityCountService.shared.count
+    @State private var showJoinedAlert = false
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.openURL) private var openURL
 
-    @State private var quoteTask: Task<Void, Never>?
+    private let instagramURL = URL(string: "https://www.instagram.com/ican_app/")!
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                homeHeader
-
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 20) {
-                        mantraCard
-                            .padding(.top, 16)
-
-                        // DAILY LOG SECTION - PRIMARY FOCUS
-                        dailyLogSection
-
-                        // PROGRESS TRACKER
-                        progressTracker
-
-                        // PERFORMANCE DASHBOARD
-                        PerformanceDashboardView(
-                            weeklyData: viewModel.weeklyAnalytics,
-                            monthlyData: viewModel.monthlyAnalytics,
-                            previousMonthData: viewModel.previousMonthAnalytics,
-                            isLoading: viewModel.isLoadingAnalytics
-                        )
-
-                        // STREAK SECTION
-                        streakSection
-
-                        // BREATHING - COMPACT
-                        compactBreatheCard
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 16)
+            mainContent
+                .background(ColorTheme.background(colorScheme).ignoresSafeArea())
+                .navigationBarHidden(true)
+                .refreshable { await viewModel.loadData() }
+                .task { await viewModel.loadData() }
+                .modifier(HomeAlertsModifier(
+                    saveError: $viewModel.saveError,
+                    showJoinedAlert: $showJoinedAlert
+                ))
+                .modifier(HomeSheetsModifier(
+                    viewModel: viewModel,
+                    showBreathing: $showBreathing,
+                    showProfile: $showProfile,
+                    onProfileDismiss: loadProfileImage
+                ))
+                .onAppear(perform: handleAppear)
+                .onChange(of: community.count) { _, newValue in
+                    animateCount(to: newValue)
                 }
-            }
-            .background(ColorTheme.background(colorScheme).ignoresSafeArea())
-            .navigationBarHidden(true)
-            .refreshable { await viewModel.loadData() }
-            .task { await viewModel.loadData() }
-            .alert("Save Error", isPresented: Binding<Bool>(
-                get: { viewModel.saveError != nil },
-                set: { if !$0 { viewModel.saveError = nil } }
-            )) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(viewModel.saveError ?? "")
-            }
-            .sheet(isPresented: $viewModel.showTrainingLog) {
-                TrainingLogView(existingData: viewModel.todayTraining) { data in
-                    Task { await viewModel.submitTraining(data) }
+                .onChange(of: AuthService.shared.currentUser?.id) { _, newId in
+                    community.bind(userId: newId)
+                    displayedCount = community.count
+                    Task { await community.refresh() }
                 }
-            }
-            .sheet(isPresented: $viewModel.showNutritionLog) {
-                NutritionLogView(existingData: viewModel.todayNutrition) { data in
-                    Task { await viewModel.submitNutrition(data) }
-                }
-            }
-            .sheet(isPresented: $viewModel.showSleepLog) {
-                SleepLogView(existingData: viewModel.todaySleep) { data in
-                    Task { await viewModel.submitSleep(data) }
-                }
-            }
-            .fullScreenCover(isPresented: $showBreathing) {
-                BreathingExerciseView()
-            }
-            .onAppear {
-                quoteTask = Task {
-                    while !Task.isCancelled {
-                        try? await Task.sleep(for: .seconds(5))
-                        if !Task.isCancelled { rotateQuote() }
+                .onChange(of: selectedTab) { _, newTab in
+                    if newTab == 0 {
+                        Task { await viewModel.refreshIfNeeded() }
                     }
                 }
-                withAnimation(.easeOut(duration: 0.6).delay(0.1)) {
-                    heroAppeared = true
+        }
+    }
+
+    private var mainContent: some View {
+        VStack(spacing: 0) {
+            homeHeader
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 20) {
+                    communityCard
+                        .padding(.top, 16)
+
+                    dailyLogSection
+                    progressTracker
+
+                    PerformanceDashboardView(
+                        weeklyData: viewModel.weeklyAnalytics,
+                        monthlyData: viewModel.monthlyAnalytics,
+                        previousMonthData: viewModel.previousMonthAnalytics,
+                        isLoading: viewModel.isLoadingAnalytics
+                    )
+
+                    streakSection
+                    compactBreatheCard
                 }
-                loadProfileImage()
+                .padding(.horizontal, 20)
+                .padding(.bottom, 16)
             }
-            .onDisappear {
-                quoteTask?.cancel()
-                quoteTask = nil
-            }
-            .onChange(of: selectedTab) { _, newTab in
-                if newTab == 0 {
-                    Task { await viewModel.refreshIfNeeded() }
-                }
-            }
-            .sheet(isPresented: $showProfile, onDismiss: {
-                loadProfileImage()
-            }) {
-                ProfileView()
-            }
+        }
+    }
+
+    private func handleAppear() {
+        withAnimation(.easeOut(duration: 0.6).delay(0.1)) {
+            heroAppeared = true
+        }
+        loadProfileImage()
+        community.bind(userId: AuthService.shared.currentUser?.id)
+        displayedCount = community.count
+        Task {
+            await community.refresh()
+            animateCount(to: community.count)
         }
     }
 
@@ -385,42 +218,44 @@ struct HomeView: View {
         .clipShape(Capsule())
     }
 
-    // MARK: - Mantra Card
+    // MARK: - Community Card
 
-    private var mantraCard: some View {
-        VStack(spacing: 0) {
-            Text(iCanQuotes[currentQuoteIndex])
-                .font(.system(size: 18, weight: .bold).width(.condensed))
-                .foregroundColor(ColorTheme.primaryText(colorScheme))
-                .multilineTextAlignment(.center)
-                .lineSpacing(4)
-                .opacity(quoteOpacity)
-                .id(currentQuoteIndex)
-                .frame(minHeight: 44)
+    private var communityCard: some View {
+        VStack(spacing: 14) {
+            VStack(spacing: 6) {
+                Text("I CAN COMMUNITY")
+                    .font(.system(size: 11, weight: .heavy).width(.condensed))
+                    .tracking(1.4)
+                    .foregroundColor(ColorTheme.accent)
 
-            if let mantra = AuthService.shared.currentUser?.mantra, !mantra.isEmpty {
-                HStack(spacing: 6) {
-                    Rectangle()
-                        .fill(ColorTheme.accent)
-                        .frame(width: 12, height: 2)
-                    Text("Your mantra: \(mantra)")
-                        .font(.system(size: 12, weight: .semibold).width(.condensed))
-                        .foregroundColor(ColorTheme.accent)
-                    Rectangle()
-                        .fill(ColorTheme.accent)
-                        .frame(width: 12, height: 2)
-                }
-                .padding(.top, 12)
+                Text(formattedCount)
+                    .font(.system(size: 44, weight: .heavy, design: .rounded))
+                    .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    .contentTransition(.numericText(value: Double(displayedCount)))
+                    .animation(.spring(response: 0.5, dampingFraction: 0.75), value: displayedCount)
+                    .scaleEffect(joinPulse ? 1.06 : 1.0)
+
+                Text("athletes strong and growing")
+                    .font(.system(size: 13, weight: .medium).width(.condensed))
+                    .foregroundColor(ColorTheme.secondaryText(colorScheme))
             }
+
+            joinButton
+
+            Divider()
+                .background(ColorTheme.separator(colorScheme))
+                .padding(.horizontal, 4)
+
+            instagramRow
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 18)
-        .padding(.vertical, 18)
+        .padding(.vertical, 20)
         .background(
             ZStack {
                 ColorTheme.cardBackground(colorScheme)
                 LinearGradient(
-                    colors: [ColorTheme.accent.opacity(0.04), .clear],
+                    colors: [ColorTheme.accent.opacity(0.06), .clear],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
@@ -429,25 +264,101 @@ struct HomeView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(ColorTheme.accent.opacity(0.1), lineWidth: 1)
+                .strokeBorder(ColorTheme.accent.opacity(0.12), lineWidth: 1)
         )
         .shadow(color: ColorTheme.cardShadow(colorScheme), radius: 4, x: 0, y: 2)
     }
 
-    private func rotateQuote() {
-        withAnimation(.easeOut(duration: 0.4)) {
-            quoteOpacity = 0
-        }
-        Task {
-            try? await Task.sleep(for: .milliseconds(400))
-            var nextIndex: Int
-            repeat {
-                nextIndex = Int.random(in: 0..<iCanQuotes.count)
-            } while nextIndex == currentQuoteIndex
-            currentQuoteIndex = nextIndex
-            withAnimation(.easeIn(duration: 0.4)) {
-                quoteOpacity = 1
+    private var formattedCount: String {
+        displayedCount.formatted(.number)
+    }
+
+    private var joinButton: some View {
+        Button {
+            guard !community.isMember else { return }
+            HapticManager.notification(.success)
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.55)) {
+                joinPulse = true
             }
+            showJoinedAlert = true
+            Task {
+                await community.join()
+                try? await Task.sleep(for: .milliseconds(220))
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                    joinPulse = false
+                }
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: community.isMember ? "checkmark.seal.fill" : "person.2.fill")
+                    .font(.system(size: 14, weight: .bold))
+                Text(community.isMember ? "You're part of I Can" : "Join the Community")
+                    .font(.system(size: 14, weight: .heavy).width(.condensed))
+            }
+            .foregroundColor(community.isMember ? ColorTheme.accent : .white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(
+                Group {
+                    if community.isMember {
+                        ColorTheme.accent.opacity(0.12)
+                    } else {
+                        LinearGradient(
+                            colors: [ColorTheme.accent, ColorTheme.accent.opacity(0.85)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    }
+                }
+            )
+            .clipShape(Capsule())
+            .overlay(
+                Capsule()
+                    .strokeBorder(
+                        community.isMember ? ColorTheme.accent.opacity(0.35) : Color.clear,
+                        lineWidth: 1
+                    )
+            )
+        }
+        .buttonStyle(LogCardButtonStyle())
+        .disabled(community.isMember)
+    }
+
+    private var instagramRow: some View {
+        Button {
+            HapticManager.selection()
+            openURL(instagramURL)
+        } label: {
+            HStack(spacing: 10) {
+                Image("InstagramLogo")
+                    .resizable()
+                    .renderingMode(.original)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 28, height: 28)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Follow on Instagram")
+                        .font(.system(size: 13, weight: .bold).width(.condensed))
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    Text("@ican_app")
+                        .font(.system(size: 11, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                }
+
+                Spacer()
+
+                Image(systemName: "arrow.up.right")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+            }
+        }
+        .buttonStyle(LogCardButtonStyle())
+    }
+
+    private func animateCount(to target: Int) {
+        guard target != displayedCount else { return }
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+            displayedCount = target
         }
     }
 
@@ -795,6 +706,62 @@ struct HomeView: View {
         .buttonStyle(.plain)
     }
 
+}
+
+// MARK: - View Modifiers
+
+private struct HomeAlertsModifier: ViewModifier {
+    @Binding var saveError: String?
+    @Binding var showJoinedAlert: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .alert("Save Error", isPresented: Binding<Bool>(
+                get: { saveError != nil },
+                set: { if !$0 { saveError = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(saveError ?? "")
+            }
+            .alert("Welcome to I Can", isPresented: $showJoinedAlert) {
+                Button("Let's go", role: .cancel) {}
+            } message: {
+                Text("You are now a part of the I Can community.")
+            }
+    }
+}
+
+private struct HomeSheetsModifier: ViewModifier {
+    @Bindable var viewModel: HomeViewModel
+    @Binding var showBreathing: Bool
+    @Binding var showProfile: Bool
+    let onProfileDismiss: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .sheet(isPresented: $viewModel.showTrainingLog) {
+                TrainingLogView(existingData: viewModel.todayTraining) { data in
+                    Task { await viewModel.submitTraining(data) }
+                }
+            }
+            .sheet(isPresented: $viewModel.showNutritionLog) {
+                NutritionLogView(existingData: viewModel.todayNutrition) { data in
+                    Task { await viewModel.submitNutrition(data) }
+                }
+            }
+            .sheet(isPresented: $viewModel.showSleepLog) {
+                SleepLogView(existingData: viewModel.todaySleep) { data in
+                    Task { await viewModel.submitSleep(data) }
+                }
+            }
+            .fullScreenCover(isPresented: $showBreathing) {
+                BreathingExerciseView()
+            }
+            .sheet(isPresented: $showProfile, onDismiss: onProfileDismiss) {
+                ProfileView()
+            }
+    }
 }
 
 // MARK: - Button Styles

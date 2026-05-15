@@ -76,6 +76,9 @@ enum APIEndpoints {
     }
 
     enum Community {
+        static let count = "/api/community/count"
+        static let join = "/api/community/join"
+
         static let sportFeed = "/api/community/sport-feed"
         static let trackArticle = "/api/community/sport-feed/track-interaction"
 
