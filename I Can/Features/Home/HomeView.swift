@@ -17,6 +17,7 @@ struct HomeView: View {
     @Environment(\.openURL) private var openURL
 
     private let instagramURL = URL(string: "https://www.instagram.com/ican_app/")!
+    private let tiktokURL = URL(string: "https://www.tiktok.com/@.icanofficial")!
 
     var body: some View {
         NavigationStack {
@@ -247,6 +248,12 @@ struct HomeView: View {
                 .padding(.horizontal, 4)
 
             instagramRow
+
+            Divider()
+                .background(ColorTheme.separator(colorScheme))
+                .padding(.horizontal, 4)
+
+            tiktokRow
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 18)
@@ -351,6 +358,40 @@ struct HomeView: View {
                     .font(.system(size: 11, weight: .bold))
                     .foregroundColor(ColorTheme.tertiaryText(colorScheme))
             }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(LogCardButtonStyle())
+    }
+
+    private var tiktokRow: some View {
+        Button {
+            HapticManager.selection()
+            openURL(tiktokURL)
+        } label: {
+            HStack(spacing: 10) {
+                Image("TikTokLogo")
+                    .resizable()
+                    .renderingMode(.original)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 28, height: 28)
+                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Follow on TikTok")
+                        .font(.system(size: 13, weight: .bold).width(.condensed))
+                        .foregroundColor(ColorTheme.primaryText(colorScheme))
+                    Text("@.icanofficial")
+                        .font(.system(size: 11, weight: .medium).width(.condensed))
+                        .foregroundColor(ColorTheme.secondaryText(colorScheme))
+                }
+
+                Spacer()
+
+                Image(systemName: "arrow.up.right")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(ColorTheme.tertiaryText(colorScheme))
+            }
+            .contentShape(Rectangle())
         }
         .buttonStyle(LogCardButtonStyle())
     }
