@@ -15,16 +15,22 @@ struct HomeView: View {
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
 
     private let instagramURL = URL(string: "https://www.instagram.com/icanofficiall/")!
     private let tiktokURL = URL(string: "https://www.tiktok.com/@icannofficial")!
+
+    private let communityPollTimer = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
 
     var body: some View {
         NavigationStack {
             mainContent
                 .background(ColorTheme.background(colorScheme).ignoresSafeArea())
                 .navigationBarHidden(true)
-                .refreshable { await viewModel.loadData() }
+                .refreshable {
+                    await viewModel.loadData()
+                    await community.refresh()
+                }
                 .task { await viewModel.loadData() }
                 .modifier(HomeAlertsModifier(
                     saveError: $viewModel.saveError,
@@ -47,8 +53,20 @@ struct HomeView: View {
                 }
                 .onChange(of: selectedTab) { _, newTab in
                     if newTab == 0 {
-                        Task { await viewModel.refreshIfNeeded() }
+                        Task {
+                            await viewModel.refreshIfNeeded()
+                            await community.refresh()
+                        }
                     }
+                }
+                .onChange(of: scenePhase) { _, newPhase in
+                    if newPhase == .active {
+                        Task { await community.refresh() }
+                    }
+                }
+                .onReceive(communityPollTimer) { _ in
+                    guard selectedTab == 0, scenePhase == .active else { return }
+                    Task { await community.refresh() }
                 }
         }
     }

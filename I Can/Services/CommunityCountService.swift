@@ -11,11 +11,12 @@ final class CommunityCountService {
     static let shared = CommunityCountService()
 
     private static let baseCount = 314
-    private static let deviceCountKey = "community.deviceCount"
+    private static let cachedCountKey = "community.cachedCount"
     private static let isMemberKeyPrefix = "community.isMember."
 
-    /// Highest count ever observed on this device (across any user). Persisted
-    /// so switching accounts on the same phone never makes the number go down.
+    /// Last count returned by the backend (or `baseCount` on first launch).
+    /// Cached only so the card has something to show before the first refresh
+    /// completes — the backend is always the source of truth.
     private(set) var count: Int
 
     /// Whether the currently-bound user has joined. Per-user, so a second
@@ -25,8 +26,8 @@ final class CommunityCountService {
     private var boundUserId: String?
 
     private init() {
-        let stored = UserDefaults.standard.integer(forKey: Self.deviceCountKey)
-        self.count = max(stored, Self.baseCount)
+        let stored = UserDefaults.standard.integer(forKey: Self.cachedCountKey)
+        self.count = stored > 0 ? stored : Self.baseCount
     }
 
     private static func memberKey(for userId: String) -> String {
@@ -34,11 +35,11 @@ final class CommunityCountService {
     }
 
     private func persistCount() {
-        UserDefaults.standard.set(count, forKey: Self.deviceCountKey)
+        UserDefaults.standard.set(count, forKey: Self.cachedCountKey)
     }
 
     /// Rebinds local state to the given user. Safe to call on every view
-    /// appearance. The device-wide count is preserved; only `isMember` flips.
+    /// appearance. `isMember` will be reconciled by the next refresh.
     func bind(userId: String?) {
         boundUserId = userId
         if let userId {
@@ -53,25 +54,20 @@ final class CommunityCountService {
             let response: CommunityCountResponse = try await APIClient.shared.request(
                 APIEndpoints.Community.count
             )
-            // Backend is source of truth for the current user's membership.
-            isMember = response.isMember
-            if let userId = boundUserId {
-                UserDefaults.standard.set(response.isMember, forKey: Self.memberKey(for: userId))
-            }
-            // Never let a stale response shrink the displayed count.
-            if response.count > count {
-                count = response.count
-                persistCount()
-            }
+            apply(response)
         } catch {
-            // Silent fail — keep the last known value so the card never shows an error.
+            // Keep the last known value so the card never shows an error.
         }
     }
 
     /// Optimistic join: updates UI immediately, then syncs with the backend.
-    /// The +1 is persisted device-wide so the count survives account switches.
+    /// On failure the optimistic +1 is rolled back so the displayed count
+    /// stays consistent with what other users see.
     func join() async {
         guard !isMember else { return }
+        let previousCount = count
+        let previousIsMember = isMember
+
         isMember = true
         count += 1
         persistCount()
@@ -86,12 +82,25 @@ final class CommunityCountService {
                 method: "POST",
                 body: Empty()
             )
-            if response.count > count {
-                count = response.count
-                persistCount()
-            }
+            apply(response)
         } catch {
-            // Optimistic state stays — the next refresh will reconcile.
+            // Roll back so the user never sees a number that isn't real on the
+            // backend. The next tap will retry.
+            isMember = previousIsMember
+            count = previousCount
+            persistCount()
+            if let userId = boundUserId {
+                UserDefaults.standard.set(previousIsMember, forKey: Self.memberKey(for: userId))
+            }
+        }
+    }
+
+    private func apply(_ response: CommunityCountResponse) {
+        isMember = response.isMember
+        count = response.count
+        persistCount()
+        if let userId = boundUserId {
+            UserDefaults.standard.set(response.isMember, forKey: Self.memberKey(for: userId))
         }
     }
 }
