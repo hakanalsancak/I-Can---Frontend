@@ -16,8 +16,8 @@ struct HomeView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.openURL) private var openURL
 
-    private let instagramURL = URL(string: "https://www.instagram.com/ican_app/")!
-    private let tiktokURL = URL(string: "https://www.tiktok.com/@.icanofficial")!
+    private let instagramURL = URL(string: "https://www.instagram.com/icanofficiall/")!
+    private let tiktokURL = URL(string: "https://www.tiktok.com/@icannofficial")!
 
     var body: some View {
         NavigationStack {
@@ -347,7 +347,7 @@ struct HomeView: View {
                     Text("Follow on Instagram")
                         .font(.system(size: 13, weight: .bold).width(.condensed))
                         .foregroundColor(ColorTheme.primaryText(colorScheme))
-                    Text("@ican_app")
+                    Text("@icanofficiall")
                         .font(.system(size: 11, weight: .medium).width(.condensed))
                         .foregroundColor(ColorTheme.secondaryText(colorScheme))
                 }
@@ -380,7 +380,7 @@ struct HomeView: View {
                     Text("Follow on TikTok")
                         .font(.system(size: 13, weight: .bold).width(.condensed))
                         .foregroundColor(ColorTheme.primaryText(colorScheme))
-                    Text("@.icanofficial")
+                    Text("@icannofficial")
                         .font(.system(size: 11, weight: .medium).width(.condensed))
                         .foregroundColor(ColorTheme.secondaryText(colorScheme))
                 }
